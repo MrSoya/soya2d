@@ -1,0 +1,31 @@
+{
+  "name": "soya2d",
+  "description": "a power HTML5 game engine",
+  "version": "1.0.0",
+  "author": [
+    {
+      "name": "MrSoya",
+      "email": "kenyue@foxmail.com"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:MrSoya/soya2d.git"
+  },
+  "bugs":{
+      "url":"https://github.com/MrSoya/soya2d/issues"
+  },
+  "main": "gulpfile.js",
+  "devDependencies": {
+    "gulp": "^3.8.10",
+    "gulp-concat": "~2.3.4",
+    "gulp-insert": "~0.4.0",
+    "gulp-jsdoc": "~0.1.4",
+    "gulp-jshint": "~1.8.4",
+    "gulp-rename": "~1.2.0",
+    "gulp-rimraf": "~0.1.0",
+    "gulp-uglify": "~0.3.1",
+    "jshint-stylish": "~0.4.0",
+    "through2": "~0.6.3"
+  }
+}

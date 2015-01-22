@@ -1,0 +1,33 @@
+{
+    "curly": false,
+    "eqeqeq": true,
+    "es3": true,
+    "immed": false,
+    "indent": 4,
+    "latedef": true,
+    "noarg": true,
+    "noempty": true,
+    "quotmark": true,
+    "undef": true,
+    "unused": true,
+    "trailing": true,
+    "maxlen": 100,
+    "eqnull": false,
+    "browser": true,
+    "evil": false,
+    "forin": false,
+    "regexp": true,
+    "nonew": true,
+    "maxparams": 10,
+    "maxdepth": 3,
+    "maxstatements": 200,
+    "asi": true,
+    "supernew": false,
+    "expr": true,
+    "laxcomma": true,
+    "laxbreak": true,
+    "globals": {
+        "window": true,
+        "soya2d": true
+    }
+}
