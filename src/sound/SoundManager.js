@@ -3,7 +3,7 @@
  * 该类无需显式创建，引擎会自动绑定到game实例属性中。
  * @class 
  * @extends soya2d.ResourceManager
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.SoundManager = function(){
     //继承

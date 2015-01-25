@@ -4,7 +4,7 @@
  * @param {Number} x
  * @param {Number} y
  * @param {Number} r
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Circle  = function(x,y,r){
 	this.x = x || 0;

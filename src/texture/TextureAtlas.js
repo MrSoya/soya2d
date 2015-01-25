@@ -12,7 +12,7 @@
  * @class 
  * @param {soya2d.Texture} tex 大图纹理
  * @param {json} ssheet 纹理集描述
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.TextureAtlas = function(tex,ssheet){
 	this.texs = {};//纹理集

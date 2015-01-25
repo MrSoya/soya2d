@@ -1,7 +1,7 @@
 ﻿/**
  * @classdesc 事件处理器基类,所有具体的事件处理类都需要继承此类
  * @class 
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.EventHandler = function(){
     this.__eventMap = {};

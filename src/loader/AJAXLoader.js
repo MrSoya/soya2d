@@ -1,7 +1,7 @@
 ﻿/**
  * 异步加载类
  * @namespace soya2d.AJAXLoader
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.AJAXLoader = new function(){
 

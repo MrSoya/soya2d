@@ -7,7 +7,7 @@
  * @param {soya2d.Texture | HTMLImageElement | Array} data.textures 纹理对象或者纹理数组
  * @param {int} data.w 精灵的宽度
  * @param {int} data.h 精灵的高度
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Sprite = function(data){
     data = data||{};
@@ -24,6 +24,11 @@ soya2d.Sprite = function(data){
     	this.textures = textures;
     }else{
     	this.textures = [];
+    }
+
+    if(!this.textures[0]){
+    	console.error('soya2d.Sprite: invalid param [textures]; '+this.textures[0]);
+    	return;
     }
     
     this.w = data.w || this.textures[0].w;

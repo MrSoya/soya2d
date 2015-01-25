@@ -5,7 +5,7 @@
  * @param {Number} y
  * @param {Number} w
  * @param {Number} h
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Rectangle  = function(x,y,w,h){
 	this.x = x || 0;

@@ -8,7 +8,7 @@
  * @param {String} data.lineWidth 线条宽度
  * @param {String} data.startAngle 弧形的开始角度
  * @param {String} data.endAngle 弧形的结束角度
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Arc = function(data){
 	data = data||{};
@@ -23,8 +23,8 @@ soya2d.ext(soya2d.Arc.prototype,{
         g.beginPath();
 
         g.fillStyle(this.fillStyle);
-        var sr = this.startAngle*soya2d.Math.ONERAD,
-            er = this.endAngle*soya2d.Math.ONERAD;
+        var sr = (this.startAngle||0)*soya2d.Math.ONERAD,
+            er = (this.endAngle||0)*soya2d.Math.ONERAD;
         g.arc(this.w/2,this.h/2,this.w/2,sr,er);
         
         if(er-sr != 0 && Math.abs(this.startAngle||0 - this.endAngle||0) != 360){

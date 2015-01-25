@@ -1,5 +1,6 @@
 ﻿/**
- * @classdesc 发射器用于在给定的坐标发射活跃粒子
+ * @classdesc 发射器用于在给定的坐标发射粒子。默认的粒子都是dead状态，不可见，
+ * 引擎会激活粒子为活跃状态，并按照参数发射粒子，这时粒子为可见。
  * @class 
  * @param {Object} opts 构造参数对象，参数如下：
  * @param {Number} [opts.MSPE=16] 粒子发射间隔
@@ -24,7 +25,9 @@
  * @param {Number} [opts.startSpinVar=0] 自转速度范围起始，可变累加值
  * @param {Number} [opts.endSpin=0] 自转速度范围结束
  * @param {Number} [opts.endSpinVar=0] 自转速度范围结束，可变累加值
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @param {function} [opts.onActive] 回调事件，粒子激活时调用。
+ * 在粒子发射器停止前，每个粒子都可以无限次激活
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Emitter = function(opts){
 	var particles = [];
@@ -63,6 +66,9 @@ soya2d.Emitter = function(opts){
 	this.startSpinVar = cfg.startSpinVar||0;
 	this.endSpin = cfg.endSpin||0;
 	this.endSpinVar = cfg.endSpinVar||0;
+
+	//回调
+	this.onActive = cfg.onActive;
 	
 	//初始化粒子
 	for(var i=this.emissionCount;i--;){
@@ -159,6 +165,8 @@ soya2d.Emitter = function(opts){
 		  	for(var i=this.emissionCount;i--&&emittableCount;){
 		  		var p = ps[i];
 				if(p.lifeSpan<=0){
+					if(this.onActive instanceof Function)
+					this.onActive.call(p);
 					p.resetParticle(this);
 					emittableCount--;
 				}

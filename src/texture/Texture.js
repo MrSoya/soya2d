@@ -6,7 +6,7 @@
  * @param {Image | HTMLCanvasElement} data 图形对象
  * @param {int} [w] 图像的宽度
  * @param {int} [h] 图像的高度
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Texture = function(data,w,h){
 	/**

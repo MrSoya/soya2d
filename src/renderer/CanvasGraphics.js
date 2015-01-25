@@ -4,7 +4,7 @@
  * 该图形对象基于Canvas构建。
  * @param ctx CanvasRenderingContext2D的实例
  * @class 
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.CanvasGraphics = function(ctx){
     /**

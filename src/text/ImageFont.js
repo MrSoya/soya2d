@@ -4,7 +4,7 @@
  * 替换的字符
  * @class
  * @param {soya2d.TextureAtlas} data 用于字体映射的纹理集对象
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.ImageFont = function(data){
     
@@ -35,7 +35,7 @@ soya2d.ImageFont = function(data){
             var offx = 0;
             for(var j=0,k=text.length;j<k;j++){
                 var c = text[j];
-                var tex = this.__f.__fontMap.getTexture(c);
+                var tex = this.font.__fontMap.getTexture(c);
                 if(tex){
                     var w = tex.w*scaleRate;
                     var h = tex.h*scaleRate

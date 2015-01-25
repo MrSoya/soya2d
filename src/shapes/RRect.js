@@ -7,7 +7,7 @@
  * @param {String} data.strokeStyle 线框样式
  * @param {number} data.lineWidth 线条宽度
  * @param {number} data.r 圆角半径
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.RRect = function(data){
 	data = data||{};

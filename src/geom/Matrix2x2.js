@@ -1,7 +1,7 @@
 ﻿/**
  * @classdesc 创建一个2*2单位矩阵，该矩阵用来描述2D变换信息
  * @class 
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Matrix2x2 = function(){
     /**

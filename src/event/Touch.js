@@ -9,7 +9,7 @@
  * 所有事件的唯一回调参数为触摸事件对象TouchEvent
  * @class 
  * @extends soya2d.EventHandler
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Touch = function(){
 

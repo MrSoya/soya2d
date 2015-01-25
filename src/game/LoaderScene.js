@@ -12,7 +12,7 @@
  * @param {function(soya2d.Game,int)} data.onStart 开始加载回调,回调参数[game,length]
  * @param {Function} data.onProgress 加载时回调,回调参数[game,length,index]
  * @param {Function} data.onEnd 加载结束时回调,回调参数[game,length]
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.LoaderScene = function(data){
     data = data||{};

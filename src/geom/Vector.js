@@ -3,7 +3,7 @@
  * @class 
  * @param {Number} x
  * @param {Number} y
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Vector = function(x,y){
     /**

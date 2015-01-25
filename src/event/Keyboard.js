@@ -8,7 +8,7 @@
  * 所有事件的唯一回调参数为键盘事件对象KeyboardEvent
  * @class 
  * @extends soya2d.EventHandler
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Keyboard = function(){
 
@@ -40,6 +40,8 @@ soya2d.Keyboard = function(){
 		fireDown = true;
 		setEvent(downEvent,e);
 		firePress = true;
+
+		stopCheck(e,keycode);
 	}
 	function keyup(e){
 		var keycode = e.keyCode||e.which;
@@ -55,6 +57,27 @@ soya2d.Keyboard = function(){
 		//没有按键
 		if(keys.length<1){
 			firePress = false;
+		}
+
+		stopCheck(e,keycode);
+	}
+
+	function stopCheck(e,keycode) {
+		var pks = soya2d.Keyboard.preventKeys;
+		if(pks.indexOf(keycode) > -1){
+			if (e.preventDefault) { 
+				e.preventDefault(); 
+			} else { 
+				e.returnValue = false; 
+			}
+		}
+		var sks = soya2d.Keyboard.stopKeys;
+		if(sks.indexOf(keycode) > -1){
+			if (e.stopPropagation) {
+				e.stopPropagation(); 
+			} else { 
+				e.cancelBubble = true; 
+			}
 		}
 	}
 
@@ -121,6 +144,22 @@ soya2d.Keyboard = function(){
 	soya2d.EventHandler.call(this);
 };
 soya2d.inherits(soya2d.Keyboard,soya2d.EventHandler);
+
+/**
+ * 阻止按键默认行为的按键码数组，当键盘事件发生时，会检测该数组，
+ * 如果数组包含当前按键码，就会阻止默认行为
+ * @type {Array}
+ * @default [ ]
+ */
+soya2d.Keyboard.preventKeys = [];
+/**
+ * 阻止事件传播的按键码数组，当键盘事件发生时，会检测该数组，
+ * 如果数组包含当前按键码，就会阻止事件继续传播
+ * @type {Array}
+ * @default [ ]
+ */
+soya2d.Keyboard.stopKeys = [];
+
 /**
  * 键盘事件对象，包含按键相关属性
  * @typedef {Object} KeyboardEvent

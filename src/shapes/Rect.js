@@ -6,7 +6,7 @@
  * @param {String} data.fillStyle 填充样式
  * @param {String} data.strokeStyle 线框样式
  * @param {String} data.lineWidth 线条宽度
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Rect = function(data){
     data = data||{};

@@ -7,7 +7,7 @@
  * @param {String} data.strokeStyle 线框样式
  * @param {String} data.lineWidth 线条宽度
  * @param {Array} data.vtx 一维顶点数组 [x1,y1, x2,y2, ...]
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Poly = function(data){
 	data = data||{};

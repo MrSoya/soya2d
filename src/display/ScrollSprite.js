@@ -6,7 +6,7 @@
  * @param {soya2d.GeoRect} data.scope 卷轴范围
  * @param {soya2d.GeoRect} data.freezone 自由区范围，相对于卷轴视口。当跟踪目标在自由区内移动时，
  * 视口不会跟随目标进行移动
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.ScrollSprite = function(data) {
     data = data || {};
@@ -68,7 +68,7 @@ soya2d.ext(soya2d.ScrollSprite.prototype, /** @lends soya2d.ScrollSprite.prototy
             if(target.roid === ro.roid)return true;
         },true);
         if(tmp.length<0){
-            console.error(target.toString()+' is not in');
+            console.error('soya2d.ScrollSprite: '+target.toString()+' must be a child node of soya2d.ScrollSprite');
         }
         this.target = target;
 
@@ -143,6 +143,7 @@ soya2d.ext(soya2d.ScrollSprite.prototype, /** @lends soya2d.ScrollSprite.prototy
         if(!this.target)return;
 
         var tgx,tgy;
+        this.target.updateTransform();
         var wpe = this.target.__worldPosition.e;
         tgx = wpe[0],
         tgy = wpe[1];
@@ -162,25 +163,26 @@ soya2d.ext(soya2d.ScrollSprite.prototype, /** @lends soya2d.ScrollSprite.prototy
                 voy = this.__boundContainer.y * -1;
             var disx = offx - vox,
                 disy = offy - voy;
+            var halfTw = tw/2,
+                halfTh = th/2;
             var fx = this.freezone.x,
                 fy = this.freezone.y,
                 fw = this.freezone.w,
                 fh = this.freezone.h;
-            if(disx < fx){
-                vx = offx - fx;
-            }else if(disx + tw > fx+fw){
-                vx = offx - fx - fw + tw;
+            if(disx - halfTw < fx){
+                vx = offx - halfTw - fx;
+            }else if(disx + halfTw > fx + fw){
+                vx = offx + halfTw - fx - fw;
             }
-
-            if(disy < fy){
-                vy = offy - fy;
-            }else if(disy + th > fy+fh){
-                vy = offy - fy - fh + th;
+            if(disy - halfTh < fy){
+                vy = offy - halfTh - fy;
+            }else if(disy + halfTh > fy + fh){
+                vy = offy + halfTh - fy - fh;
             }
             if(!vx && !vy)return;
         }else{
-            vx = offx - this.w/2 + tw/2,
-            vy = offy - this.h/2 + th/2;
+            vx = offx - this.w/2,
+            vy = offy - this.h/2;
         }
         if(vx)
         this.__boundContainer.x = -vx;

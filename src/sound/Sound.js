@@ -1,7 +1,7 @@
 ﻿/**
  * @classdesc 声音类用来对指定音频执行播放、暂停、静音等操作
  * @class 
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Sound = function(opts){
     opts = opts || {};

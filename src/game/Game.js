@@ -9,7 +9,7 @@
  * @param {int} opts.h 游戏的高度
  * @param {boolean} opts.autoClear 自动清除背景
  * @param {boolean} opts.smoothEnable 是否平滑处理
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Game = function(opts){
 	opts = opts || {};
@@ -262,14 +262,14 @@ soya2d.Game = function(opts){
 		//start
 		threshold = 1000 / currFPS;
 		run(function(now,d){
-            //core
-            thisGame.scene.__update(thisGame);
-            renderer.render(thisGame.scene);
-
 			//loop modules
 			onLoops.forEach(function(cbk){
 				cbk(thisGame,d,now);
 			});			
+
+            //core
+            thisGame.scene.__update(thisGame);
+            renderer.render(thisGame.scene);
 		});
 
 		return this;

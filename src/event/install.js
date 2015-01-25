@@ -34,23 +34,27 @@ soya2d.module.install('event',{
 
 /**
  * 扩展可渲染对象的事件接口
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
-soya2d.ext(soya2d.DisplayObject.prototype,{
+soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.prototype */{
     /**
      * 绑定一个或者多个事件，使用同一个回调函数
+     * @param {soya2d.Game} game 绑定的游戏实例
      * @param {string} events 一个或多个用空格分隔的事件类型
      * @param {Function} callback 回调函数
-     * @param {int} order 触发顺序，值越大越先触发
+     * @param {int} [order] 触发顺序，值越大越先触发
+     * @requires event
      */
     on:function(game,events,callback,order){
         game.events.addListener(events,callback,this,order);
     },
     /**
      * 绑定一个或者多个事件，使用同一个回调函数。但只触发一次
+     * @param {soya2d.Game} game 绑定的游戏实例
      * @param {string} events 一个或多个用空格分隔的事件类型
      * @param {Function} callback 回调函数
-     * @param {int} order 触发顺序，值越大越先触发
+     * @param {int} [order] 触发顺序，值越大越先触发
+     * @requires event
      */
     once:function(game,events,callback,order){
         var that = this;
@@ -62,8 +66,10 @@ soya2d.ext(soya2d.DisplayObject.prototype,{
     },
     /**
      * 取消一个或者多个已绑定事件
+     * @param {soya2d.Game} game 绑定的游戏实例
      * @param {string} events 一个或多个用空格分隔的事件类型
      * @param {Function} callback 回调函数，可选。如果该参数为空。则删除指定类型下所有事件
+     * @requires event
      */
     off:function(game,events,callback){
         game.events.removeListener(events,callback,this);
@@ -72,14 +78,15 @@ soya2d.ext(soya2d.DisplayObject.prototype,{
 
 /**
  * 扩展可游戏对象的事件接口
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
-soya2d.ext(soya2d.Game.prototype,{
+soya2d.ext(soya2d.Game.prototype,/** @lends soya2d.Game.prototype */{
     /**
      * 绑定一个或者多个事件，使用同一个回调函数
      * @param {string} events 一个或多个用空格分隔的事件类型
      * @param {Function} callback 回调函数
-     * @param {int} order 触发顺序，值越大越先触发
+     * @param {int} [order] 触发顺序，值越大越先触发
+     * @requires event
      */
     on:function(events,callback,order){
         this.events.addListener(events,callback,this,order);
@@ -88,7 +95,8 @@ soya2d.ext(soya2d.Game.prototype,{
      * 绑定一个或者多个事件，使用同一个回调函数。但只触发一次
      * @param {string} events 一个或多个用空格分隔的事件类型
      * @param {Function} callback 回调函数
-     * @param {int} order 触发顺序，值越大越先触发
+     * @param {int} [order] 触发顺序，值越大越先触发
+     * @requires event
      */
     once:function(events,callback,order){
         var that = this;
@@ -102,6 +110,7 @@ soya2d.ext(soya2d.Game.prototype,{
      * 取消一个或者多个已绑定事件
      * @param {string} events 一个或多个用空格分隔的事件类型
      * @param {Function} callback 回调函数，可选。如果该参数为空。则删除指定类型下所有事件
+     * @requires event
      */
     off:function(events,callback){
         this.events.removeListener(events,callback,this);

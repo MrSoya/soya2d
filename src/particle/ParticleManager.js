@@ -2,7 +2,7 @@
  * 粒子管理器接口，用于管理粒子发射器的运行<br/>
  * *通常不需要开发者直接使用该类，引擎会自动调度
  * @namespace soya2d.ParticleManager
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.ParticleManager = new function(){
 	var emitters = [];

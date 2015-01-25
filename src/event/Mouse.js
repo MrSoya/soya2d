@@ -13,7 +13,7 @@
  * 所有事件的唯一回调参数为鼠标事件对象MouseEvent
  * @class 
  * @extends soya2d.EventHandler
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Mouse = function(){
 

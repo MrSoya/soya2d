@@ -4,7 +4,7 @@
      * @classdesc 视图对象用于设置游戏实例的视图规则，包括分辨率适应、窗口事件回调等
      * @class 
      * @param {soya2d.Game} game 游戏实例
-     * @author {@link http://weibo.com/soya2d soya哥}
+     * @author {@link http://weibo.com/soya2d MrSoya}
      */
     soya2d.View = function(game){
         /********************* 属性定义 *********************/

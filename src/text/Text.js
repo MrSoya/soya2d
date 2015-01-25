@@ -9,7 +9,7 @@
  * @param {Object} data 所有父类参数
  * @see soya2d.Font
  * @see soya2d.ImageFont
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Text = function(data){
 	data = data||{};
@@ -37,8 +37,8 @@ soya2d.Text = function(data){
     this.lineSpacing = data.lineSpacing||0;
     /**
      * 字体对象
-     * @type {String|soya2d.Font}
-     *
+     * @type {String | soya2d.Font | soya2d.ImageFont}
+     * @default soya2d.Font
      * @see soya2d.Font
      */
     this.font = data.font;
@@ -50,12 +50,12 @@ soya2d.Text = function(data){
     var bounds_zh = font.getBounds("豆");
     this.__lh = (bounds_en.h+bounds_zh.h)/2>>0;//行高
     this.__uw = (bounds_en.w+bounds_zh.w)/2>>0;//单字宽度
-    this.__f = font;
+    this.font = font;
 
     this.__changed = true;//默认需要修改
     this.__lines;//分行内容
 
-    this.__renderer = this.__f.__renderText;//绑定渲染
+    this.__renderer = this.font.__renderText;//绑定渲染
 };
 soya2d.inherits(soya2d.Text,soya2d.DisplayObjectContainer);
 
@@ -68,8 +68,8 @@ soya2d.ext(soya2d.Text.prototype,{
      * 用在修改了宽度时调用
      */
     refresh:function(){
-        var bounds_en = this.__f.getBounds("s");
-        var bounds_zh = this.__f.getBounds("豆");
+        var bounds_en = this.font.getBounds("s");
+        var bounds_zh = this.font.getBounds("豆");
         this.__lh = (bounds_en.h+bounds_zh.h)/2>>0;//行高
         this.__uw = (bounds_en.w+bounds_zh.w)/2>>0;//单字宽度
         this.__changed = true;
@@ -80,8 +80,8 @@ soya2d.ext(soya2d.Text.prototype,{
      */
     setFont:function(font){
         if(!font)return;
-        this.__f = font;
-        this.__renderer = this.__f.__renderText;//绑定渲染
+        this.font = font;
+        this.__renderer = this.font.__renderText;//绑定渲染
     },
     /**
      * 设置文本内容，并刷新
@@ -99,7 +99,7 @@ soya2d.ext(soya2d.Text.prototype,{
             this.w = this.__uw * 1.5;
             charNum = 1;
         }
-        var f = this.__f;
+        var f = this.font;
         var primeLines = this.text.split('\n');//原始行
         var lines=[];/*lines=[[startChar,len,str],...]*/;
         for(var s= 0,e=primeLines.length;s<e;s++){

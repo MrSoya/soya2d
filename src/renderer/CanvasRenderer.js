@@ -12,7 +12,7 @@
  * @param {boolean} data.sortEnable 见属性说明
  * @param {boolean} [data.smoothEnable=true] 是否启用对图像边缘的平滑处理
  * @class 
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.CanvasRenderer = function(data){
     data = data||{};
@@ -96,8 +96,28 @@ soya2d.CanvasRenderer = function(data){
         render(ctx,scene,renderStyle,this.sortEnable);
     };
 
-    function render(ctx,ro,rs,sortEnable,isMask){
+    function render(ctx,ro,rs,sortEnable){
         if(ro.opacity===0 || !ro.visible)return;
+
+        if(ro.mask instanceof soya2d.Mask && ro.mask.list.length>0){
+            ctx.save();
+            ctx.beginPath();
+            ctx.setTransform(1,0,0,1,0,0);
+            var list = ro.mask.list;
+            for(var l=0;l<list.length;l++){
+                var geom = list[l];
+                if(geom instanceof soya2d.Rectangle){
+                    g.rect(geom.x,geom.y,geom.w,geom.h);
+                }else if(geom instanceof soya2d.Circle){
+                    ctx.moveTo(geom.x+geom.r,geom.y);
+                    g.arc(geom.x,geom.y,geom.r);
+                }else if(geom instanceof soya2d.Polygon){
+                    g.polygon(geom.vtx);
+                }
+            }
+            ctx.closePath();
+            ctx.clip();
+        }
             
         if(ro.onRender){
             var te = ro.__worldTransform.e;
@@ -110,7 +130,7 @@ soya2d.CanvasRenderer = function(data){
                 ctx.globalAlpha = ro.opacity;
             }
             //apply blendMode
-            if(rs.blendMode !== ro.blendMode && !isMask){
+            if(rs.blendMode !== ro.blendMode){
                 rs.blendMode = ro.blendMode;
                 ctx.globalCompositeOperation = ro.blendMode;
             }
@@ -141,28 +161,8 @@ soya2d.CanvasRenderer = function(data){
         }
 
         //mask
-        if(ro.mask instanceof soya2d.Mask && ro.mask.__list.length>0){
-            ctx.beginPath();
-            var list = ro.mask.__list;
-            var type = ro.mask.maskType;
-            rs.blendMode = ctx.globalCompositeOperation = 'destination-in';
-            for(var l=0;l<list.length;l++){
-                var geom = list[l];
-                if(geom instanceof soya2d.Rectangle){
-                    g.rect(geom.x,geom.y,geom.w,geom.h);
-                }else if(geom instanceof soya2d.Circle){
-                    ctx.moveTo(geom.x+geom.r,geom.y);
-                    g.arc(geom.x,geom.y,geom.r);
-                }else if(geom instanceof soya2d.Polygon){
-                    g.polygon(geom.vtx);
-                }
-                ctx.closePath();
-            }
-
-            switch(type){
-                case soya2d.MASK_TYPE_FILL:ctx.fill();break;
-                case soya2d.MASK_TYPE_STROKE:ctx.stroke();break;
-            }
+        if(ro.mask instanceof soya2d.Mask && ro.mask.list.length>0){
+            ctx.restore();
         }
     }
     
@@ -450,7 +450,7 @@ soya2d.__HitPixelTester = function(w,h){
  * 注意：在像素检测中，透明色会被认为无效点击
  * </p>
  * @class 
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.HitTester = function(){
     /**

@@ -6,7 +6,7 @@
      * 该类为singleton实现，无法直接创建实例，需要通过{@link soya2d.getScheduler}方法获取
      * 唯一实例。
      * @class
-     * @author {@link http://weibo.com/soya2d soya哥}
+     * @author {@link http://weibo.com/soya2d MrSoya}
      */
     function Scheduler(){
         var state = 1;//1.运行，2.暂停
@@ -144,7 +144,7 @@
 	 * @param {string} key 任务唯一标识，用于取消调度或者立即触发等操作
      * @param {Function} cbk 回调函数，回调参数(触发器标识triggerKey,任务启动毫秒数milliseconds,触发次数times,当前帧数或者当前时间frameCount|[s,m,h])<br/>
      *										*如果手动触发任务，不会有任何回调参数被传递
-	 * @author {@link http://weibo.com/soya2d soya哥}
+	 * @author {@link http://weibo.com/soya2d MrSoya}
 	 */
     soya2d.Task = function(key,cbk){
         "use strict";
@@ -267,7 +267,7 @@
 	 * @param {string} key 触发器标识，用于在任务回调中识别触发器
 	 * @param {string} exp 触发器表达式，根据触发类型而定
 	 * @param {int} [type=soya2d.TRIGGER_TYPE_FRAME] 触发类型，可以是时间触发或者帧触发
-	 * @author {@link http://weibo.com/soya2d soya哥}
+	 * @author {@link http://weibo.com/soya2d MrSoya}
 	 */
     soya2d.Trigger = function(key,exp,type){
         /**

@@ -4,7 +4,7 @@
  注意，该类不应直接实例化,应使用该类的子类或继承该类
  * @class 
  * @param {Object} data 定义参数,见类参数定义
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.DisplayObject = function(data){
     data = data||{};

@@ -2,7 +2,7 @@
  * 补间动画管理器接口，用于管理补间实例的运行<br/>
  * *通常不需要开发者直接使用该类，引擎会自动调度
  * @namespace soya2d.TweenManager
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.TweenManager = new function(){
 	var ins = [];

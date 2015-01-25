@@ -10,7 +10,7 @@
  * @param {Number} opts.stiffness 全局物体刚度
  * @param {Number} opts.relaxation 全局弛豫度
  * @param {Number} opts.tolerance 全局公差
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Physics = function(opts){
 	opts = opts || {};

@@ -1,7 +1,7 @@
 /**
  * 键码表<br/>
  * @namespace soya2d.KeyCode
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.KeyCode = {
 	/**

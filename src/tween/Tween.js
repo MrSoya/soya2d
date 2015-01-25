@@ -33,7 +33,7 @@
      * @param {Object} opts.onEnd 补间结束事件
      * @class
      * @see {soya2d.Tween.Linear}
-     * @author {@link http://weibo.com/soya2d soya哥}
+     * @author {@link http://weibo.com/soya2d MrSoya}
      */
 soya2d.Tween = function(target,attris,duration,opts){
 

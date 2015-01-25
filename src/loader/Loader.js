@@ -3,7 +3,7 @@
  *  除脚本支持不同加载方式外，其他资源都是并行加载。
  *  调用者应该注意，在并行请求过多时，可能导致请求失败，需要控制请求并发数
  * @namespace soya2d.Loader
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Loader = new function(){
 	/**

@@ -1,7 +1,7 @@
 ﻿/**
  * 粒子包装器用于包装soya2d显示对象为一个可用粒子
  * @namespace soya2d.ParticleWrapper
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.ParticleWrapper = new function(){
 

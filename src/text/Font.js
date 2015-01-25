@@ -2,7 +2,7 @@
  * @classdesc 字体类。用于指定绘制字体的样式、大小等
  * @class
  * @param {String} desc 字体描述字符串，可以为空。为空时创建默认样式字体:[normal 400 13px/normal sans-serif]<br/>符合W3C[CSSFONTS]规范
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Font = function(desc){
     var fontElement = document.createElement('span');
@@ -19,11 +19,11 @@ soya2d.Font = function(desc){
      */
     this.__renderText = function(g){
         if(this.__changed){
-            g.font(this.__f);
+            g.font(this.font);
             this.__lines = this.__calc(g);
             this.__changed = false;
         }
-        g.font(this.__f);
+        g.font(this.font);
         if(!this.__lines)return;
 
         g.fillStyle(this.fillStyle);
@@ -87,12 +87,12 @@ soya2d.Font = function(desc){
     };
     /**
      * 设置或者获取字体大小
-     * @param {String} size 字体大小字符串
-     * @returns {this|String}
+     * @param {int} size 字体大小字符串
+     * @returns {this|int}
      */
     this.size = function(size){
         if(arguments.length>0){
-            fontElement.style.fontSize = size;
+            fontElement.style.fontSize = size+'px';
             //更新描述字符串
             this.fontString = fontElement.style.font;
             return this;

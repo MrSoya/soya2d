@@ -4,7 +4,7 @@
  * 该类无需显式创建，引擎会自动绑定到game实例属性中。
  * @extends soya2d.ResourceManager
  * @class 
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.TextureManager = function(){
     //继承

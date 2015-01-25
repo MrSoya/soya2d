@@ -1,7 +1,7 @@
 ﻿/**
  * 数学接口提供了常用的静态常量以及方法<br/>
  * @namespace soya2d.Math
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Math = {
 	/**

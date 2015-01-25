@@ -1,7 +1,7 @@
 ﻿/**
  * 引擎命名空间
  * @namespace
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 var soya2d = new function(){
 

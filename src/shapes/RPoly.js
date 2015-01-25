@@ -9,7 +9,7 @@
  * @param {int} data.edgeCount 多边形的边数，不能小于3
  * @param {Number} data.r1 半径1
  * @param {Number} data.r2 半径2
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.RPoly = function(data){
 	data = data||{};

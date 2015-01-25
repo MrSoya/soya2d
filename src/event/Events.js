@@ -2,7 +2,7 @@
  * @classdesc 事件组用于管理一个soya2d.Game实例内的所有事件的启动，停止，和触法。<br/>
  * 该类无需开发者显式创建，引擎会自动管理
  * @class
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Events = function(){
     

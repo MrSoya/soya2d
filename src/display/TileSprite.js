@@ -7,7 +7,7 @@
  * @param {boolean} [data.autoScroll=false] 自动移动瓦片
  * @param {int} data.speed 移动速度,默认1。单位px
  * @param {int} data.angle 移动角度,默认0
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  * @see {soya2d.Texture}
  */
 soya2d.TileSprite = function(data) {
@@ -98,6 +98,10 @@ soya2d.ext(soya2d.TileSprite.prototype, /** @lends soya2d.TileSprite.prototype *
             texH = img.h;
         var texScaledW = texW * img.scaleX,
             texScaledH = texH * img.scaleY;
+        //check
+        texScaledW = texScaledW<0?texScaledW*-1:texScaledW;
+        texScaledH = texScaledH<0?texScaledH*-1:texScaledH;
+        
         var colNum = (this.w/texScaledW>>0)+2,
             rowNum = (this.h/texScaledH>>0)+2;
 

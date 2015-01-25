@@ -4,7 +4,7 @@
  * @class 
  * @extends soya2d.DisplayObjectContainer
  * @param {Object} data 所有父类参数
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Scene = function(data){
     data = data||{};

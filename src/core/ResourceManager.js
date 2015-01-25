@@ -2,7 +2,7 @@
  * @classdesc 资源管理器是具体资源管理器的基类，该类不应被直接实例化。
  * 应使用相关资源的子类。
  * @class 
- * @author {@link http://weibo.com/soya2d soya哥}
+ * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.ResourceManager = function(){
     this.urlMap = {};//url->obj
