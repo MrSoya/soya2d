@@ -4,12 +4,11 @@ var uglify = require('gulp-uglify');
 var jshint = require('gulp-jshint');
 //var jsdoc = require('gulp-jsdoc');
 var rename = require('gulp-rename');
-var insert = require('gulp-insert');
 var rimraf = require('gulp-rimraf');
 var through2 = require('through2');
 
 
-var sources = [
+var src_core = [
     "src/core/soya.js",
     "src/core/Math.js",
     "src/core/ResourceManager.js",
@@ -44,7 +43,10 @@ var sources = [
     //tween
     "src/tween/Tween.js",
     "src/tween/TweenManager.js",
-    "src/tween/Easing.js",
+    "src/tween/Easing.js"
+];
+
+var src_ext = [
     //shapes
     "src/shapes/Arc.js",
     "src/shapes/Ellipse.js",
@@ -81,20 +83,22 @@ var sources = [
 ];
 
 var config = {
-    src:sources,
-    standalone: {
+    srcAll:src_core.concat(src_ext),
+    srcCore:src_core,
+    all: {
         dir: 'build/',
-        filename: 'soya2d.js',
-        start: '',
-        end: ''
+        filename: 'soya2d.all.js'
+    },
+    core: {
+        dir: 'build/',
+        filename: 'soya2d.core.js'
     }
 };
 
 
-var pack = function (type) {
+var pack = function (type,src) {
     var data = config[type];
-    return gulp.src(config.src)
-        .pipe(insert.wrap(data.start, data.end))
+    return gulp.src(config[src])
         .pipe(concat(data.filename))
         .pipe(gulp.dest(data.dir))
         .pipe(uglify())
@@ -103,15 +107,18 @@ var pack = function (type) {
 };
 
 gulp.task('lint', function() {
-    var lintFiles = config.src;
+    var lintFiles = config.srcAll;
     return gulp.src(lintFiles)
         .pipe(jshint('.jshintrc'))
         .pipe(jshint.reporter('jshint-stylish'));
 });
 
-gulp.task('standalone', ['lint'], function() {
-    return pack('standalone');
+gulp.task('all', ['lint'], function() {
+    return pack('all','srcAll');
+});
+gulp.task('core', function() {
+    return pack('core','srcCore');
 });
 
-gulp.task('build', ['standalone']);
+gulp.task('build', ['all','core']);
 gulp.task('default', ['build']); 

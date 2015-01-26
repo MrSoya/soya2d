@@ -19,7 +19,6 @@
   "devDependencies": {
     "gulp": "^3.8.10",
     "gulp-concat": "~2.3.4",
-    "gulp-insert": "~0.4.0",
     "gulp-jsdoc": "~0.1.4",
     "gulp-jshint": "~1.8.4",
     "gulp-rename": "~1.2.0",
