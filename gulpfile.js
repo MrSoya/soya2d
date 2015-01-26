@@ -79,6 +79,8 @@ var src_ext = [
     "src/physics/install.js",
     //task
     "src/task/Scheduler.js",
+    "src/task/Task.js",
+    "src/task/Trigger.js",
     "src/task/install.js"
 ];
 
