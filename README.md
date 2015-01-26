@@ -7,7 +7,7 @@ Soya2D是一个好学、易用、强大、开源的HTML5游戏引擎，可以在
 
 ## 案例
 
-Soya2D为你准备了丰富的案例以及详细的入门教程，每一个案例都可以在线编辑，让你不止能看，还能玩，还犹豫什么，快点这里 [Soya2D website](https://soya2d.com/examples/exp-hello.php).
+Soya2D为你准备了丰富的案例以及详细的入门教程，每一个案例都可以在线编辑，让你不止能看，还能玩，还犹豫什么，快点这里 [Soya2D website](http://soya2d.com/examples/exp-hello.php).
 
 ## 特性
 
