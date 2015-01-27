@@ -65,7 +65,11 @@ var soya2d = new function(){
          * @param  {string} key  模块标识
          * @param  {Object} opts 回调事件
          * @param  {function} opts.onInit 模块初始化时调用,回调参数[soya2d.Game]
-         * @param  {function} opts.onLoop 主循环时调用[soya2d.Game,循环间隔，当前时间毫秒]
+         * @param  {function} opts.onBeforeUpdate 主循环逻辑更新前调用，[soya2d.Game,当前时间毫秒,循环间隔]
+         * @param  {function} opts.onUpdate 主循环逻辑更新时调用，[soya2d.Game,当前时间毫秒,循环间隔]
+         * @param  {function} opts.onAfterUpdate 主循环逻辑更新后调用，[soya2d.Game,当前时间毫秒,循环间隔]
+         * @param  {function} opts.onBeforeRender 主循环绘图前调用，[soya2d.Game,当前时间毫秒,循环间隔]
+         * @param  {function} opts.onAfterRender 主循环绘图后调用，[soya2d.Game,当前时间毫秒,循环间隔]
          * @param  {function} opts.onStart 游戏实例启动时调用[soya2d.Game]
          * @param  {function} opts.onStop 游戏实例停止时调用[soya2d.Game]
          * @param  {function} opts.onSceneChange 游戏当前场景发生改变时调用[soya2d.Game，当前场景]
@@ -2669,26 +2673,6 @@ soya2d.CanvasGraphics = function(ctx){
     };
 
     /**
-     * 填充path
-     * @param {soya2d.CanvasPath} path 路径对象实例。如果为空则填充当前path，否则填充指定path
-     * @method
-     * @return this
-     */
-	this.fill = function(){
-        this.ctx.fill();
-        return this;
-    };
-	/**
-     * 描绘path的轮廓
-     * @param {soya2d.CanvasPath} path 路径对象实例。如果为空则描绘当前path，否则描绘指定path
-     * @method
-     * @return this
-     */
-	this.stroke = function(){
-        this.ctx.stroke();
-        return this;
-	};
-    /**
      * 裁剪路径
      * @param {soya2d.CanvasPath} path 路径对象实例。如果为空则裁剪当前path，否则裁剪指定path
      * @method
@@ -2728,6 +2712,27 @@ soya2d.CanvasGraphics = function(ctx){
      */
     this.closePath = function(){
         this.ctx.closePath();
+        return this;
+    };
+
+    /**
+     * 填充path
+     * @param {soya2d.CanvasPath} path 路径对象实例。如果为空则填充当前path，否则填充指定path
+     * @method
+     * @return this
+     */
+    this.fill = function(){
+        this.ctx.fill();
+        return this;
+    };
+    /**
+     * 描绘path的轮廓
+     * @param {soya2d.CanvasPath} path 路径对象实例。如果为空则描绘当前path，否则描绘指定path
+     * @method
+     * @return this
+     */
+    this.stroke = function(){
+        this.ctx.stroke();
         return this;
     };
 
@@ -5111,23 +5116,50 @@ soya2d.Game = function(opts){
 
 		//start modules
 		var modules = soya2d.module._getAll();
-		var onLoops = [];
+		var beforeUpdates = [],
+            onUpdates = [],
+            afterUpdates = [],
+            beforeRenders = [],
+            afterRenders = [];
 		for(var k in modules){
 			if(modules[k].onStart)modules[k].onStart(this);
-			if(modules[k].onLoop)onLoops.push(modules[k].onLoop);
+
+            if(modules[k].onBeforeUpdate)beforeUpdates.push(modules[k].onBeforeUpdate);
+			if(modules[k].onUpdate)onUpdates.push(modules[k].onUpdate);
+            if(modules[k].onAfterUpdate)afterUpdates.push(modules[k].onAfterUpdate);
+            if(modules[k].onBeforeRender)beforeRenders.push(modules[k].onBeforeRender);
+            if(modules[k].onAfterRender)afterRenders.push(modules[k].onAfterRender);
 		}
 		
 		//start
 		threshold = 1000 / currFPS;
 		run(function(now,d){
-			//loop modules
-			onLoops.forEach(function(cbk){
-				cbk(thisGame,d,now);
-			});			
 
-            //core
+            //before updates
+            beforeUpdates.forEach(function(cbk){
+                cbk(thisGame,now,d);
+            });
+			//update modules
+			onUpdates.forEach(function(cbk){
+				cbk(thisGame,now,d);
+			});
+            //update matrix
             thisGame.scene.__update(thisGame);
+            //after updates
+            afterUpdates.forEach(function(cbk){
+                cbk(thisGame,now,d);
+            });
+
+            //before render
+            beforeRenders.forEach(function(cbk){
+                cbk(thisGame,now,d);
+            });
+            //render
             renderer.render(thisGame.scene);
+            //after render
+            afterRenders.forEach(function(cbk){
+                cbk(thisGame,now,d);
+            });
 		});
 
 		return this;
@@ -5152,7 +5184,6 @@ soya2d.Game = function(opts){
             if(totalTime > threshold){
                 var now = Date.now();
                 if(fn)fn(now,d);
-                soya2d.TweenManager.update(now);
 
                 totalTime = totalTime % threshold;
             }
@@ -5671,6 +5702,13 @@ soya2d.TweenManager = new function(){
 		if(i>-1)ins.splice(i, 1);
 		return this;
 	};
+
+	/**
+	 * 停止所有补间实例
+	 */
+	this.stop = function(){
+		ins = [];
+	}
     /**
      * 更新管理器中的所有补间实例，当实例运行时间结束后，管理器会自动释放实例
      */
@@ -5885,6 +5923,14 @@ soya2d.Tween.Bounce = {
 	}
 }
 
+soya2d.module.install('tween',{
+    onUpdate:function(game,now,d){
+    	soya2d.TweenManager.update(now);
+    },
+    onStop:function(){
+    	soya2d.TweenManager.stop();
+    }
+});
 /**
  * @classdesc 可以进行弧形填充或线框绘制的显示对象
  * @class 
@@ -7313,7 +7359,7 @@ soya2d.module.install('event',{
     onStop:function(game){
         game.events.stopListen(game);
     },
-    onLoop:function(game){
+    onUpdate:function(game){
         game.events.scan();
     }
 });
@@ -7925,7 +7971,7 @@ soya2d.ParticleWrapper = new function(){
 	}
 };
 soya2d.module.install('particle',{
-    onLoop:function(game,d,now){
+    onUpdate:function(game,now,d){
     	soya2d.ParticleManager.update(now);
     },
     onStop:function(){
@@ -8245,7 +8291,7 @@ soya2d.module.install('physics',{
 			game.physics = null;
 		}
     },
-    onLoop:function(game){
+    onUpdate:function(game){
     	if(game.physics)
 		game.physics.update(1 / 60);
     }
@@ -8665,7 +8711,7 @@ soya2d.module.install('task',{
 			scheduler.scheduleTask(task,trigger);
 
 			return taskId;
-		};
+		}
 
 		/**
 		 * 删除任务
@@ -8677,9 +8723,9 @@ soya2d.module.install('task',{
 		game.removeTask = function(taskId){
 			var scheduler = soya2d.getScheduler();
 			scheduler.unscheduleTask(taskId);
-		};
+		}
     },
-    onLoop:function(game,d){
+    onUpdate:function(game,now,d){
     	var scheduler = soya2d.getScheduler();
         scheduler._scanTasks(d<0?-d:d);
     }

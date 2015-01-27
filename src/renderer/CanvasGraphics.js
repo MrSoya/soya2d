@@ -307,26 +307,6 @@ soya2d.CanvasGraphics = function(ctx){
     };
 
     /**
-     * 填充path
-     * @param {soya2d.CanvasPath} path 路径对象实例。如果为空则填充当前path，否则填充指定path
-     * @method
-     * @return this
-     */
-	this.fill = function(){
-        this.ctx.fill();
-        return this;
-    };
-	/**
-     * 描绘path的轮廓
-     * @param {soya2d.CanvasPath} path 路径对象实例。如果为空则描绘当前path，否则描绘指定path
-     * @method
-     * @return this
-     */
-	this.stroke = function(){
-        this.ctx.stroke();
-        return this;
-	};
-    /**
      * 裁剪路径
      * @param {soya2d.CanvasPath} path 路径对象实例。如果为空则裁剪当前path，否则裁剪指定path
      * @method
@@ -366,6 +346,27 @@ soya2d.CanvasGraphics = function(ctx){
      */
     this.closePath = function(){
         this.ctx.closePath();
+        return this;
+    };
+
+    /**
+     * 填充path
+     * @param {soya2d.CanvasPath} path 路径对象实例。如果为空则填充当前path，否则填充指定path
+     * @method
+     * @return this
+     */
+    this.fill = function(){
+        this.ctx.fill();
+        return this;
+    };
+    /**
+     * 描绘path的轮廓
+     * @param {soya2d.CanvasPath} path 路径对象实例。如果为空则描绘当前path，否则描绘指定path
+     * @method
+     * @return this
+     */
+    this.stroke = function(){
+        this.ctx.stroke();
         return this;
     };
 

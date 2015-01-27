@@ -1,5 +1,5 @@
 ﻿soya2d.module.install('particle',{
-    onLoop:function(game,d,now){
+    onUpdate:function(game,now,d){
     	soya2d.ParticleManager.update(now);
     },
     onStop:function(){

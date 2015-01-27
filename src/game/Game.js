@@ -253,23 +253,50 @@ soya2d.Game = function(opts){
 
 		//start modules
 		var modules = soya2d.module._getAll();
-		var onLoops = [];
+		var beforeUpdates = [],
+            onUpdates = [],
+            afterUpdates = [],
+            beforeRenders = [],
+            afterRenders = [];
 		for(var k in modules){
 			if(modules[k].onStart)modules[k].onStart(this);
-			if(modules[k].onLoop)onLoops.push(modules[k].onLoop);
+
+            if(modules[k].onBeforeUpdate)beforeUpdates.push(modules[k].onBeforeUpdate);
+			if(modules[k].onUpdate)onUpdates.push(modules[k].onUpdate);
+            if(modules[k].onAfterUpdate)afterUpdates.push(modules[k].onAfterUpdate);
+            if(modules[k].onBeforeRender)beforeRenders.push(modules[k].onBeforeRender);
+            if(modules[k].onAfterRender)afterRenders.push(modules[k].onAfterRender);
 		}
 		
 		//start
 		threshold = 1000 / currFPS;
 		run(function(now,d){
-			//loop modules
-			onLoops.forEach(function(cbk){
-				cbk(thisGame,d,now);
-			});			
 
-            //core
+            //before updates
+            beforeUpdates.forEach(function(cbk){
+                cbk(thisGame,now,d);
+            });
+			//update modules
+			onUpdates.forEach(function(cbk){
+				cbk(thisGame,now,d);
+			});
+            //update matrix
             thisGame.scene.__update(thisGame);
+            //after updates
+            afterUpdates.forEach(function(cbk){
+                cbk(thisGame,now,d);
+            });
+
+            //before render
+            beforeRenders.forEach(function(cbk){
+                cbk(thisGame,now,d);
+            });
+            //render
             renderer.render(thisGame.scene);
+            //after render
+            afterRenders.forEach(function(cbk){
+                cbk(thisGame,now,d);
+            });
 		});
 
 		return this;
@@ -294,7 +321,6 @@ soya2d.Game = function(opts){
             if(totalTime > threshold){
                 var now = Date.now();
                 if(fn)fn(now,d);
-                soya2d.TweenManager.update(now);
 
                 totalTime = totalTime % threshold;
             }

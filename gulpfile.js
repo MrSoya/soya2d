@@ -39,14 +39,15 @@ var src_core = [
     "src/loader/AJAXLoader.js",
     "src/loader/Loader.js",
     "src/game/Game.js",
-    "src/game/LoaderScene.js",
-    //tween
-    "src/tween/Tween.js",
-    "src/tween/TweenManager.js",
-    "src/tween/Easing.js"
+    "src/game/LoaderScene.js"
 ];
 
 var src_ext = [
+    //tween
+    "src/tween/Tween.js",
+    "src/tween/TweenManager.js",
+    "src/tween/Easing.js",
+    "src/tween/install.js",
     //shapes
     "src/shapes/Arc.js",
     "src/shapes/Ellipse.js",

@@ -34,7 +34,7 @@
 			game.physics = null;
 		}
     },
-    onLoop:function(game){
+    onUpdate:function(game){
     	if(game.physics)
 		game.physics.update(1 / 60);
     }

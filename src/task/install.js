@@ -24,7 +24,7 @@ soya2d.module.install('task',{
 			scheduler.scheduleTask(task,trigger);
 
 			return taskId;
-		};
+		}
 
 		/**
 		 * 删除任务
@@ -36,9 +36,9 @@ soya2d.module.install('task',{
 		game.removeTask = function(taskId){
 			var scheduler = soya2d.getScheduler();
 			scheduler.unscheduleTask(taskId);
-		};
+		}
     },
-    onLoop:function(game,d){
+    onUpdate:function(game,now,d){
     	var scheduler = soya2d.getScheduler();
         scheduler._scanTasks(d<0?-d:d);
     }
