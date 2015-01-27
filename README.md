@@ -66,6 +66,13 @@ API的设计始终是为了减少开发者的编写量 write less,do more
 
 Soya2D使用 [gulp](http://gulpjs.com) 来构建源码，而在这之前你需要安装了nodejs，然后只需要在Soya2D工程目录执行如下命令
 
+	
+1.安装依赖模块
+	
+	npm install
+	
+2.执行gulp
+
     gulp
 
 看吧，这有多简单
