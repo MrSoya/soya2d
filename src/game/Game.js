@@ -277,26 +277,39 @@ soya2d.Game = function(opts){
                 cbk(thisGame,now,d);
             });
 			//update modules
-			onUpdates.forEach(function(cbk){
-				cbk(thisGame,now,d);
-			});
+            if(onUpdates.length>0){
+                now = Date.now();
+                onUpdates.forEach(function(cbk){
+                    cbk(thisGame,now,d);
+                });
+            }
             //update matrix
             thisGame.scene.__update(thisGame);
             //after updates
-            afterUpdates.forEach(function(cbk){
-                cbk(thisGame,now,d);
-            });
+            if(afterUpdates.length>0){
+                now = Date.now();
+                afterUpdates.forEach(function(cbk){
+                    cbk(thisGame,now,d);
+                });
+            }
+            
 
             //before render
-            beforeRenders.forEach(function(cbk){
-                cbk(thisGame,now,d);
-            });
+            if(beforeRenders.length>0){
+                now = Date.now();
+                beforeRenders.forEach(function(cbk){
+                    cbk(thisGame,now,d);
+                });
+            }
             //render
             renderer.render(thisGame.scene);
             //after render
-            afterRenders.forEach(function(cbk){
-                cbk(thisGame,now,d);
-            });
+            if(afterRenders.length>0){
+                now = Date.now();
+                afterRenders.forEach(function(cbk){
+                    cbk(thisGame,now,d);
+                });
+            }
 		});
 
 		return this;

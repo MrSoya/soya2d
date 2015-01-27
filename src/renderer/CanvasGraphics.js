@@ -408,15 +408,28 @@ soya2d.CanvasGraphics = function(ctx){
         return this;
     };
 	/**
+     * 
      * 贴图接口
      * @param {soya2d.Texture} tex 需要绘制的纹理
-     * @param {Number} dx 映射目标坐标
-     * @param {Number} dy 映射目标坐标
+     * @param  {int} sx  纹理起始坐标x
+     * @param  {int} sy  纹理起始坐标y
+     * @param  {int} sw  纹理起始尺寸w
+     * @param  {int} sh  纹理起始尺寸h
+     * @param  {int} dx  纹理目标坐标x
+     * @param  {int} dy  纹理目标坐标y
+     * @param  {int} dw  纹理目标尺寸w
+     * @param  {int} dh  纹理目标尺寸h
      * @return this
      */
-	this.map = function(tex,dx,dy,dw,dh){
-		var sw=tex.w,sh=tex.h;
-		this.ctx.drawImage(tex.__data,0,0,sw,sh,dx,dy,dw,dh);
+	this.map = function(tex,dx,dy,dw,dh,sx,sy,sw,sh){
+		sx = sx || 0;
+        sy = sy || 0;
+        sw = sw || tex.w;
+        sh = sh || tex.h;
+
+		this.ctx.drawImage(tex.__data,
+                            sx>>0,sy>>0,sw>>0,sh>>0,
+                            dx>>0,dy>>0,dw>>0,dh>>0);
 		return this;
 	};
     /**

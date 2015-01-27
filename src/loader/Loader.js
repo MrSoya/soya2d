@@ -197,7 +197,11 @@ soya2d.Loader = new function(){
                 },
                 onloaderror:function(error){
                     if(onError && onError.call){
-                        onError(this._src,error.type);
+                        var errorType = soya2d.MEDIA_ERR_DECODE;
+                        if(error){
+                            errorType = error.type;
+                        }
+                        onError(this._src,errorType);
                     }
                     loaded--;
                     if(!loaded && onEnd && onEnd.call){
@@ -372,3 +376,52 @@ soya2d.Loader = new function(){
  * 默认超时时间，5000ms
  */
 soya2d.TIMEOUT = 5000;
+
+
+/**
+ * 媒体加载错误类型——MEDIA_ERR_UNCERTAIN<br/>
+ * 未知错误
+ * @constant
+ */
+soya2d.MEDIA_ERR_UNCERTAIN = -1;
+/**
+ * 媒体加载错误类型——MEDIA_ERR_ABORTED<br/>
+ * 加载被中断
+ * @constant
+ */
+soya2d.MEDIA_ERR_ABORTED = 1;
+/**
+ * 媒体加载错误类型——MEDIA_ERR_NETWORK<br/>
+ * 网络异常
+ * @constant
+ */
+soya2d.MEDIA_ERR_NETWORK = 2;
+/**
+ * 媒体加载错误类型——MEDIA_ERR_DECODE<br/>
+ * 无法解码
+ * @constant
+ */
+soya2d.MEDIA_ERR_DECODE = 3;
+/**
+ * 媒体加载错误类型——MEDIA_ERR_SRC_NOT_SUPPORTED<br/>
+ * 类型不支持
+ * @constant
+ */
+soya2d.MEDIA_ERR_SRC_NOT_SUPPORTED = 4;
+/**
+ * 媒体加载错误类型——MEDIA_ERR_SRC_NOT_FORTHCOMING<br/>
+ * 无法获取资源数据
+ * @constant
+ */
+soya2d.MEDIA_ERR_SRC_NOT_FORTHCOMING = 101;
+
+/**
+ * 加载类型——并行
+ * @constant
+ */
+soya2d.LOADMODE_PARA = 1;
+/**
+ * 加载类型——串行
+ * @constant
+ */
+soya2d.LOADMODE_SEQU = 2;

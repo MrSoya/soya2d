@@ -114,16 +114,17 @@ soya2d.ext(soya2d.TileSprite.prototype, /** @lends soya2d.TileSprite.prototype *
             offsetY -= texScaledH;
         }
 
-        var img = this.sprite.textures[0].__data;
+        var tex = this.sprite.textures[0];
 
         for (var i = rowNum;i--;) {
             for (var j = colNum;j--;) {
                 
                 var x = j * texScaledW;
                 var y = i * texScaledH;
-                g.ctx.drawImage(img,
-                                0, 0, texW, texH, 
-                                x + offsetX, y + offsetY, texScaledW, texScaledH);
+
+                g.map(tex,
+                    x + offsetX, y + offsetY, texScaledW, texScaledH,
+                    0, 0, texW, texH);
             }
         }
 

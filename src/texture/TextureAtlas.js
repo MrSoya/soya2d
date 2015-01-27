@@ -3,7 +3,7 @@
  * ssheet格式为<br/>
  * <pre>
  * [
- 		{n:'hero_001.png',x:0,y:0,w:50,h:50,r:90},
+ 		{n:'hero_001.png',x:0,y:0,w:50,h:50,r:90},//ssheet unit
  		{n:'hero_002.png',x:50,y:50,w:50,h:50,r:180},
  		...
  	]
@@ -23,12 +23,17 @@ soya2d.TextureAtlas = function(tex,ssheet){
 		var ctx = data.getContext('2d');
 		ctx.translate(desc.w/2,desc.h/2);
 		ctx.rotate((desc.r||0)*Math.PI/180);
-		ctx.drawImage(tex.__data,desc.x,desc.y,desc.w,desc.h,-desc.w/2,-desc.h/2,desc.w,desc.h);
-		/*
-		var img = new Image;
-		img.src = data.toDataURL("image/png");//chrome 本地无法运行
-		*/
-		this.texs[desc.n] = new soya2d.Texture(data,desc.w,desc.h);
+
+		var descW = desc.w>>0,
+			descH = desc.h>>0;
+		if(descW===0 || descH===0){
+			console.error('soya2d.TextureAtlas: invalid ssheet unit，w/h must be a positive;[w:'+descW+',h:'+descH+'] ');
+			return;
+		}
+		ctx.drawImage(tex.__data,
+						desc.x>>0,desc.y>>0,descW,descH,
+						-descW/2>>0,-descH/2>>0,descW,descH);
+		this.texs[desc.n] = new soya2d.Texture(data,descW,descH);
 	},this);
 };
 

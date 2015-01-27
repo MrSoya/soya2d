@@ -21,7 +21,7 @@ soya2d.LoaderScene = function(data){
     
     this.nextScene = data.nextScene;
     if(!(this.nextScene instanceof soya2d.Scene)){
-    	console.error('nextScene is not instance of soya2d.Scene');
+    	console.error('soya2d.LoaderScene: invalid param [nextScene], it must be a instance of soya2d.Scene');
     }
     this.textures = data.textures||[];
     this.texAtlas = data.texAtlas||[];

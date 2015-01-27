@@ -261,53 +261,7 @@ soya2d.HITTEST_PATH = 1;
  */
 soya2d.HITTEST_PIXEL = 2;
 
-/**
- * 媒体加载错误类型——MEDIA_ERR_UNCERTAIN<br/>
- * 未知错误
- * @constant
- */
-soya2d.MEDIA_ERR_UNCERTAIN = -1;
-/**
- * 媒体加载错误类型——MEDIA_ERR_ABORTED<br/>
- * 加载被中断
- * @constant
- */
-soya2d.MEDIA_ERR_ABORTED = 1;
-/**
- * 媒体加载错误类型——MEDIA_ERR_NETWORK<br/>
- * 网络异常
- * @constant
- */
-soya2d.MEDIA_ERR_NETWORK = 2;
-/**
- * 媒体加载错误类型——MEDIA_ERR_DECODE<br/>
- * 无法解码
- * @constant
- */
-soya2d.MEDIA_ERR_DECODE = 3;
-/**
- * 媒体加载错误类型——MEDIA_ERR_SRC_NOT_SUPPORTED<br/>
- * 类型不支持
- * @constant
- */
-soya2d.MEDIA_ERR_SRC_NOT_SUPPORTED = 4;
-/**
- * 媒体加载错误类型——MEDIA_ERR_SRC_NOT_FORTHCOMING<br/>
- * 无法获取资源数据
- * @constant
- */
-soya2d.MEDIA_ERR_SRC_NOT_FORTHCOMING = 101;
 
-/**
- * 加载类型——并行
- * @constant
- */
-soya2d.LOADMODE_PARA = 1;
-/**
- * 加载类型——串行
- * @constant
- */
-soya2d.LOADMODE_SEQU = 2;
 /**
  * 数学接口提供了常用的静态常量以及方法<br/>
  * @namespace soya2d.Math
@@ -2348,16 +2302,17 @@ soya2d.ext(soya2d.TileSprite.prototype, /** @lends soya2d.TileSprite.prototype *
             offsetY -= texScaledH;
         }
 
-        var img = this.sprite.textures[0].__data;
+        var tex = this.sprite.textures[0];
 
         for (var i = rowNum;i--;) {
             for (var j = colNum;j--;) {
                 
                 var x = j * texScaledW;
                 var y = i * texScaledH;
-                g.ctx.drawImage(img,
-                                0, 0, texW, texH, 
-                                x + offsetX, y + offsetY, texScaledW, texScaledH);
+
+                g.map(tex,
+                    x + offsetX, y + offsetY, texScaledW, texScaledH,
+                    0, 0, texW, texH);
             }
         }
 
@@ -2774,15 +2729,28 @@ soya2d.CanvasGraphics = function(ctx){
         return this;
     };
 	/**
+     * 
      * 贴图接口
      * @param {soya2d.Texture} tex 需要绘制的纹理
-     * @param {Number} dx 映射目标坐标
-     * @param {Number} dy 映射目标坐标
+     * @param  {int} sx  纹理起始坐标x
+     * @param  {int} sy  纹理起始坐标y
+     * @param  {int} sw  纹理起始尺寸w
+     * @param  {int} sh  纹理起始尺寸h
+     * @param  {int} dx  纹理目标坐标x
+     * @param  {int} dy  纹理目标坐标y
+     * @param  {int} dw  纹理目标尺寸w
+     * @param  {int} dh  纹理目标尺寸h
      * @return this
      */
-	this.map = function(tex,dx,dy,dw,dh){
-		var sw=tex.w,sh=tex.h;
-		this.ctx.drawImage(tex.__data,0,0,sw,sh,dx,dy,dw,dh);
+	this.map = function(tex,dx,dy,dw,dh,sx,sy,sw,sh){
+		sx = sx || 0;
+        sy = sy || 0;
+        sw = sw || tex.w;
+        sh = sh || tex.h;
+
+		this.ctx.drawImage(tex.__data,
+                            sx>>0,sy>>0,sw>>0,sh>>0,
+                            dx>>0,dy>>0,dw>>0,dh>>0);
 		return this;
 	};
     /**
@@ -4230,7 +4198,7 @@ soya2d.Texture.prototype = {
  * ssheet格式为<br/>
  * <pre>
  * [
- 		{n:'hero_001.png',x:0,y:0,w:50,h:50,r:90},
+ 		{n:'hero_001.png',x:0,y:0,w:50,h:50,r:90},//ssheet unit
  		{n:'hero_002.png',x:50,y:50,w:50,h:50,r:180},
  		...
  	]
@@ -4250,12 +4218,17 @@ soya2d.TextureAtlas = function(tex,ssheet){
 		var ctx = data.getContext('2d');
 		ctx.translate(desc.w/2,desc.h/2);
 		ctx.rotate((desc.r||0)*Math.PI/180);
-		ctx.drawImage(tex.__data,desc.x,desc.y,desc.w,desc.h,-desc.w/2,-desc.h/2,desc.w,desc.h);
-		/*
-		var img = new Image;
-		img.src = data.toDataURL("image/png");//chrome 本地无法运行
-		*/
-		this.texs[desc.n] = new soya2d.Texture(data,desc.w,desc.h);
+
+		var descW = desc.w>>0,
+			descH = desc.h>>0;
+		if(descW===0 || descH===0){
+			console.error('soya2d.TextureAtlas: invalid ssheet unit，w/h must be a positive;[w:'+descW+',h:'+descH+'] ');
+			return;
+		}
+		ctx.drawImage(tex.__data,
+						desc.x>>0,desc.y>>0,descW,descH,
+						-descW/2>>0,-descH/2>>0,descW,descH);
+		this.texs[desc.n] = new soya2d.Texture(data,descW,descH);
 	},this);
 };
 
@@ -4686,7 +4659,11 @@ soya2d.Loader = new function(){
                 },
                 onloaderror:function(error){
                     if(onError && onError.call){
-                        onError(this._src,error.type);
+                        var errorType = soya2d.MEDIA_ERR_DECODE;
+                        if(error){
+                            errorType = error.type;
+                        }
+                        onError(this._src,errorType);
                     }
                     loaded--;
                     if(!loaded && onEnd && onEnd.call){
@@ -4861,6 +4838,55 @@ soya2d.Loader = new function(){
  * 默认超时时间，5000ms
  */
 soya2d.TIMEOUT = 5000;
+
+
+/**
+ * 媒体加载错误类型——MEDIA_ERR_UNCERTAIN<br/>
+ * 未知错误
+ * @constant
+ */
+soya2d.MEDIA_ERR_UNCERTAIN = -1;
+/**
+ * 媒体加载错误类型——MEDIA_ERR_ABORTED<br/>
+ * 加载被中断
+ * @constant
+ */
+soya2d.MEDIA_ERR_ABORTED = 1;
+/**
+ * 媒体加载错误类型——MEDIA_ERR_NETWORK<br/>
+ * 网络异常
+ * @constant
+ */
+soya2d.MEDIA_ERR_NETWORK = 2;
+/**
+ * 媒体加载错误类型——MEDIA_ERR_DECODE<br/>
+ * 无法解码
+ * @constant
+ */
+soya2d.MEDIA_ERR_DECODE = 3;
+/**
+ * 媒体加载错误类型——MEDIA_ERR_SRC_NOT_SUPPORTED<br/>
+ * 类型不支持
+ * @constant
+ */
+soya2d.MEDIA_ERR_SRC_NOT_SUPPORTED = 4;
+/**
+ * 媒体加载错误类型——MEDIA_ERR_SRC_NOT_FORTHCOMING<br/>
+ * 无法获取资源数据
+ * @constant
+ */
+soya2d.MEDIA_ERR_SRC_NOT_FORTHCOMING = 101;
+
+/**
+ * 加载类型——并行
+ * @constant
+ */
+soya2d.LOADMODE_PARA = 1;
+/**
+ * 加载类型——串行
+ * @constant
+ */
+soya2d.LOADMODE_SEQU = 2;
 /**
  * @classdesc 游戏对象是构建soya2d应用的入口类，用于构建和启动一个soya2d应用。
  * 一个页面可以同时运行多个游戏对象，并且拥有不同的FPS和场景
@@ -5140,26 +5166,39 @@ soya2d.Game = function(opts){
                 cbk(thisGame,now,d);
             });
 			//update modules
-			onUpdates.forEach(function(cbk){
-				cbk(thisGame,now,d);
-			});
+            if(onUpdates.length>0){
+                now = Date.now();
+                onUpdates.forEach(function(cbk){
+                    cbk(thisGame,now,d);
+                });
+            }
             //update matrix
             thisGame.scene.__update(thisGame);
             //after updates
-            afterUpdates.forEach(function(cbk){
-                cbk(thisGame,now,d);
-            });
+            if(afterUpdates.length>0){
+                now = Date.now();
+                afterUpdates.forEach(function(cbk){
+                    cbk(thisGame,now,d);
+                });
+            }
+            
 
             //before render
-            beforeRenders.forEach(function(cbk){
-                cbk(thisGame,now,d);
-            });
+            if(beforeRenders.length>0){
+                now = Date.now();
+                beforeRenders.forEach(function(cbk){
+                    cbk(thisGame,now,d);
+                });
+            }
             //render
             renderer.render(thisGame.scene);
             //after render
-            afterRenders.forEach(function(cbk){
-                cbk(thisGame,now,d);
-            });
+            if(afterRenders.length>0){
+                now = Date.now();
+                afterRenders.forEach(function(cbk){
+                    cbk(thisGame,now,d);
+                });
+            }
 		});
 
 		return this;
@@ -5286,7 +5325,7 @@ soya2d.LoaderScene = function(data){
     
     this.nextScene = data.nextScene;
     if(!(this.nextScene instanceof soya2d.Scene)){
-    	console.error('nextScene is not instance of soya2d.Scene');
+    	console.error('soya2d.LoaderScene: invalid param [nextScene], it must be a instance of soya2d.Scene');
     }
     this.textures = data.textures||[];
     this.texAtlas = data.texAtlas||[];
