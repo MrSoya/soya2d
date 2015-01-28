@@ -104,7 +104,43 @@ self.console = self.console||new function(){
 	this.info = function(){}
 	this.debug = function(){}
 	this.error = function(){}
+    this.warn = function(){}
 }
+
+/**
+ * 控制台输出接口，使用彩色方式
+ */
+soya2d.console = new function(){
+    this.log = function(txt,css){
+        if(soya2d.Device.ie){
+            console.log(txt);
+        }else{
+            console.log('%c'+txt,css||'padding:1px 50px;font-size:14px;color:#fff;background:#2DB008;');
+        }
+    }
+    this.debug = function(txt,css){
+        if(soya2d.Device.ie){
+            console.debug(txt);
+        }else{
+            console.debug('%c'+txt,css||'padding:1px 50px;font-size:14px;color:#fff;background:#0069D6;');
+        }
+    }
+    this.error = function(txt,css){
+        if(soya2d.Device.ie){
+            console.error(txt);
+        }else{
+            console.error('%c'+txt,css||'padding:1px 50px;font-size:14px;color:#fff;background:#ff0000;');
+        }
+    }
+    this.warn = function(txt,css){
+        if(soya2d.Device.ie){
+            console.warn(txt);
+        }else{
+            console.warn('%c'+txt,css||'padding:1px 50px;font-size:14px;color:#fff;background:#FFB502;');
+        }
+    }
+}
+
 
 self.cancelAFrame = (function(w){
     return w.cancelAnimationFrame           ||

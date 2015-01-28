@@ -104,7 +104,43 @@ self.console = self.console||new function(){
 	this.info = function(){}
 	this.debug = function(){}
 	this.error = function(){}
+    this.warn = function(){}
 }
+
+/**
+ * 控制台输出接口，使用彩色方式
+ */
+soya2d.console = new function(){
+    this.log = function(txt,css){
+        if(soya2d.Device.ie){
+            console.log(txt);
+        }else{
+            console.log('%c'+txt,css||'padding:1px 50px;font-size:14px;color:#fff;background:#2DB008;');
+        }
+    }
+    this.debug = function(txt,css){
+        if(soya2d.Device.ie){
+            console.debug(txt);
+        }else{
+            console.debug('%c'+txt,css||'padding:1px 50px;font-size:14px;color:#fff;background:#0069D6;');
+        }
+    }
+    this.error = function(txt,css){
+        if(soya2d.Device.ie){
+            console.error(txt);
+        }else{
+            console.error('%c'+txt,css||'padding:1px 50px;font-size:14px;color:#fff;background:#ff0000;');
+        }
+    }
+    this.warn = function(txt,css){
+        if(soya2d.Device.ie){
+            console.warn(txt);
+        }else{
+            console.warn('%c'+txt,css||'padding:1px 50px;font-size:14px;color:#fff;background:#FFB502;');
+        }
+    }
+}
+
 
 self.cancelAFrame = (function(w){
     return w.cancelAnimationFrame           ||
@@ -3329,7 +3365,6 @@ soya2d.Device = new function(){
 
     //浏览器信息
     var type = {
-      MSIE:userAgent.indexOf('msie')+1,
       Firefox:userAgent.indexOf('firefox')+1,
       Opera:userAgent.indexOf('opera')+1,
       Chrome:userAgent.indexOf('chrome')+1,
@@ -3339,7 +3374,7 @@ soya2d.Device = new function(){
      * 如果当前浏览器为IE，那么值为true。
      * @type boolean
      */
-    this.ie = type.MSIE?true:false;
+    this.ie = /msie|trident.*rv:/.test(userAgent.toLowerCase());
     /**
      * 如果当前浏览器为FireFox，那么值为true。
      * @type boolean
@@ -4917,8 +4952,8 @@ soya2d.Game = function(opts){
 	}
 
 	var rendererType = opts.rendererType || soya2d.RENDERER_TYPE_CANVAS;
-    var cw = container.offsetWidth,
-        ch = container.offsetHeight;
+    var cw = container.offsetWidth || 100,
+        ch = container.offsetHeight || 100;
 
 	var renderer = null;
 	//if(rendererType == soya2d.RENDERER_TYPE_CANVAS){
@@ -5144,6 +5179,12 @@ soya2d.Game = function(opts){
 		if(this.running)return;
 		this.running = true;
 		this.cutTo(scene);
+
+        soya2d.console.log('game starting...');
+        if(scene.children.length < 1){
+            soya2d.console.warn('empty scene be showing...');
+        }
+
 		//scan view
 		this.view.scan(this.w,this.h,container,renderer);
 		this.view.align(this.view.align());
@@ -5289,10 +5330,24 @@ soya2d.Game = function(opts){
 
 	//init modules
 	var modules = soya2d.module._getAll();
+    var ms = 0;
 	for(var k in modules){
 		if(modules[k].onInit)modules[k].onInit(this);
+        ms++;
 	}
+
+    var t1 = 'soya2d Game instance created...';
+    var t2 = ms + ' plugins loaded...';
+    soya2d.console.log(t1);
+    soya2d.console.log(t2);
+    
 };
+var t1 = 'soya2d is working...';
+var t2 = '==== thank you for useing soya2d, you\'ll love it! ====';
+
+soya2d.console.log(t1);
+soya2d.console.log(t2);
+
 
 
 /**

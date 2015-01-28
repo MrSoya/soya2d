@@ -20,8 +20,8 @@ soya2d.Game = function(opts){
 	}
 
 	var rendererType = opts.rendererType || soya2d.RENDERER_TYPE_CANVAS;
-    var cw = container.offsetWidth,
-        ch = container.offsetHeight;
+    var cw = container.offsetWidth || 100,
+        ch = container.offsetHeight || 100;
 
 	var renderer = null;
 	//if(rendererType == soya2d.RENDERER_TYPE_CANVAS){
@@ -247,6 +247,12 @@ soya2d.Game = function(opts){
 		if(this.running)return;
 		this.running = true;
 		this.cutTo(scene);
+
+        soya2d.console.log('game starting...');
+        if(scene.children.length < 1){
+            soya2d.console.warn('empty scene be showing...');
+        }
+
 		//scan view
 		this.view.scan(this.w,this.h,container,renderer);
 		this.view.align(this.view.align());
@@ -392,10 +398,24 @@ soya2d.Game = function(opts){
 
 	//init modules
 	var modules = soya2d.module._getAll();
+    var ms = 0;
 	for(var k in modules){
 		if(modules[k].onInit)modules[k].onInit(this);
+        ms++;
 	}
+
+    var t1 = 'soya2d Game instance created...';
+    var t2 = ms + ' plugins loaded...';
+    soya2d.console.log(t1);
+    soya2d.console.log(t2);
+    
 };
+var t1 = 'soya2d is working...';
+var t2 = '==== thank you for useing soya2d, you\'ll love it! ====';
+
+soya2d.console.log(t1);
+soya2d.console.log(t2);
+
 
 
 /**
