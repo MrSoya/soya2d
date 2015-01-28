@@ -193,7 +193,7 @@ soya2d.ext(soya2d.ScrollSprite.prototype, /** @lends soya2d.ScrollSprite.prototy
     },
     onRender: function(g) {
         g.beginPath();
-        g.ctx.rect(0, 0, this.w, this.h);
+        g.rect(0, 0, this.w, this.h);
         g.clip();
     }
 });

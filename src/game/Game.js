@@ -283,7 +283,7 @@ soya2d.Game = function(opts){
                     cbk(thisGame,now,d);
                 });
             }
-            //update matrix
+            //update entities
             thisGame.scene.__update(thisGame);
             //after updates
             if(afterUpdates.length>0){

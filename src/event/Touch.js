@@ -24,8 +24,34 @@ soya2d.Touch = function(){
 
     this.touchList = [];
 
-    function setEvent(event,e){
-        var touchs = e.changedTouches;
+    var pointers = {};
+    function setEvent(event,e,isPointer){
+        var touchs;
+        if(isPointer){
+            var pid = e.pointerId;
+            if(event === 'touchstart'){
+                pointers[pid] = {clientX:e.clientX,clientY:e.clientY};
+            }else if(event === 'touchmove'){
+                if(!pointers[pid] || 
+                    (pointers[pid].clientX==e.clientX && pointers[pid].clientY==e.clientY)){
+                    return;
+                }
+                pointers[pid] = {clientX:e.clientX,clientY:e.clientY};
+            }else if(event === 'touchend'){
+                delete pointers[pid];
+            }else if(event === 'touchcancel'){
+                delete pointers[pid];
+            }
+
+            touchs = [];
+            for(var i in pointers){
+                var p = pointers[i];
+                touchs.push(p);
+            }
+        }else{
+            touchs = e.changedTouches;
+        }
+
         if(touchs && touchs.length>0){
             var t = e.target||e.srcElement;
             var ol=t.offsetLeft,ot=t.offsetTop;
@@ -33,10 +59,12 @@ soya2d.Touch = function(){
                 ol+=t.offsetLeft-t.scrollLeft;
                 ot+=t.offsetTop-t.scrollTop;
             }
-            for(var i=0;i<touchs.length;i+=2){
+            var scrollTop = document.body.scrollTop || document.documentElement.scrollTop,
+                scrollLeft = document.body.scrollLeft || document.documentElement.scrollLeft;
+            for(var i=0;i<touchs.length;i++){
                 var tev = touchs[i];
-                touch.touchList[i] = tev.clientX-ol;
-                touch.touchList[i+1] = tev.clientY-ot;
+                touch.touchList[i] = tev.clientX - ol + scrollLeft;
+                touch.touchList[i+1] = tev.clientY - ot + scrollTop;
             }
         }
 
@@ -87,7 +115,6 @@ soya2d.Touch = function(){
             touchList[i] = x;
             touchList[i+1] = y;
         }
-
         
         fireMap[event].touchList = touchList;
         fireMap[event].e = e;
@@ -96,19 +123,42 @@ soya2d.Touch = function(){
     }
 
     /******************* handler *******************/
-    function touchstart(e){
-        setEvent('touchstart',e);
-    }
-    function touchmove(e){
-        setEvent('touchmove',e);
-    }
-    function touchend(e){
-        setEvent('touchend',e);
-    }
-    function touchcancel(e){
-        setEvent('touchcancel',e);
-    }
+    function proxy(e){
+        if(e.pointerType && (e.pointerType !== e.MSPOINTER_TYPE_TOUCH))return;
+        if (e.preventManipulation){
+            e.preventManipulation();
+        }else{
+            e.preventDefault();
+        }
 
+        var type = e.type;
+        switch(type){
+            case 'MSPointerDown':case 'pointerdown':
+                setEvent('touchstart',e,true);
+                break;
+            case 'touchstart':
+                setEvent('touchstart',e);
+                break;
+            case 'MSPointerMove':case 'pointermove':
+                setEvent('touchmove',e,true);
+                break;
+            case 'touchmove':
+                setEvent('touchmove',e);
+                break;
+            case 'MSPointerUp':case 'pointerup':
+                setEvent('touchend',e,true);
+                break;
+            case 'touchend':
+                setEvent('touchend',e);
+                break;
+            case 'MSPointerCancel':case 'pointercancel':
+                setEvent('touchcancel',e,true);
+                break;
+            case 'touchcancel':
+                setEvent('touchcancel',e);
+                break;
+        }
+    }
 
 
 
@@ -174,17 +224,31 @@ soya2d.Touch = function(){
         }
     }
 
-	/**
+    /**
      * 启动监听
      * @return this
      */
     this.startListen = function(game){
         thisGame = game;
         var cvs = game.getRenderer().getCanvas();
-        cvs.addEventListener('touchstart',touchstart,false);
-        cvs.addEventListener('touchmove',touchmove,false);
-        self.addEventListener('touchend',touchend,false);
-        self.addEventListener('touchcancel',touchcancel,false);
+
+        if (window.PointerEvent) {
+            cvs.addEventListener("pointerdown", proxy, false);
+            cvs.addEventListener("pointermove", proxy, false);
+            self.addEventListener("pointerup", proxy, false);
+            self.addEventListener('pointercancel',proxy,false);
+        }else if(window.MSPointerEvent){
+            cvs.addEventListener("MSPointerDown", proxy, false);
+            cvs.addEventListener("MSPointerMove", proxy, false);
+            self.addEventListener("MSPointerUp", proxy, false);
+            self.addEventListener('MSPointerCancel',proxy,false);
+        }else{
+            cvs.addEventListener('touchstart',proxy,false);
+            cvs.addEventListener('touchmove',proxy,false);
+            self.addEventListener('touchend',proxy,false);
+            self.addEventListener('touchcancel',proxy,false);
+        }
+        
 
         return this;
     }
@@ -195,11 +259,23 @@ soya2d.Touch = function(){
      */
     this.stopListen = function(game){
         var cvs = game.getRenderer().getCanvas();
-        cvs.removeEventListener('touchstart',touchstart,false);
-        cvs.removeEventListener('touchmove',touchmove,false);
-        self.removeEventListener('touchend',touchend,false);
-        self.removeEventListener('touchcancel',touchcancel,false);
-
+        
+        if (window.PointerEvent) {
+            cvs.removeEventListener("pointerdown", proxy, false);
+            cvs.removeEventListener("pointermove", proxy, false);
+            self.removeEventListener("pointerup", proxy, false);
+            self.removeEventListener('pointercancel',proxy,false);
+        }else if(window.MSPointerEvent){
+            cvs.removeEventListener("MSPointerDown", proxy, false);
+            cvs.removeEventListener("MSPointerMove", proxy, false);
+            self.removeEventListener("MSPointerUp", proxy, false);
+            self.removeEventListener('MSPointerCancel',proxy,false);
+        }else{
+            cvs.removeEventListener('touchstart',proxy,false);
+            cvs.removeEventListener('touchmove',proxy,false);
+            self.removeEventListener('touchend',proxy,false);
+            self.removeEventListener('touchcancel',proxy,false);
+        }
         return this;
     }
 

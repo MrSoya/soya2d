@@ -14,15 +14,16 @@ soya2d.Font = function(desc){
     this.fontString = fontElement.style.font;
 
     /**
+     * 字体大小
+     * @type {int}
+     */
+    this.fontSize = parseInt(fontElement.style.fontSize) || 13;
+
+    /**
      * 该字体的渲染内容
      * @private
      */
     this.__renderText = function(g){
-        if(this.__changed){
-            g.font(this.font);
-            this.__lines = this.__calc(g);
-            this.__changed = false;
-        }
         g.font(this.font);
         if(!this.__lines)return;
 
@@ -95,6 +96,8 @@ soya2d.Font = function(desc){
             fontElement.style.fontSize = size+'px';
             //更新描述字符串
             this.fontString = fontElement.style.font;
+
+            this.fontSize = size;
             return this;
         }else{
             return fontElement.style.fontSize;
@@ -120,15 +123,13 @@ soya2d.Font = function(desc){
     /**
      * 获取字体宽高
      * @param {String} str 测试字符串
+     * @param {Object} renderer 渲染器
      * @return {Object} 指定字符串在当前字体下的宽高。｛w:w,h:h｝
      */
-    this.getBounds = function(str){
-        fontElement.innerHTML = '';
-        fontElement.appendChild(document.createTextNode(str));
-        document.body.appendChild(fontElement);
-        var w = fontElement.offsetWidth;
-        var h = fontElement.offsetHeight;
-        document.body.removeChild(fontElement);
-        return {w:w,h:h};
+    this.getBounds = function(str,renderer){
+        var ctx = renderer.ctx;
+        ctx.font = this.getDesc();
+        var w = ctx.measureText(str).width;
+        return {w:w,h:this.fontSize};
     };
 };

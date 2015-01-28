@@ -427,6 +427,10 @@ soya2d.CanvasGraphics = function(ctx){
         sw = sw || tex.w;
         sh = sh || tex.h;
 
+        if(sw===0 || sh===0 || dh===0 || dh===0){
+            return;
+        }
+
 		this.ctx.drawImage(tex.__data,
                             sx>>0,sy>>0,sw>>0,sh>>0,
                             dx>>0,dy>>0,dw>>0,dh>>0);

@@ -22,10 +22,6 @@ soya2d.ImageFont = function(data){
      * @private
      */
     this.__renderText = function(g){
-        if(this.__changed){
-            this.__lines = this.__calc();
-            this.__changed = false;
-        }
         if(!this.__lines)return;
 
         var offy = 0;
@@ -40,9 +36,10 @@ soya2d.ImageFont = function(data){
                     var w = tex.w*scaleRate;
                     var h = tex.h*scaleRate
                     lastW = w;
-                    g.ctx.drawImage(tex.__data,
-                            0, 0, tex.w, tex.h, 
-                            offx, offy, w, h);
+                    
+                    g.map(tex,
+                            offx, offy, w, h,
+                            0, 0, tex.w, tex.h);
                 }
                 
                 offx += lastW + this.letterSpacing;

@@ -2037,7 +2037,7 @@ soya2d.ext(soya2d.ScrollSprite.prototype, /** @lends soya2d.ScrollSprite.prototy
     },
     onRender: function(g) {
         g.beginPath();
-        g.ctx.rect(0, 0, this.w, this.h);
+        g.rect(0, 0, this.w, this.h);
         g.clip();
     }
 });
@@ -2748,6 +2748,10 @@ soya2d.CanvasGraphics = function(ctx){
         sw = sw || tex.w;
         sh = sh || tex.h;
 
+        if(sw===0 || sh===0 || dh===0 || dh===0){
+            return;
+        }
+
 		this.ctx.drawImage(tex.__data,
                             sx>>0,sy>>0,sw>>0,sh>>0,
                             dx>>0,dy>>0,dw>>0,dh>>0);
@@ -2907,7 +2911,11 @@ soya2d.CanvasRenderer = function(data){
             ctx.closePath();
             ctx.clip();
         }
-            
+
+        if(ro instanceof soya2d.ScrollSprite){
+            ctx.save();
+        }
+
         if(ro.onRender){
             var te = ro.__worldTransform.e;
             var pe = ro.__worldPosition.e;
@@ -2929,9 +2937,7 @@ soya2d.CanvasRenderer = function(data){
             var oe = ro.__originPosition.e;
             ctx.translate(-oe[0], -oe[1]);
             ro.onRender(g);
-
         }//over onRender
-
         //渲染子节点
         if(ro.children && ro.children.length>0){
             var children = ro.children;
@@ -2947,6 +2953,10 @@ soya2d.CanvasRenderer = function(data){
             for(var i=0;i<children.length;i++){
                 render(ctx,children[i],rs,sortEnable);
             }
+        }
+
+        if(ro instanceof soya2d.ScrollSprite){
+            ctx.restore();
         }
 
         //mask
@@ -3684,15 +3694,16 @@ soya2d.Font = function(desc){
     this.fontString = fontElement.style.font;
 
     /**
+     * 字体大小
+     * @type {int}
+     */
+    this.fontSize = parseInt(fontElement.style.fontSize) || 13;
+
+    /**
      * 该字体的渲染内容
      * @private
      */
     this.__renderText = function(g){
-        if(this.__changed){
-            g.font(this.font);
-            this.__lines = this.__calc(g);
-            this.__changed = false;
-        }
         g.font(this.font);
         if(!this.__lines)return;
 
@@ -3765,6 +3776,8 @@ soya2d.Font = function(desc){
             fontElement.style.fontSize = size+'px';
             //更新描述字符串
             this.fontString = fontElement.style.font;
+
+            this.fontSize = size;
             return this;
         }else{
             return fontElement.style.fontSize;
@@ -3790,16 +3803,14 @@ soya2d.Font = function(desc){
     /**
      * 获取字体宽高
      * @param {String} str 测试字符串
+     * @param {Object} renderer 渲染器
      * @return {Object} 指定字符串在当前字体下的宽高。｛w:w,h:h｝
      */
-    this.getBounds = function(str){
-        fontElement.innerHTML = '';
-        fontElement.appendChild(document.createTextNode(str));
-        document.body.appendChild(fontElement);
-        var w = fontElement.offsetWidth;
-        var h = fontElement.offsetHeight;
-        document.body.removeChild(fontElement);
-        return {w:w,h:h};
+    this.getBounds = function(str,renderer){
+        var ctx = renderer.ctx;
+        ctx.font = this.getDesc();
+        var w = ctx.measureText(str).width;
+        return {w:w,h:this.fontSize};
     };
 };
 
@@ -3827,10 +3838,6 @@ soya2d.ImageFont = function(data){
      * @private
      */
     this.__renderText = function(g){
-        if(this.__changed){
-            this.__lines = this.__calc();
-            this.__changed = false;
-        }
         if(!this.__lines)return;
 
         var offy = 0;
@@ -3845,9 +3852,10 @@ soya2d.ImageFont = function(data){
                     var w = tex.w*scaleRate;
                     var h = tex.h*scaleRate
                     lastW = w;
-                    g.ctx.drawImage(tex.__data,
-                            0, 0, tex.w, tex.h, 
-                            offx, offy, w, h);
+                    
+                    g.map(tex,
+                            offx, offy, w, h,
+                            0, 0, tex.w, tex.h);
                 }
                 
                 offx += lastW + this.letterSpacing;
@@ -3937,10 +3945,6 @@ soya2d.Text = function(data){
         this.font = new soya2d.Font(this.font);
     }
     var font = this.font||new soya2d.Font();
-    var bounds_en = font.getBounds("s");
-    var bounds_zh = font.getBounds("豆");
-    this.__lh = (bounds_en.h+bounds_zh.h)/2>>0;//行高
-    this.__uw = (bounds_en.w+bounds_zh.w)/2>>0;//单字宽度
     this.font = font;
 
     this.__changed = true;//默认需要修改
@@ -3959,10 +3963,6 @@ soya2d.ext(soya2d.Text.prototype,{
      * 用在修改了宽度时调用
      */
     refresh:function(){
-        var bounds_en = this.font.getBounds("s");
-        var bounds_zh = this.font.getBounds("豆");
-        this.__lh = (bounds_en.h+bounds_zh.h)/2>>0;//行高
-        this.__uw = (bounds_en.w+bounds_zh.w)/2>>0;//单字宽度
         this.__changed = true;
     },
     /**
@@ -3982,8 +3982,20 @@ soya2d.ext(soya2d.Text.prototype,{
 		this.text = txt+'';
 		this.refresh();
 	},
+    onUpdate:function(game){
+        if(!this.__lh){//init basic size
+            var bounds_en = this.font.getBounds("s",game.getRenderer());
+            var bounds_zh = this.font.getBounds("豆",game.getRenderer());
+            this.__lh = (bounds_en.h+bounds_zh.h)/2>>0;//行高
+            this.__uw = (bounds_en.w+bounds_zh.w)/2>>0;//单字宽度
+        }
+        if(this.__changed){
+            this.__lines = this.__calc(game.getRenderer());
+            this.__changed = false;
+        }
+    },
     //计算每行内容
-    __calc:function(){
+    __calc:function(renderer){
         var ls = this.letterSpacing;
         var charNum = this.w / (this.__uw+ls) >>0;//理论单行个数
         if(charNum<1){
@@ -4002,19 +4014,16 @@ soya2d.ext(soya2d.Text.prototype,{
             var l = text.length;
             var currCharPos=0;
             while(currCharPos<l){
-//            console.log("w:"+this.w+"uw:"+this.__uw+"currCharPos:"+currCharPos+",charNum:"+charNum);
                 var lineString = text.substr(currCharPos,charNum+1);
                 //计算宽度是否超过
-                var lineWidth = f.getBounds(lineString).w + lineString.length*ls;//增加字间距
+                var lineWidth = f.getBounds(lineString,renderer).w + lineString.length*ls;//增加字间距
                 if(lineWidth > this.w){//超宽了
-//                console.log("''''''''''':"+lineWidth);
                     for(var j=charNum+1;j--;){
                         lineString = lineString.substr(0,lineString.length-1);
-                        lineWidth = f.getBounds(lineString).w + lineString.length*ls;
+                        lineWidth = f.getBounds(lineString,renderer).w + lineString.length*ls;
                         if(lineWidth <= this.w){
                             if(lineWidth===0)return;//防止死循环
                             //该行处理完成
-                            //lines.push([currCharPos,lineString.length,lineString]);
                             lines.push(lineString);
                             currCharPos += lineString.length;
                             break;
@@ -4024,10 +4033,9 @@ soya2d.ext(soya2d.Text.prototype,{
                     var charPos = currCharPos;
                     for(var j=1;j<l-currCharPos;j++){
                         lineString = text.substr(currCharPos,charNum+1+j);
-                        lineWidth = f.getBounds(lineString).w + lineString.length*ls;
+                        lineWidth = f.getBounds(lineString,renderer).w + lineString.length*ls;
                         if(lineWidth > this.w){
                             //该行处理完成
-                            //lines.push([currCharPos,lineString.length-1,lineString]);
                             lines.push(lineString.substr(0,lineString.length-1));
                             currCharPos += lineString.length-1;
                             break;
@@ -5172,7 +5180,7 @@ soya2d.Game = function(opts){
                     cbk(thisGame,now,d);
                 });
             }
-            //update matrix
+            //update entities
             thisGame.scene.__update(thisGame);
             //after updates
             if(afterUpdates.length>0){
@@ -5374,27 +5382,31 @@ soya2d.LoaderScene = function(data){
 	 * @param  {int} length 资源总数
 	 */
     this.onStart = function(game,length) {
-    	var img = new Image();
-		img.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABcAAAA8CAYAAACNQSFVAAAFUklEQVR42r3Ye0xbVRwH8DvGQ8Zjo5TxKC8pLW1veY4xQCiyxTE3cIAmZov/INmSbWJ0MmcQZcYRAQFBGMhDGLQ8Op4trxLej4nDifMPY/aX+8dEM7M/pnFbJvf4u5dz66VrS1uKN/kG/uHTw/fcnnPuJQjrr104DpDdECeIC+Q5yJ7S1iC5ckbaol4i/9wO6ghxxqgbxOOtEn9J57S0U70k/weCtovuodGXc3mBbWPizwH8i0bZWIuyFTCoQEJ4Nw6J3+tZJH/noubwXQYwF3WFuEP2VqvCTnfNye4aQ03hpibLFffq+WljyGHVrGzZHGqIbzVZnu+WBUZ2TEn74S5YtwRmcbOTlZu/L6RtXFLXu0Q+shTl4g7GJis21t2nSSsu6l0k/7AW5eLsaPWTVdMnyuual/1iK8rF9aOtaA09BujqdlE9XtYcTJZcC42BO0ADk0XZC2bwjtnoe+pF8ok9UT1eO5ZCtU0foEdM2R2vHlFQ1SNpqH48mVLNRVM7gtP5YlRBNU0mUL2LkZTdcTa1Y6lU+3QcfMgO4GzqJ6Cq+ShqR/CNKNBXugTUsxBpMaqakd0rqgq6YAG+kZrRFNQ2FYfMVdU9J3tY2hxWw+cTcfCljLAYZ1M3noSUc1Gb0N4Fcv3L3vDhuCS3DEBjITKI0GqcrQruKqhKjpq1EWsn3+DlAZYMiYdEQsSQEBvxNFQxnISKu0WPXyvkVTo6EgrAEiF0HSQzaoIItBqv1KaiK2o5uqQM1Oft5oC7R/L2nuVUEgYRWIxXaRWodOAAuqwK2QSzKVQKqPP1frrYY25HrBp5+XAiKuoWGUWNfMjfZ6t96wQSF7FZvFKTikrUpEWoYcoGZb8axekKrvbHmazAXIp7wpBq/kU09UPus9/QsiG6gnCr0fdVQahh4iDSfZ+Npu+8ykSPV2pSoAKZbRUMkUjz7XE9+v/gnw3GU1f7Y2zq9+PeMNS1kM70awgz+DutgjFr0cvQb6PuEJpcyzaK6nHhQdeg/CrfDws7BA8sgSuG5Uh764RZVI/D5QXxk6c6R52r9VVe6hQ8NVqBWoh6Fg+brMAU7gnhM2sBrAlppzyyChr9Vv6rIBhWwESoIMdilIu7s6OHBOPlMvKVAt7F8gHZw5HVTKtRLk4fkfdB9jOLDSw6p87zs74ek3yjXoqEW0wBVeRsG/c5muMlb9KIO9SL8qfcnebGcgwa/e4lq/pm8IwMT55YTPAbBsRFPQvkA3Mb78DNeDRx+4TlOOzUE1s92xhmeCUZJvjk1ritJ9sbS1FodDWdMlcVsd1jc//NOGridobRDyHsdSYfXDlETa5lUTuCb9xVckpzK5WaupNN2R1n07ccTcGtu74j+HWd5MdzHwS8ble8a1b220c1IUXwhZRDRHbB4cv3qKJD2CIId0zC8MZxbns4STUMiCbTMz2PAxYFkULCGZgg/G3G23XSn/Iv+r4JSAwebQQ+xgXhFdbbalw5I71fXBtc4uTEnAvpE60EH9/o0Qbg1ZVewj0sxqHXx5VKYZswwvEFTgUiSCheqn2Z0cLjPd4jXC3ASQqW4amj2V6Z8AfR+IhMT9jznAr4eNn2wI/6LsyLCnP49UnJz2cK/c8Y9CrEO5Y/vQdAeHirdMOvUpzxy4rdRvHuWdn9T66FXoFeWVTCuQsEuFfepgrY0W68t3Fg3uNwcXi2eVLfF94ii3ZNwId4FjXs9dkKNkbrwHnrRABOb2kkBRVMnL7go8BYOP73WdRYr5srMITpq1krKihvD83GgABPUiD+3Q/36mWyV2Mo5/LAI/LG0H78k49R872aQOnrX0x6RNKVlPmnAAAAAElFTkSuQmCC';
-		var tex = soya2d.Texture.fromImage(img);
-		this.logo = new soya2d.Sprite({
-			x: game.w/2 - tex.w/2,
-			y: game.h/2 - tex.h/2 - 20,
-			textures:tex
-		});
-		this.add(this.logo);
+        var img = new Image();
+        var thisScene = this;
+        img.onload = function(){
+            var tex = soya2d.Texture.fromImage(img);
+            thisScene.logo = new soya2d.Sprite({
+                x: game.w/2 - tex.w/2,
+                y: game.h/2 - tex.h/2 - 20,
+                textures:tex
+            });
+            thisScene.add(thisScene.logo);
 
-		var font = new soya2d.Font('normal 400 23px/normal Arial,Helvetica,sans-serif');
-		this.tip = new soya2d.Text({
-			x: this.logo.x - 70,
-			y: this.logo.y + tex.h + 10,
-			font:font,
-			text:'Loading... 0/0',
-			w:200,
-			fillStyle: this.fillStyle || '#fff'
-		});
-		this.add(this.tip);
-	};
+            var font = new soya2d.Font('normal 400 23px/normal Arial,Helvetica,sans-serif');
+            thisScene.tip = new soya2d.Text({
+                x: thisScene.logo.x - 70,
+                y: thisScene.logo.y + tex.h + 10,
+                font:font,
+                text:'Loading... 0/0',
+                w:200,
+                fillStyle: thisScene.fillStyle || '#fff'
+            });
+            thisScene.add(thisScene.tip);
+        }
+        img.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABcAAAA8CAYAAACNQSFVAAAFUklEQVR42r3Ye0xbVRwH8DvGQ8Zjo5TxKC8pLW1veY4xQCiyxTE3cIAmZov/INmSbWJ0MmcQZcYRAQFBGMhDGLQ8Op4trxLej4nDifMPY/aX+8dEM7M/pnFbJvf4u5dz66VrS1uKN/kG/uHTw/fcnnPuJQjrr104DpDdECeIC+Q5yJ7S1iC5ckbaol4i/9wO6ghxxqgbxOOtEn9J57S0U70k/weCtovuodGXc3mBbWPizwH8i0bZWIuyFTCoQEJ4Nw6J3+tZJH/noubwXQYwF3WFuEP2VqvCTnfNye4aQ03hpibLFffq+WljyGHVrGzZHGqIbzVZnu+WBUZ2TEn74S5YtwRmcbOTlZu/L6RtXFLXu0Q+shTl4g7GJis21t2nSSsu6l0k/7AW5eLsaPWTVdMnyuual/1iK8rF9aOtaA09BujqdlE9XtYcTJZcC42BO0ADk0XZC2bwjtnoe+pF8ok9UT1eO5ZCtU0foEdM2R2vHlFQ1SNpqH48mVLNRVM7gtP5YlRBNU0mUL2LkZTdcTa1Y6lU+3QcfMgO4GzqJ6Cq+ShqR/CNKNBXugTUsxBpMaqakd0rqgq6YAG+kZrRFNQ2FYfMVdU9J3tY2hxWw+cTcfCljLAYZ1M3noSUc1Gb0N4Fcv3L3vDhuCS3DEBjITKI0GqcrQruKqhKjpq1EWsn3+DlAZYMiYdEQsSQEBvxNFQxnISKu0WPXyvkVTo6EgrAEiF0HSQzaoIItBqv1KaiK2o5uqQM1Oft5oC7R/L2nuVUEgYRWIxXaRWodOAAuqwK2QSzKVQKqPP1frrYY25HrBp5+XAiKuoWGUWNfMjfZ6t96wQSF7FZvFKTikrUpEWoYcoGZb8axekKrvbHmazAXIp7wpBq/kU09UPus9/QsiG6gnCr0fdVQahh4iDSfZ+Npu+8ykSPV2pSoAKZbRUMkUjz7XE9+v/gnw3GU1f7Y2zq9+PeMNS1kM70awgz+DutgjFr0cvQb6PuEJpcyzaK6nHhQdeg/CrfDws7BA8sgSuG5Uh764RZVI/D5QXxk6c6R52r9VVe6hQ8NVqBWoh6Fg+brMAU7gnhM2sBrAlppzyyChr9Vv6rIBhWwESoIMdilIu7s6OHBOPlMvKVAt7F8gHZw5HVTKtRLk4fkfdB9jOLDSw6p87zs74ek3yjXoqEW0wBVeRsG/c5muMlb9KIO9SL8qfcnebGcgwa/e4lq/pm8IwMT55YTPAbBsRFPQvkA3Mb78DNeDRx+4TlOOzUE1s92xhmeCUZJvjk1ritJ9sbS1FodDWdMlcVsd1jc//NOGridobRDyHsdSYfXDlETa5lUTuCb9xVckpzK5WaupNN2R1n07ccTcGtu74j+HWd5MdzHwS8ble8a1b220c1IUXwhZRDRHbB4cv3qKJD2CIId0zC8MZxbns4STUMiCbTMz2PAxYFkULCGZgg/G3G23XSn/Iv+r4JSAwebQQ+xgXhFdbbalw5I71fXBtc4uTEnAvpE60EH9/o0Qbg1ZVewj0sxqHXx5VKYZswwvEFTgUiSCheqn2Z0cLjPd4jXC3ASQqW4amj2V6Z8AfR+IhMT9jznAr4eNn2wI/6LsyLCnP49UnJz2cK/c8Y9CrEO5Y/vQdAeHirdMOvUpzxy4rdRvHuWdn9T66FXoFeWVTCuQsEuFfepgrY0W68t3Fg3uNwcXi2eVLfF94ii3ZNwId4FjXs9dkKNkbrwHnrRABOb2kkBRVMnL7go8BYOP73WdRYr5srMITpq1krKihvD83GgABPUiD+3Q/36mWyV2Mo5/LAI/LG0H78k49R872aQOnrX0x6RNKVlPmnAAAAAElFTkSuQmCC';
+        
+    };
 	/**
 	 * 资源加载时调用,默认显示loading...字符。如果需要修改加载样式，请重写该函数
 	 * @abstract
@@ -5403,6 +5415,7 @@ soya2d.LoaderScene = function(data){
 	 * @param  {int} index  当前加载索引
 	 */
 	this.onProgress = function(game,length,index) {
+		if(this.tip)
 		this.tip.setText('Loading... '+index+'/'+length);
 	};
 };

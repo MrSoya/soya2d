@@ -118,7 +118,11 @@ soya2d.CanvasRenderer = function(data){
             ctx.closePath();
             ctx.clip();
         }
-            
+
+        if(ro instanceof soya2d.ScrollSprite){
+            ctx.save();
+        }
+
         if(ro.onRender){
             var te = ro.__worldTransform.e;
             var pe = ro.__worldPosition.e;
@@ -140,9 +144,7 @@ soya2d.CanvasRenderer = function(data){
             var oe = ro.__originPosition.e;
             ctx.translate(-oe[0], -oe[1]);
             ro.onRender(g);
-
         }//over onRender
-
         //渲染子节点
         if(ro.children && ro.children.length>0){
             var children = ro.children;
@@ -158,6 +160,10 @@ soya2d.CanvasRenderer = function(data){
             for(var i=0;i<children.length;i++){
                 render(ctx,children[i],rs,sortEnable);
             }
+        }
+
+        if(ro instanceof soya2d.ScrollSprite){
+            ctx.restore();
         }
 
         //mask

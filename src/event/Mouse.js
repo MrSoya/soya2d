@@ -33,8 +33,8 @@ soya2d.Mouse = function(){
 
     function setEvent(event,e,target){
         var renderer = thisGame.getRenderer();
-        mouse.x = fireMap[event].x = e.offsetX / renderer.hr;
-        mouse.y = fireMap[event].y = e.offsetY / renderer.vr;
+        mouse.x = fireMap[event].x = (e.offsetX||e.layerX) / renderer.hr;
+        mouse.y = fireMap[event].y = (e.offsetY||e.layerY) / renderer.vr;
         mouse.lButton = fireMap[event].lButton = e.button==0||e.button==1;
         mouse.rButton = fireMap[event].rButton = e.button==2;
         mouse.wButton = fireMap[event].wButton = e.button==4||e.which==2;
