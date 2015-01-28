@@ -65,7 +65,6 @@ soya2d.Device = new function(){
 
     //浏览器信息
     var type = {
-      MSIE:userAgent.indexOf('msie')+1,
       Firefox:userAgent.indexOf('firefox')+1,
       Opera:userAgent.indexOf('opera')+1,
       Chrome:userAgent.indexOf('chrome')+1,
@@ -75,7 +74,7 @@ soya2d.Device = new function(){
      * 如果当前浏览器为IE，那么值为true。
      * @type boolean
      */
-    this.ie = type.MSIE?true:false;
+    this.ie = /msie|trident.*rv:/.test(userAgent.toLowerCase());
     /**
      * 如果当前浏览器为FireFox，那么值为true。
      * @type boolean
