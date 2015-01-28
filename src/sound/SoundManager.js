@@ -62,10 +62,20 @@ soya2d.SoundManager = function(){
      * @param {boolean} m 是否静音
      */
     this.muteAll = function(m){
-        for(var i in urlMap){
-            var sound = urlMap[i];
+        for(var i in this.urlMap){
+            var sound = this.urlMap[i];
             sound.mute(m);
         }
     };
+    
+    /**
+     * 停止所有声音
+     */
+    this.stopAll = function(){
+        for(var i in this.urlMap){
+            var sound = this.urlMap[i];
+            sound.stop();
+        }
+    }
 };
 soya2d.inherits(soya2d.SoundManager,soya2d.ResourceManager);
