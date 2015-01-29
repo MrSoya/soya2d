@@ -108,9 +108,17 @@ self.console = self.console||new function(){
 }
 
 /**
- * 控制台输出接口，使用彩色方式
+ * 控制台输出接口，使用CSS样式方式
+ * @type {object}
  */
 soya2d.console = new function(){
+    /**
+     * 输出日志信息
+     * @param  {string} txt  输出文本
+     * @param  {string} [css] 字体css
+     * @alias console.log
+     * @memberof! soya2d#
+     */
     this.log = function(txt,css){
         if(soya2d.Device.ie){
             console.log(txt);
@@ -118,6 +126,13 @@ soya2d.console = new function(){
             console.log('%c'+txt,css||'padding:1px 50px;font-size:14px;color:#fff;background:#2DB008;');
         }
     }
+    /**
+     * 输出调试信息
+     * @param  {string} txt  输出文本
+     * @param  {string} [css] 字体css
+     * @alias console.debug
+     * @memberof! soya2d#
+     */
     this.debug = function(txt,css){
         if(soya2d.Device.ie){
             console.debug(txt);
@@ -125,6 +140,13 @@ soya2d.console = new function(){
             console.debug('%c'+txt,css||'padding:1px 50px;font-size:14px;color:#fff;background:#0069D6;');
         }
     }
+    /**
+     * 输出错误信息
+     * @param  {string} txt  输出文本
+     * @param  {string} [css] 字体css
+     * @alias console.error
+     * @memberof! soya2d#
+     */
     this.error = function(txt,css){
         if(soya2d.Device.ie){
             console.error(txt);
@@ -132,6 +154,13 @@ soya2d.console = new function(){
             console.error('%c'+txt,css||'padding:1px 50px;font-size:14px;color:#fff;background:#ff0000;');
         }
     }
+    /**
+     * 输出警告信息
+     * @param  {string} txt  输出文本
+     * @param  {string} [css] 字体css
+     * @alias console.warn
+     * @memberof! soya2d#
+     */
     this.warn = function(txt,css){
         if(soya2d.Device.ie){
             console.warn(txt);

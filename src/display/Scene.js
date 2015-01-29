@@ -46,6 +46,9 @@ soya2d.Scene = function(data){
     function update(list,game){
         for(var i=list.length;i--;){
             var c = list[i];
+            if(c._onUpdate){
+                c._onUpdate(game);
+            }
             if(c.onUpdate){
                 c.onUpdate(game);
             }

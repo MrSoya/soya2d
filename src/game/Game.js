@@ -242,6 +242,7 @@ soya2d.Game = function(opts){
 	/**
 	 * 启动当前游戏实例
 	 * @param {soya2d.Scene} scene 启动场景
+     * @return this
 	 */
 	this.start = function(scene){
 		if(this.running)return;
@@ -352,14 +353,18 @@ soya2d.Game = function(opts){
     /**
      * 设置该游戏实例的FPS
      * @param {Number} fps 最大60
+     * @return this
      */
     this.setFPS = function(fps){
         currFPS = parseInt(fps) || maxFPS;
         currFPS = currFPS>maxFPS?maxFPS:currFPS;
         threshold = 1000 / currFPS;
+
+        return this;
     };
 	/**
 	 * 停止当前游戏实例
+     * @return this
 	 */
 	this.stop = function() {
 		cancelAFrame(RAFTag);
@@ -376,11 +381,16 @@ soya2d.Game = function(opts){
 	/**
 	 * 跳转场景
 	 * @param {soya2d.Scene} scene 需要跳转到的场景
+     * @return this
 	 */
 	this.cutTo = function(scene){
 		if(!scene)return;
         var fireModuleCbk = false;
-        if(this.scene)fireModuleCbk = true;
+        if(this.scene){
+            fireModuleCbk = true;
+            //clear old scene
+            this.scene.clear();
+        }
 		this.scene = scene;
 		this.scene.game = this;
 		//初始化场景
@@ -388,9 +398,11 @@ soya2d.Game = function(opts){
 			this.scene.onInit(this);
 		}
 
-        var modules = soya2d.module._getAll();
-        for(var k in modules){
-            if(modules[k].onSceneChange)modules[k].onSceneChange(this,scene);
+        if(fireModuleCbk){
+            var modules = soya2d.module._getAll();
+            for(var k in modules){
+                if(modules[k].onSceneChange)modules[k].onSceneChange(this,scene);
+            }   
         }
 
 		return this;

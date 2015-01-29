@@ -5,7 +5,7 @@
  *     <li>keydown</li>
  *     <li>keypress</li>
  * </ul>
- * 所有事件的唯一回调参数为键盘事件对象KeyboardEvent
+ * 所有事件的唯一回调参数为键盘事件对象{@link soya2d.KeyboardEvent}
  * @class 
  * @extends soya2d.EventHandler
  * @author {@link http://weibo.com/soya2d MrSoya}
@@ -162,7 +162,8 @@ soya2d.Keyboard.stopKeys = [];
 
 /**
  * 键盘事件对象，包含按键相关属性
- * @typedef {Object} KeyboardEvent
+ * @type {Object}
+ * @typedef {Object} soya2d.KeyboardEvent
  * @property {int} keyCode - 键码值，用来和KeyCode类中的键码值进行比较
  * @property {boolean} ctrlKey - 是否按下了ctrl键
  * @property {boolean} shiftKey - 是否按下了shift键

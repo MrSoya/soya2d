@@ -10,7 +10,7 @@
  *     <li>mouseover</li>
  *     <li>mouseout</li>
  * </ul>
- * 所有事件的唯一回调参数为鼠标事件对象MouseEvent
+ * 所有事件的唯一回调参数为鼠标事件对象{@link soya2d.MouseEvent}
  * @class 
  * @extends soya2d.EventHandler
  * @author {@link http://weibo.com/soya2d MrSoya}
@@ -207,9 +207,52 @@ soya2d.Mouse = function(){
     soya2d.EventHandler.call(this);
 };
 soya2d.inherits(soya2d.Mouse,soya2d.EventHandler);
+
+/**
+ * 事件类型 - 单机
+ * @type {String}
+ */
+soya2d.EVENT_CLICK = 'click';
+/**
+ * 事件类型 - 双击
+ * @type {String}
+ */
+soya2d.EVENT_DBLCLICK = 'dblclick';
+/**
+ * 事件类型 - 鼠标按下
+ * @type {String}
+ */
+soya2d.EVENT_MOUSEDOWN = 'mousedown';
+/**
+ * 事件类型 - 鼠标滚轮
+ * @type {String}
+ */
+soya2d.EVENT_MOUSEWHEEL = 'mousewheel';
+/**
+ * 事件类型 - 鼠标移动
+ * @type {String}
+ */
+soya2d.EVENT_MOUSEMOVE = 'mousemove';
+/**
+ * 事件类型 - 鼠标抬起
+ * @type {String}
+ */
+soya2d.EVENT_MOUSEUP = 'mouseup';
+/**
+ * 事件类型 - 鼠标浮动在显示对象
+ * @type {String}
+ */
+soya2d.EVENT_MOUSEOVER = 'mouseover';
+/**
+ * 事件类型 - 鼠标从显示对象移走
+ * @type {String}
+ */
+soya2d.EVENT_MOUSEOUT = 'mouseout';
+
 /**
  * 鼠标事件对象
- * @typedef {Object} MouseEvent
+ * @type {Object}
+ * @typedef {Object} soya2d.MouseEvent
  * @property {int} x - 鼠标当前x坐标
  * @property {int} y - 鼠标当前y坐标
  * @property {boolean} lButton - 是否按下了鼠标左键

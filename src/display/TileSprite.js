@@ -77,7 +77,7 @@ soya2d.ext(soya2d.TileSprite.prototype, /** @lends soya2d.TileSprite.prototype *
         soya2d.DisplayObject.prototype.clone.call(this,isRecur,copy);
         return copy;
     },
-    onUpdate:function(){
+    _onUpdate:function(){
         if(this.autoScroll){
             var angle = (this.angle>>0)%360;
             

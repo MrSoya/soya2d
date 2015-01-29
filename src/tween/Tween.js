@@ -258,6 +258,7 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
     * @param {Function} opts.onEnd 补间结束事件
     * @see {soya2d.Tween.Linear}
     * @return {soya2d.Tween} 补间实例
+    * @requires tween
     */
 	animate:function(attris,duration,opts){
         var tween = new soya2d.Tween(this,attris,duration,opts).start();
@@ -266,6 +267,7 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
     /**
      * 停止当前对象正在执行的补间动画
      * @return {soya2d.DisplayObject} 
+     * @requires tween
      */
     stopAnimation:function(){
         if(this.__tween){
@@ -280,6 +282,7 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
      * @param {Function} onUpdate 补间更新事件
      * @param {Function} onEnd 补间结束事件
 	 * @return {soya2d.Tween} 补间实例
+     * @requires tween
 	 */
 	playTween:function(tweenTpl,onUpdate,onEnd){
 		if(!tweenTpl.tweenTpl)return;

@@ -5,7 +5,7 @@
  *     <li>motion</li>
  *     <li>hov</li>
  * </ul>
- * 所有事件的唯一回调参数为设备事件对象MobileEvent
+ * 所有事件的唯一回调参数为设备事件对象{@link soya2d.MobileEvent}
  * @class 
  * @extends soya2d.EventHandler
  * @author {@link http://weibo.com/soya2d MrSoya}
@@ -146,7 +146,8 @@ soya2d.Mobile = function(){
 soya2d.inherits(soya2d.Mobile,soya2d.EventHandler);
 /**
  * 移动设备事件对象
- * @typedef {Object} MobileEvent
+ * @type {Object}
+ * @typedef {Object} soya2d.MobileEvent
  * @property {Object} tilt - 设备倾斜量，分为x/y/z三个轴
  * @property {Object} motion - 设备加速移动量，分为x/y/z三个轴
  * @property {string} orientation - 设备横竖方向值portrait或者landscape

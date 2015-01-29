@@ -44,9 +44,11 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
      * @param {Function} callback 回调函数
      * @param {int} [order] 触发顺序，值越大越先触发
      * @requires event
+     * @return this
      */
     on:function(game,events,callback,order){
         game.events.addListener(events,callback,this,order);
+        return this;
     },
     /**
      * 绑定一个或者多个事件，使用同一个回调函数。但只触发一次
@@ -55,6 +57,7 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
      * @param {Function} callback 回调函数
      * @param {int} [order] 触发顺序，值越大越先触发
      * @requires event
+     * @return this
      */
     once:function(game,events,callback,order){
         var that = this;
@@ -63,6 +66,7 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
             callback.apply(that, arguments)
         }
         game.events.addListener(events,cb,this,order);
+        return this;
     },
     /**
      * 取消一个或者多个已绑定事件
@@ -70,9 +74,11 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
      * @param {string} events 一个或多个用空格分隔的事件类型
      * @param {Function} callback 回调函数，可选。如果该参数为空。则删除指定类型下所有事件
      * @requires event
+     * @return this
      */
     off:function(game,events,callback){
         game.events.removeListener(events,callback,this);
+        return this;
     }
 });
 
@@ -87,9 +93,11 @@ soya2d.ext(soya2d.Game.prototype,/** @lends soya2d.Game.prototype */{
      * @param {Function} callback 回调函数
      * @param {int} [order] 触发顺序，值越大越先触发
      * @requires event
+     * @return this
      */
     on:function(events,callback,order){
         this.events.addListener(events,callback,this,order);
+        return this;
     },
     /**
      * 绑定一个或者多个事件，使用同一个回调函数。但只触发一次
@@ -97,6 +105,7 @@ soya2d.ext(soya2d.Game.prototype,/** @lends soya2d.Game.prototype */{
      * @param {Function} callback 回调函数
      * @param {int} [order] 触发顺序，值越大越先触发
      * @requires event
+     * @return this
      */
     once:function(events,callback,order){
         var that = this;
@@ -105,14 +114,17 @@ soya2d.ext(soya2d.Game.prototype,/** @lends soya2d.Game.prototype */{
             callback.apply(that, arguments)
         }
         this.events.addListener(events,cb,this,order);
+        return this;
     },
     /**
      * 取消一个或者多个已绑定事件
      * @param {string} events 一个或多个用空格分隔的事件类型
      * @param {Function} callback 回调函数，可选。如果该参数为空。则删除指定类型下所有事件
      * @requires event
+     * @return this
      */
     off:function(events,callback){
         this.events.removeListener(events,callback,this);
+        return this;
     }
 });

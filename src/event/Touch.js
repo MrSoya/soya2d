@@ -6,7 +6,7 @@
  *     <li>touchend</li>
  *     <li>touchcancel</li>
  * </ul>
- * 所有事件的唯一回调参数为触摸事件对象TouchEvent
+ * 所有事件的唯一回调参数为触摸事件对象{@link soya2d.TouchEvent}
  * @class 
  * @extends soya2d.EventHandler
  * @author {@link http://weibo.com/soya2d MrSoya}
@@ -283,8 +283,30 @@ soya2d.Touch = function(){
 };
 soya2d.inherits(soya2d.Touch,soya2d.EventHandler);
 /**
+ * 事件类型 - 触摸按下
+ * @type {String}
+ */
+soya2d.EVENT_TOUCHSTART = 'touchstart';
+/**
+ * 事件类型 - 触摸移动
+ * @type {String}
+ */
+soya2d.EVENT_TOUCHMOVE = 'touchmove';
+/**
+ * 事件类型 - 触摸抬起
+ * @type {String}
+ */
+soya2d.EVENT_TOUCHEND = 'touchend';
+/**
+ * 事件类型 - 触摸取消
+ * @type {String}
+ */
+soya2d.EVENT_TOUCHCANCEL = 'touchcancel';
+
+/**
  * 触摸事件对象
- * @typedef {Object} TouchEvent
+ * @type {Object}
+ * @typedef {Object} soya2d.TouchEvent
  * @property {Array} touchList - 触摸点一维数组[x1,y1, x2,y2, ...]
  * @property {Object} e - HTML事件对象
  */

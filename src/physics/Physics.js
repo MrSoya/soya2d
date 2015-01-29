@@ -1,7 +1,12 @@
 /**
  * @classdesc 该类是soya中应用物理系统的统一接口，默认使用p2(https://github.com/schteppe/p2.js)物理引擎，
- * 其他引擎还在扩展中。<br/>引擎本身的设置参数请参考引擎对应文档
- * 
+ * 其他引擎还在扩展中。<br/>物理引擎本身的设置参数请参考引擎对应文档</br>
+ * 该类提供如下事件:<br/>
+ * <ul>
+ *     <li>contactstart</li>
+ *     <li>contactend</li>
+ * </ul>
+ * 所有事件的唯一回调参数为物理事件对象{@link soya2d.PhysicsEvent}
  * @class 
  * @param {Object} opts 物理系统参数
  * @param {Array} opts.gravity 重力向量[x,y]
@@ -247,3 +252,21 @@ soya2d.PHY_STATIC = 1;
  * @type {Number}
  */
 soya2d.PHY_DYNAMIC = 2;
+
+/**
+ * 事件类型 - 碰撞开始
+ * @type {String}
+ */
+soya2d.EVENT_CONTACTSTART = 'contactstart';
+/**
+ * 事件类型 - 碰撞结束
+ * @type {String}
+ */
+soya2d.EVENT_CONTACTEND = 'contactend';
+/**
+ * 物理事件对象
+ * @type {Object}
+ * @typedef {Object} soya2d.PhysicsEvent
+ * @property {Array} collisionPairs - 碰撞对一维数组[{a:xx,b:xx},{a:yy,b:yy}, ...]
+ * @property {soya2d.DisplayObject} otherCollider - 与当前对象产生碰撞的显示对象
+ */

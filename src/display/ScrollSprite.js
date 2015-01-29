@@ -72,7 +72,7 @@ soya2d.ext(soya2d.ScrollSprite.prototype, /** @lends soya2d.ScrollSprite.prototy
         }
         this.target = target;
 
-        this.onUpdate();
+        this._onUpdate();
         return this;
     },
     /**
@@ -139,7 +139,7 @@ soya2d.ext(soya2d.ScrollSprite.prototype, /** @lends soya2d.ScrollSprite.prototy
         this.__boundContainer.w = scope.w;
         this.__boundContainer.h = scope.h;
     },
-    onUpdate:function(){
+    _onUpdate:function(){
         if(!this.target)return;
 
         var tgx,tgy;

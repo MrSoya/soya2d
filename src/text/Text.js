@@ -83,7 +83,7 @@ soya2d.ext(soya2d.Text.prototype,{
 		this.text = txt+'';
 		this.refresh();
 	},
-    onUpdate:function(game){
+    _onUpdate:function(game){
         if(!this.__lh){//init basic size
             var bounds_en = this.font.getBounds("s",game.getRenderer());
             var bounds_zh = this.font.getBounds("豆",game.getRenderer());
