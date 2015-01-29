@@ -108,9 +108,17 @@ self.console = self.console||new function(){
 }
 
 /**
- * 控制台输出接口，使用彩色方式
+ * 控制台输出接口，使用CSS样式方式
+ * @type {object}
  */
 soya2d.console = new function(){
+    /**
+     * 输出日志信息
+     * @param  {string} txt  输出文本
+     * @param  {string} [css] 字体css
+     * @alias console.log
+     * @memberof! soya2d#
+     */
     this.log = function(txt,css){
         if(soya2d.Device.ie){
             console.log(txt);
@@ -118,6 +126,13 @@ soya2d.console = new function(){
             console.log('%c'+txt,css||'padding:1px 50px;font-size:14px;color:#fff;background:#2DB008;');
         }
     }
+    /**
+     * 输出调试信息
+     * @param  {string} txt  输出文本
+     * @param  {string} [css] 字体css
+     * @alias console.debug
+     * @memberof! soya2d#
+     */
     this.debug = function(txt,css){
         if(soya2d.Device.ie){
             console.debug(txt);
@@ -125,6 +140,13 @@ soya2d.console = new function(){
             console.debug('%c'+txt,css||'padding:1px 50px;font-size:14px;color:#fff;background:#0069D6;');
         }
     }
+    /**
+     * 输出错误信息
+     * @param  {string} txt  输出文本
+     * @param  {string} [css] 字体css
+     * @alias console.error
+     * @memberof! soya2d#
+     */
     this.error = function(txt,css){
         if(soya2d.Device.ie){
             console.error(txt);
@@ -132,6 +154,13 @@ soya2d.console = new function(){
             console.error('%c'+txt,css||'padding:1px 50px;font-size:14px;color:#fff;background:#ff0000;');
         }
     }
+    /**
+     * 输出警告信息
+     * @param  {string} txt  输出文本
+     * @param  {string} [css] 字体css
+     * @alias console.warn
+     * @memberof! soya2d#
+     */
     this.warn = function(txt,css){
         if(soya2d.Device.ie){
             console.warn(txt);
@@ -1850,6 +1879,9 @@ soya2d.Scene = function(data){
     function update(list,game){
         for(var i=list.length;i--;){
             var c = list[i];
+            if(c._onUpdate){
+                c._onUpdate(game);
+            }
             if(c.onUpdate){
                 c.onUpdate(game);
             }
@@ -1952,7 +1984,7 @@ soya2d.ext(soya2d.ScrollSprite.prototype, /** @lends soya2d.ScrollSprite.prototy
         }
         this.target = target;
 
-        this.onUpdate();
+        this._onUpdate();
         return this;
     },
     /**
@@ -2019,7 +2051,7 @@ soya2d.ext(soya2d.ScrollSprite.prototype, /** @lends soya2d.ScrollSprite.prototy
         this.__boundContainer.w = scope.w;
         this.__boundContainer.h = scope.h;
     },
-    onUpdate:function(){
+    _onUpdate:function(){
         if(!this.target)return;
 
         var tgx,tgy;
@@ -2301,7 +2333,7 @@ soya2d.ext(soya2d.TileSprite.prototype, /** @lends soya2d.TileSprite.prototype *
         soya2d.DisplayObject.prototype.clone.call(this,isRecur,copy);
         return copy;
     },
-    onUpdate:function(){
+    _onUpdate:function(){
         if(this.autoScroll){
             var angle = (this.angle>>0)%360;
             
@@ -4017,7 +4049,7 @@ soya2d.ext(soya2d.Text.prototype,{
 		this.text = txt+'';
 		this.refresh();
 	},
-    onUpdate:function(game){
+    _onUpdate:function(game){
         if(!this.__lh){//init basic size
             var bounds_en = this.font.getBounds("s",game.getRenderer());
             var bounds_zh = this.font.getBounds("豆",game.getRenderer());
@@ -5174,6 +5206,7 @@ soya2d.Game = function(opts){
 	/**
 	 * 启动当前游戏实例
 	 * @param {soya2d.Scene} scene 启动场景
+     * @return this
 	 */
 	this.start = function(scene){
 		if(this.running)return;
@@ -5284,14 +5317,18 @@ soya2d.Game = function(opts){
     /**
      * 设置该游戏实例的FPS
      * @param {Number} fps 最大60
+     * @return this
      */
     this.setFPS = function(fps){
         currFPS = parseInt(fps) || maxFPS;
         currFPS = currFPS>maxFPS?maxFPS:currFPS;
         threshold = 1000 / currFPS;
+
+        return this;
     };
 	/**
 	 * 停止当前游戏实例
+     * @return this
 	 */
 	this.stop = function() {
 		cancelAFrame(RAFTag);
@@ -5308,11 +5345,16 @@ soya2d.Game = function(opts){
 	/**
 	 * 跳转场景
 	 * @param {soya2d.Scene} scene 需要跳转到的场景
+     * @return this
 	 */
 	this.cutTo = function(scene){
 		if(!scene)return;
         var fireModuleCbk = false;
-        if(this.scene)fireModuleCbk = true;
+        if(this.scene){
+            fireModuleCbk = true;
+            //clear old scene
+            this.scene.clear();
+        }
 		this.scene = scene;
 		this.scene.game = this;
 		//初始化场景
@@ -5320,9 +5362,11 @@ soya2d.Game = function(opts){
 			this.scene.onInit(this);
 		}
 
-        var modules = soya2d.module._getAll();
-        for(var k in modules){
-            if(modules[k].onSceneChange)modules[k].onSceneChange(this,scene);
+        if(fireModuleCbk){
+            var modules = soya2d.module._getAll();
+            for(var k in modules){
+                if(modules[k].onSceneChange)modules[k].onSceneChange(this,scene);
+            }   
         }
 
 		return this;

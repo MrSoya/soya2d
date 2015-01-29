@@ -108,9 +108,17 @@ self.console = self.console||new function(){
 }
 
 /**
- * 控制台输出接口，使用彩色方式
+ * 控制台输出接口，使用CSS样式方式
+ * @type {object}
  */
 soya2d.console = new function(){
+    /**
+     * 输出日志信息
+     * @param  {string} txt  输出文本
+     * @param  {string} [css] 字体css
+     * @alias console.log
+     * @memberof! soya2d#
+     */
     this.log = function(txt,css){
         if(soya2d.Device.ie){
             console.log(txt);
@@ -118,6 +126,13 @@ soya2d.console = new function(){
             console.log('%c'+txt,css||'padding:1px 50px;font-size:14px;color:#fff;background:#2DB008;');
         }
     }
+    /**
+     * 输出调试信息
+     * @param  {string} txt  输出文本
+     * @param  {string} [css] 字体css
+     * @alias console.debug
+     * @memberof! soya2d#
+     */
     this.debug = function(txt,css){
         if(soya2d.Device.ie){
             console.debug(txt);
@@ -125,6 +140,13 @@ soya2d.console = new function(){
             console.debug('%c'+txt,css||'padding:1px 50px;font-size:14px;color:#fff;background:#0069D6;');
         }
     }
+    /**
+     * 输出错误信息
+     * @param  {string} txt  输出文本
+     * @param  {string} [css] 字体css
+     * @alias console.error
+     * @memberof! soya2d#
+     */
     this.error = function(txt,css){
         if(soya2d.Device.ie){
             console.error(txt);
@@ -132,6 +154,13 @@ soya2d.console = new function(){
             console.error('%c'+txt,css||'padding:1px 50px;font-size:14px;color:#fff;background:#ff0000;');
         }
     }
+    /**
+     * 输出警告信息
+     * @param  {string} txt  输出文本
+     * @param  {string} [css] 字体css
+     * @alias console.warn
+     * @memberof! soya2d#
+     */
     this.warn = function(txt,css){
         if(soya2d.Device.ie){
             console.warn(txt);
@@ -1850,6 +1879,9 @@ soya2d.Scene = function(data){
     function update(list,game){
         for(var i=list.length;i--;){
             var c = list[i];
+            if(c._onUpdate){
+                c._onUpdate(game);
+            }
             if(c.onUpdate){
                 c.onUpdate(game);
             }
@@ -1952,7 +1984,7 @@ soya2d.ext(soya2d.ScrollSprite.prototype, /** @lends soya2d.ScrollSprite.prototy
         }
         this.target = target;
 
-        this.onUpdate();
+        this._onUpdate();
         return this;
     },
     /**
@@ -2019,7 +2051,7 @@ soya2d.ext(soya2d.ScrollSprite.prototype, /** @lends soya2d.ScrollSprite.prototy
         this.__boundContainer.w = scope.w;
         this.__boundContainer.h = scope.h;
     },
-    onUpdate:function(){
+    _onUpdate:function(){
         if(!this.target)return;
 
         var tgx,tgy;
@@ -2301,7 +2333,7 @@ soya2d.ext(soya2d.TileSprite.prototype, /** @lends soya2d.TileSprite.prototype *
         soya2d.DisplayObject.prototype.clone.call(this,isRecur,copy);
         return copy;
     },
-    onUpdate:function(){
+    _onUpdate:function(){
         if(this.autoScroll){
             var angle = (this.angle>>0)%360;
             
@@ -4017,7 +4049,7 @@ soya2d.ext(soya2d.Text.prototype,{
 		this.text = txt+'';
 		this.refresh();
 	},
-    onUpdate:function(game){
+    _onUpdate:function(game){
         if(!this.__lh){//init basic size
             var bounds_en = this.font.getBounds("s",game.getRenderer());
             var bounds_zh = this.font.getBounds("豆",game.getRenderer());
@@ -5174,6 +5206,7 @@ soya2d.Game = function(opts){
 	/**
 	 * 启动当前游戏实例
 	 * @param {soya2d.Scene} scene 启动场景
+     * @return this
 	 */
 	this.start = function(scene){
 		if(this.running)return;
@@ -5284,14 +5317,18 @@ soya2d.Game = function(opts){
     /**
      * 设置该游戏实例的FPS
      * @param {Number} fps 最大60
+     * @return this
      */
     this.setFPS = function(fps){
         currFPS = parseInt(fps) || maxFPS;
         currFPS = currFPS>maxFPS?maxFPS:currFPS;
         threshold = 1000 / currFPS;
+
+        return this;
     };
 	/**
 	 * 停止当前游戏实例
+     * @return this
 	 */
 	this.stop = function() {
 		cancelAFrame(RAFTag);
@@ -5308,11 +5345,16 @@ soya2d.Game = function(opts){
 	/**
 	 * 跳转场景
 	 * @param {soya2d.Scene} scene 需要跳转到的场景
+     * @return this
 	 */
 	this.cutTo = function(scene){
 		if(!scene)return;
         var fireModuleCbk = false;
-        if(this.scene)fireModuleCbk = true;
+        if(this.scene){
+            fireModuleCbk = true;
+            //clear old scene
+            this.scene.clear();
+        }
 		this.scene = scene;
 		this.scene.game = this;
 		//初始化场景
@@ -5320,9 +5362,11 @@ soya2d.Game = function(opts){
 			this.scene.onInit(this);
 		}
 
-        var modules = soya2d.module._getAll();
-        for(var k in modules){
-            if(modules[k].onSceneChange)modules[k].onSceneChange(this,scene);
+        if(fireModuleCbk){
+            var modules = soya2d.module._getAll();
+            for(var k in modules){
+                if(modules[k].onSceneChange)modules[k].onSceneChange(this,scene);
+            }   
         }
 
 		return this;
@@ -5735,6 +5779,7 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
     * @param {Function} opts.onEnd 补间结束事件
     * @see {soya2d.Tween.Linear}
     * @return {soya2d.Tween} 补间实例
+    * @requires tween
     */
 	animate:function(attris,duration,opts){
         var tween = new soya2d.Tween(this,attris,duration,opts).start();
@@ -5743,6 +5788,7 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
     /**
      * 停止当前对象正在执行的补间动画
      * @return {soya2d.DisplayObject} 
+     * @requires tween
      */
     stopAnimation:function(){
         if(this.__tween){
@@ -5757,6 +5803,7 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
      * @param {Function} onUpdate 补间更新事件
      * @param {Function} onEnd 补间结束事件
 	 * @return {soya2d.Tween} 补间实例
+     * @requires tween
 	 */
 	playTween:function(tweenTpl,onUpdate,onEnd){
 		if(!tweenTpl.tweenTpl)return;
@@ -6390,7 +6437,7 @@ soya2d.Events = function(){
  *     <li>keydown</li>
  *     <li>keypress</li>
  * </ul>
- * 所有事件的唯一回调参数为键盘事件对象KeyboardEvent
+ * 所有事件的唯一回调参数为键盘事件对象{@link soya2d.KeyboardEvent}
  * @class 
  * @extends soya2d.EventHandler
  * @author {@link http://weibo.com/soya2d MrSoya}
@@ -6547,7 +6594,8 @@ soya2d.Keyboard.stopKeys = [];
 
 /**
  * 键盘事件对象，包含按键相关属性
- * @typedef {Object} KeyboardEvent
+ * @type {Object}
+ * @typedef {Object} soya2d.KeyboardEvent
  * @property {int} keyCode - 键码值，用来和KeyCode类中的键码值进行比较
  * @property {boolean} ctrlKey - 是否按下了ctrl键
  * @property {boolean} shiftKey - 是否按下了shift键
@@ -6855,7 +6903,7 @@ soya2d.KeyCode = {
  *     <li>motion</li>
  *     <li>hov</li>
  * </ul>
- * 所有事件的唯一回调参数为设备事件对象MobileEvent
+ * 所有事件的唯一回调参数为设备事件对象{@link soya2d.MobileEvent}
  * @class 
  * @extends soya2d.EventHandler
  * @author {@link http://weibo.com/soya2d MrSoya}
@@ -6996,7 +7044,8 @@ soya2d.Mobile = function(){
 soya2d.inherits(soya2d.Mobile,soya2d.EventHandler);
 /**
  * 移动设备事件对象
- * @typedef {Object} MobileEvent
+ * @type {Object}
+ * @typedef {Object} soya2d.MobileEvent
  * @property {Object} tilt - 设备倾斜量，分为x/y/z三个轴
  * @property {Object} motion - 设备加速移动量，分为x/y/z三个轴
  * @property {string} orientation - 设备横竖方向值portrait或者landscape
@@ -7014,7 +7063,7 @@ soya2d.inherits(soya2d.Mobile,soya2d.EventHandler);
  *     <li>mouseover</li>
  *     <li>mouseout</li>
  * </ul>
- * 所有事件的唯一回调参数为鼠标事件对象MouseEvent
+ * 所有事件的唯一回调参数为鼠标事件对象{@link soya2d.MouseEvent}
  * @class 
  * @extends soya2d.EventHandler
  * @author {@link http://weibo.com/soya2d MrSoya}
@@ -7211,9 +7260,52 @@ soya2d.Mouse = function(){
     soya2d.EventHandler.call(this);
 };
 soya2d.inherits(soya2d.Mouse,soya2d.EventHandler);
+
+/**
+ * 事件类型 - 单机
+ * @type {String}
+ */
+soya2d.EVENT_CLICK = 'click';
+/**
+ * 事件类型 - 双击
+ * @type {String}
+ */
+soya2d.EVENT_DBLCLICK = 'dblclick';
+/**
+ * 事件类型 - 鼠标按下
+ * @type {String}
+ */
+soya2d.EVENT_MOUSEDOWN = 'mousedown';
+/**
+ * 事件类型 - 鼠标滚轮
+ * @type {String}
+ */
+soya2d.EVENT_MOUSEWHEEL = 'mousewheel';
+/**
+ * 事件类型 - 鼠标移动
+ * @type {String}
+ */
+soya2d.EVENT_MOUSEMOVE = 'mousemove';
+/**
+ * 事件类型 - 鼠标抬起
+ * @type {String}
+ */
+soya2d.EVENT_MOUSEUP = 'mouseup';
+/**
+ * 事件类型 - 鼠标浮动在显示对象
+ * @type {String}
+ */
+soya2d.EVENT_MOUSEOVER = 'mouseover';
+/**
+ * 事件类型 - 鼠标从显示对象移走
+ * @type {String}
+ */
+soya2d.EVENT_MOUSEOUT = 'mouseout';
+
 /**
  * 鼠标事件对象
- * @typedef {Object} MouseEvent
+ * @type {Object}
+ * @typedef {Object} soya2d.MouseEvent
  * @property {int} x - 鼠标当前x坐标
  * @property {int} y - 鼠标当前y坐标
  * @property {boolean} lButton - 是否按下了鼠标左键
@@ -7221,7 +7313,6 @@ soya2d.inherits(soya2d.Mouse,soya2d.EventHandler);
  * @property {boolean} wButton - 是否按下了鼠标中键
  * @property {Object} e - HTML事件对象
  */
-
 /**
  * @classdesc 触摸事件处理类,提供如下事件:<br/>
  * <ul>
@@ -7230,7 +7321,7 @@ soya2d.inherits(soya2d.Mouse,soya2d.EventHandler);
  *     <li>touchend</li>
  *     <li>touchcancel</li>
  * </ul>
- * 所有事件的唯一回调参数为触摸事件对象TouchEvent
+ * 所有事件的唯一回调参数为触摸事件对象{@link soya2d.TouchEvent}
  * @class 
  * @extends soya2d.EventHandler
  * @author {@link http://weibo.com/soya2d MrSoya}
@@ -7507,8 +7598,30 @@ soya2d.Touch = function(){
 };
 soya2d.inherits(soya2d.Touch,soya2d.EventHandler);
 /**
+ * 事件类型 - 触摸按下
+ * @type {String}
+ */
+soya2d.EVENT_TOUCHSTART = 'touchstart';
+/**
+ * 事件类型 - 触摸移动
+ * @type {String}
+ */
+soya2d.EVENT_TOUCHMOVE = 'touchmove';
+/**
+ * 事件类型 - 触摸抬起
+ * @type {String}
+ */
+soya2d.EVENT_TOUCHEND = 'touchend';
+/**
+ * 事件类型 - 触摸取消
+ * @type {String}
+ */
+soya2d.EVENT_TOUCHCANCEL = 'touchcancel';
+
+/**
  * 触摸事件对象
- * @typedef {Object} TouchEvent
+ * @type {Object}
+ * @typedef {Object} soya2d.TouchEvent
  * @property {Array} touchList - 触摸点一维数组[x1,y1, x2,y2, ...]
  * @property {Object} e - HTML事件对象
  */
@@ -7559,9 +7672,11 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
      * @param {Function} callback 回调函数
      * @param {int} [order] 触发顺序，值越大越先触发
      * @requires event
+     * @return this
      */
     on:function(game,events,callback,order){
         game.events.addListener(events,callback,this,order);
+        return this;
     },
     /**
      * 绑定一个或者多个事件，使用同一个回调函数。但只触发一次
@@ -7570,6 +7685,7 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
      * @param {Function} callback 回调函数
      * @param {int} [order] 触发顺序，值越大越先触发
      * @requires event
+     * @return this
      */
     once:function(game,events,callback,order){
         var that = this;
@@ -7578,6 +7694,7 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
             callback.apply(that, arguments)
         }
         game.events.addListener(events,cb,this,order);
+        return this;
     },
     /**
      * 取消一个或者多个已绑定事件
@@ -7585,9 +7702,11 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
      * @param {string} events 一个或多个用空格分隔的事件类型
      * @param {Function} callback 回调函数，可选。如果该参数为空。则删除指定类型下所有事件
      * @requires event
+     * @return this
      */
     off:function(game,events,callback){
         game.events.removeListener(events,callback,this);
+        return this;
     }
 });
 
@@ -7602,9 +7721,11 @@ soya2d.ext(soya2d.Game.prototype,/** @lends soya2d.Game.prototype */{
      * @param {Function} callback 回调函数
      * @param {int} [order] 触发顺序，值越大越先触发
      * @requires event
+     * @return this
      */
     on:function(events,callback,order){
         this.events.addListener(events,callback,this,order);
+        return this;
     },
     /**
      * 绑定一个或者多个事件，使用同一个回调函数。但只触发一次
@@ -7612,6 +7733,7 @@ soya2d.ext(soya2d.Game.prototype,/** @lends soya2d.Game.prototype */{
      * @param {Function} callback 回调函数
      * @param {int} [order] 触发顺序，值越大越先触发
      * @requires event
+     * @return this
      */
     once:function(events,callback,order){
         var that = this;
@@ -7620,15 +7742,18 @@ soya2d.ext(soya2d.Game.prototype,/** @lends soya2d.Game.prototype */{
             callback.apply(that, arguments)
         }
         this.events.addListener(events,cb,this,order);
+        return this;
     },
     /**
      * 取消一个或者多个已绑定事件
      * @param {string} events 一个或多个用空格分隔的事件类型
      * @param {Function} callback 回调函数，可选。如果该参数为空。则删除指定类型下所有事件
      * @requires event
+     * @return this
      */
     off:function(events,callback){
         this.events.removeListener(events,callback,this);
+        return this;
     }
 });
 /*!
@@ -8204,8 +8329,13 @@ b.exports=c,c.prototype=new d;var h=f.create(),i=f.create(),j=f.create();c.proto
 c.set(0|e.bodyA.id,0|e.bodyB.id,e)}for(d=c.keys.length;d--;){var e=c.getByKey(c.keys[d]);e&&b.push(e.bodyA,e.bodyB)}return c.reset(),b},d.prototype.set=function(a,b,c,e){d.call(this,a,b,c,e)}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/utils/OverlapKeeper.js","/utils")},{"./TupleDictionary":51,"./Utils":52,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],51:[function(a,b){(function(){function c(){this.data={},this.keys=[]}var d=a("./Utils");b.exports=c,c.prototype.getKey=function(a,b){return a=0|a,b=0|b,(0|a)===(0|b)?-1:0|((0|a)>(0|b)?a<<16|65535&b:b<<16|65535&a)},c.prototype.getByKey=function(a){return a=0|a,this.data[a]},c.prototype.get=function(a,b){return this.data[this.getKey(a,b)]},c.prototype.set=function(a,b,c){if(!c)throw new Error("No data!");var d=this.getKey(a,b);return this.data[d]||this.keys.push(d),this.data[d]=c,d},c.prototype.reset=function(){for(var a=this.data,b=this.keys,c=b.length;c--;)delete a[b[c]];b.length=0},c.prototype.copy=function(a){this.reset(),d.appendArray(this.keys,a.keys);for(var b=a.keys.length;b--;){var c=a.keys[b];this.data[c]=a.data[c]}}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/utils/TupleDictionary.js","/utils")},{"./Utils":52,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],52:[function(a,b){(function(){function a(){}b.exports=a,a.appendArray=function(a,b){if(b.length<15e4)a.push.apply(a,b);else for(var c=0,d=b.length;c!==d;++c)a.push(b[c])},a.splice=function(a,b,c){c=c||1;for(var d=b,e=a.length-c;e>d;d++)a[d]=a[d+c];a.length=e},a.ARRAY_TYPE="undefined"!=typeof P2_ARRAY_TYPE?P2_ARRAY_TYPE:"undefined"!=typeof Float32Array?Float32Array:Array,a.extend=function(a,b){for(var c in b)a[c]=b[c]},a.defaults=function(a,b){a=a||{};for(var c in b)c in a||(a[c]=b[c]);return a}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/utils/Utils.js","/utils")},{"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],53:[function(a,b){(function(){function c(){this.equations=[],this.bodies=[]}var d=a("../objects/Body");b.exports=c,c.prototype.reset=function(){this.equations.length=this.bodies.length=0};var e=[];c.prototype.getBodies=function(a){var b=a||[],c=this.equations;e.length=0;for(var d=0;d!==c.length;d++){var f=c[d];-1===e.indexOf(f.bodyA.id)&&(b.push(f.bodyA),e.push(f.bodyA.id)),-1===e.indexOf(f.bodyB.id)&&(b.push(f.bodyB),e.push(f.bodyB.id))}return b},c.prototype.wantsToSleep=function(){for(var a=0;a<this.bodies.length;a++){var b=this.bodies[a];if(b.type===d.DYNAMIC&&!b.wantsToSleep)return!1}return!0},c.prototype.sleep=function(){for(var a=0;a<this.bodies.length;a++){var b=this.bodies[a];b.sleep()}return!0}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/world/Island.js","/world")},{"../objects/Body":34,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],54:[function(a,b){(function(){function c(){this._nodePool=[],this._islandPool=[],this.equations=[],this.islands=[],this.nodes=[],this.queue=[]}var d=(a("../math/vec2"),a("./Island")),e=a("./IslandNode"),f=a("../objects/Body");b.exports=c,c.getUnvisitedNode=function(a){for(var b=a.length,c=0;c!==b;c++){var d=a[c];if(!d.visited&&d.body.type===f.DYNAMIC)return d}return!1},c.prototype.visit=function(a,b,c){b.push(a.body);for(var d=a.equations.length,e=0;e!==d;e++){var f=a.equations[e];-1===c.indexOf(f)&&c.push(f)}},c.prototype.bfs=function(a,b,d){var e=this.queue;for(e.length=0,e.push(a),a.visited=!0,this.visit(a,b,d);e.length;)for(var g,h=e.pop();g=c.getUnvisitedNode(h.neighbors);)g.visited=!0,this.visit(g,b,d),g.body.type===f.DYNAMIC&&e.push(g)},c.prototype.split=function(a){for(var b=a.bodies,f=this.nodes,g=this.equations;f.length;)this._nodePool.push(f.pop());for(var h=0;h!==b.length;h++)if(this._nodePool.length){var i=this._nodePool.pop();i.reset(),i.body=b[h],f.push(i)}else f.push(new e(b[h]));for(var j=0;j!==g.length;j++){var k=g[j],h=b.indexOf(k.bodyA),l=b.indexOf(k.bodyB),m=f[h],n=f[l];m.neighbors.push(n),n.neighbors.push(m),m.equations.push(k),n.equations.push(k)}for(var o=this.islands;o.length;){var p=o.pop();p.reset(),this._islandPool.push(p)}for(var q;q=c.getUnvisitedNode(f);){var p=this._islandPool.length?this._islandPool.pop():new d;this.bfs(q,p.bodies,p.equations),o.push(p)}return o}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/world/IslandManager.js","/world")},{"../math/vec2":33,"../objects/Body":34,"./Island":53,"./IslandNode":55,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],55:[function(a,b){(function(){function a(a){this.body=a,this.neighbors=[],this.equations=[],this.visited=!1}b.exports=a,a.prototype.reset=function(){this.equations.length=0,this.neighbors.length=0,this.visited=!1,this.body=null}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/world/IslandNode.js","/world")},{"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],56:[function(a,b){(function(){function c(a){l.apply(this),a=a||{},this.springs=[],this.bodies=[],this.disabledBodyCollisionPairs=[],this.solver=a.solver||new d,this.narrowphase=new p(this),this.islandManager=new s,this.gravity=f.fromValues(0,-9.78),a.gravity&&f.copy(this.gravity,a.gravity),this.frictionGravity=f.length(this.gravity)||10,this.useWorldGravityAsFrictionGravity=!0,this.useFrictionGravityOnZeroGravity=!0,this.doProfiling=a.doProfiling||!1,this.lastStepTime=0,this.broadphase=a.broadphase||new e,this.broadphase.setWorld(this),this.constraints=[],this.defaultMaterial=new n,this.defaultContactMaterial=new o(this.defaultMaterial,this.defaultMaterial),this.lastTimeStep=1/60,this.applySpringForces=!0,this.applyDamping=!0,this.applyGravity=!0,this.solveConstraints=!0,this.contactMaterials=[],this.time=0,this.stepping=!1,this.bodiesToBeRemoved=[],this.fixedStepTime=0,this.islandSplit="undefined"!=typeof a.islandSplit?!!a.islandSplit:!1,this.emitImpactEvent=!0,this._constraintIdCounter=0,this._bodyIdCounter=0,this.postStepEvent={type:"postStep"},this.addBodyEvent={type:"addBody",body:null},this.removeBodyEvent={type:"removeBody",body:null},this.addSpringEvent={type:"addSpring",spring:null},this.impactEvent={type:"impact",bodyA:null,bodyB:null,shapeA:null,shapeB:null,contactEquation:null},this.postBroadphaseEvent={type:"postBroadphase",pairs:null},this.sleepMode=c.NO_SLEEPING,this.beginContactEvent={type:"beginContact",shapeA:null,shapeB:null,bodyA:null,bodyB:null,contactEquations:[]},this.endContactEvent={type:"endContact",shapeA:null,shapeB:null,bodyA:null,bodyB:null},this.preSolveEvent={type:"preSolve",contactEquations:null,frictionEquations:null},this.overlappingShapesLastState={keys:[]},this.overlappingShapesCurrentState={keys:[]},this.overlapKeeper=new r}{var d=a("../solver/GSSolver"),e=(a("../solver/Solver"),a("../collision/NaiveBroadphase")),f=a("../math/vec2"),g=a("../shapes/Circle"),h=(a("../shapes/Rectangle"),a("../shapes/Convex")),i=(a("../shapes/Line"),a("../shapes/Plane")),j=a("../shapes/Capsule"),k=a("../shapes/Particle"),l=a("../events/EventEmitter"),m=a("../objects/Body"),n=(a("../shapes/Shape"),a("../objects/LinearSpring"),a("../material/Material")),o=a("../material/ContactMaterial"),p=(a("../constraints/DistanceConstraint"),a("../constraints/Constraint"),a("../constraints/LockConstraint"),a("../constraints/RevoluteConstraint"),a("../constraints/PrismaticConstraint"),a("../constraints/GearConstraint"),a("../../package.json"),a("../collision/Broadphase"),a("../collision/SAPBroadphase"),a("../collision/Narrowphase")),q=a("../utils/Utils"),r=a("../utils/OverlapKeeper"),s=a("./IslandManager");a("../objects/RotationalSpring")}if(b.exports=c,"undefined"==typeof performance&&(performance={}),!performance.now){var t=Date.now();performance.timing&&performance.timing.navigationStart&&(t=performance.timing.navigationStart),performance.now=function(){return Date.now()-t}}c.prototype=new Object(l.prototype),c.NO_SLEEPING=1,c.BODY_SLEEPING=2,c.ISLAND_SLEEPING=4,c.prototype.addConstraint=function(a){this.constraints.push(a)},c.prototype.addContactMaterial=function(a){this.contactMaterials.push(a)},c.prototype.removeContactMaterial=function(a){var b=this.contactMaterials.indexOf(a);-1!==b&&q.splice(this.contactMaterials,b,1)},c.prototype.getContactMaterial=function(a,b){for(var c=this.contactMaterials,d=0,e=c.length;d!==e;d++){var f=c[d];if(f.materialA.id===a.id&&f.materialB.id===b.id||f.materialA.id===b.id&&f.materialB.id===a.id)return f}return!1},c.prototype.removeConstraint=function(a){var b=this.constraints.indexOf(a);-1!==b&&q.splice(this.constraints,b,1)};var u=(f.create(),f.create(),f.create(),f.create(),f.create(),f.create(),f.create()),v=f.fromValues(0,0),w=f.fromValues(0,0),x=(f.fromValues(0,0),f.fromValues(0,0));c.prototype.step=function(a,b,c){if(c=c||10,b=b||0,0===b)this.internalStep(a),this.time+=a;else{var d=Math.floor((this.time+b)/a)-Math.floor(this.time/a);d=Math.min(d,c);for(var e=performance.now(),g=0;g!==d&&(this.internalStep(a),!(performance.now()-e>1e3*a));g++);this.time+=b;for(var h=this.time%a,i=h/a,j=0;j!==this.bodies.length;j++){var k=this.bodies[j];k.type!==m.STATIC&&k.sleepState!==m.SLEEPING?(f.sub(x,k.position,k.previousPosition),f.scale(x,x,i),f.add(k.interpolatedPosition,k.position,x),k.interpolatedAngle=k.angle+(k.angle-k.previousAngle)*i):(f.copy(k.interpolatedPosition,k.position),k.interpolatedAngle=k.angle)}}};var y=[];c.prototype.internalStep=function(a){this.stepping=!0;var b,d,e=this,g=this.doProfiling,h=this.springs.length,i=this.springs,j=this.bodies,k=this.gravity,l=this.solver,n=this.bodies.length,o=this.broadphase,p=this.narrowphase,r=this.constraints,s=u,t=(f.scale,f.add),v=(f.rotate,this.islandManager);if(this.overlapKeeper.tick(),this.lastTimeStep=a,g&&(b=performance.now()),this.useWorldGravityAsFrictionGravity){var w=f.length(this.gravity);0===w&&this.useFrictionGravityOnZeroGravity||(this.frictionGravity=w)}if(this.applyGravity)for(var x=0;x!==n;x++){var z=j[x],A=z.force;z.type===m.DYNAMIC&&z.sleepState!==m.SLEEPING&&(f.scale(s,k,z.mass*z.gravityScale),t(A,A,s))}if(this.applySpringForces)for(var x=0;x!==h;x++){var B=i[x];B.applyForce()}if(this.applyDamping)for(var x=0;x!==n;x++){var z=j[x];z.type===m.DYNAMIC&&z.applyDamping(a)}for(var C=o.getCollisionPairs(this),D=this.disabledBodyCollisionPairs,x=D.length-2;x>=0;x-=2)for(var E=C.length-2;E>=0;E-=2)(D[x]===C[E]&&D[x+1]===C[E+1]||D[x+1]===C[E]&&D[x]===C[E+1])&&C.splice(E,2);var F=r.length;for(x=0;x!==F;x++){var G=r[x];if(!G.collideConnected)for(var E=C.length-2;E>=0;E-=2)(G.bodyA===C[E]&&G.bodyB===C[E+1]||G.bodyB===C[E]&&G.bodyA===C[E+1])&&C.splice(E,2)}this.postBroadphaseEvent.pairs=C,this.emit(this.postBroadphaseEvent),p.reset(this);for(var x=0,H=C.length;x!==H;x+=2)for(var I=C[x],J=C[x+1],K=0,L=I.shapes.length;K!==L;K++)for(var M=I.shapes[K],N=I.shapeOffsets[K],O=I.shapeAngles[K],P=0,Q=J.shapes.length;P!==Q;P++){var R=J.shapes[P],S=J.shapeOffsets[P],T=J.shapeAngles[P],U=this.defaultContactMaterial;if(M.material&&R.material){var V=this.getContactMaterial(M.material,R.material);V&&(U=V)}this.runNarrowphase(p,I,M,N,O,J,R,S,T,U,this.frictionGravity)}for(var x=0;x!==n;x++){var W=j[x];W._wakeUpAfterNarrowphase&&(W.wakeUp(),W._wakeUpAfterNarrowphase=!1)}if(this.has("endContact")){this.overlapKeeper.getEndOverlaps(y);for(var X=this.endContactEvent,P=y.length;P--;){var Y=y[P];X.shapeA=Y.shapeA,X.shapeB=Y.shapeB,X.bodyA=Y.bodyA,X.bodyB=Y.bodyA,this.emit(X)}}var Z=this.preSolveEvent;Z.contactEquations=p.contactEquations,Z.frictionEquations=p.frictionEquations,this.emit(Z);var F=r.length;for(x=0;x!==F;x++)r[x].update();if(p.contactEquations.length||p.frictionEquations.length||r.length)if(this.islandSplit){for(v.equations.length=0,q.appendArray(v.equations,p.contactEquations),q.appendArray(v.equations,p.frictionEquations),x=0;x!==F;x++)q.appendArray(v.equations,r[x].equations);v.split(this);for(var x=0;x!==v.islands.length;x++){var $=v.islands[x];$.equations.length&&l.solveIsland(a,$)}}else{for(l.addEquations(p.contactEquations),l.addEquations(p.frictionEquations),x=0;x!==F;x++)l.addEquations(r[x].equations);this.solveConstraints&&l.solve(a,this),l.removeAllEquations()}for(var x=0;x!==n;x++){var W=j[x];W.sleepState!==m.SLEEPING&&W.type!==m.STATIC&&c.integrateBody(W,a)}for(var x=0;x!==n;x++)j[x].setZeroForce();if(g&&(d=performance.now(),e.lastStepTime=d-b),this.emitImpactEvent&&this.has("impact"))for(var _=this.impactEvent,x=0;x!==p.contactEquations.length;x++){var ab=p.contactEquations[x];ab.firstImpact&&(_.bodyA=ab.bodyA,_.bodyB=ab.bodyB,_.shapeA=ab.shapeA,_.shapeB=ab.shapeB,_.contactEquation=ab,this.emit(_))}if(this.sleepMode===c.BODY_SLEEPING)for(x=0;x!==n;x++)j[x].sleepTick(this.time,!1,a);else if(this.sleepMode===c.ISLAND_SLEEPING&&this.islandSplit){for(x=0;x!==n;x++)j[x].sleepTick(this.time,!0,a);for(var x=0;x<this.islandManager.islands.length;x++){var $=this.islandManager.islands[x];$.wantsToSleep()&&$.sleep()}}if(this.stepping=!1,this.bodiesToBeRemoved.length){for(var x=0;x!==this.bodiesToBeRemoved.length;x++)this.removeBody(this.bodiesToBeRemoved[x]);this.bodiesToBeRemoved.length=0}this.emit(this.postStepEvent)};var z=f.create(),A=f.create();c.integrateBody=function(a,b){var c=a.invMass,d=a.force,e=a.position,g=a.velocity;f.copy(a.previousPosition,a.position),a.previousAngle=a.angle,a.fixedRotation||(a.angularVelocity+=a.angularForce*a.invInertia*b,a.angle+=a.angularVelocity*b),f.scale(z,d,b*c),f.add(g,z,g),f.scale(A,g,b),f.add(e,e,A),a.aabbNeedsUpdate=!0},c.prototype.runNarrowphase=function(a,b,c,d,e,g,h,i,j,k,l){if(0!==(c.collisionGroup&h.collisionMask)&&0!==(h.collisionGroup&c.collisionMask)){f.rotate(v,d,b.angle),f.rotate(w,i,g.angle),f.add(v,v,b.position),f.add(w,w,g.position);var n=e+b.angle,o=j+g.angle;a.enableFriction=k.friction>0,a.frictionCoefficient=k.friction;var p;p=b.type===m.STATIC||b.type===m.KINEMATIC?g.mass:g.type===m.STATIC||g.type===m.KINEMATIC?b.mass:b.mass*g.mass/(b.mass+g.mass),a.slipForce=k.friction*l*p,a.restitution=k.restitution,a.surfaceVelocity=k.surfaceVelocity,a.frictionStiffness=k.frictionStiffness,a.frictionRelaxation=k.frictionRelaxation,a.stiffness=k.stiffness,a.relaxation=k.relaxation,a.contactSkinSize=k.contactSkinSize;var q=a[c.type|h.type],r=0;if(q){var s=c.sensor||h.sensor,t=a.frictionEquations.length;r=c.type<h.type?q.call(a,b,c,v,n,g,h,w,o,s):q.call(a,g,h,w,o,b,c,v,n,s);var u=a.frictionEquations.length-t;if(r){if(b.allowSleep&&b.type===m.DYNAMIC&&b.sleepState===m.SLEEPING&&g.sleepState===m.AWAKE&&g.type!==m.STATIC){var x=f.squaredLength(g.velocity)+Math.pow(g.angularVelocity,2),y=Math.pow(g.sleepSpeedLimit,2);x>=2*y&&(b._wakeUpAfterNarrowphase=!0)}if(g.allowSleep&&g.type===m.DYNAMIC&&g.sleepState===m.SLEEPING&&b.sleepState===m.AWAKE&&b.type!==m.STATIC){var z=f.squaredLength(b.velocity)+Math.pow(b.angularVelocity,2),A=Math.pow(b.sleepSpeedLimit,2);z>=2*A&&(g._wakeUpAfterNarrowphase=!0)}if(this.overlapKeeper.setOverlapping(b,c,g,h),this.has("beginContact")&&this.overlapKeeper.isNewOverlap(c,h)){var B=this.beginContactEvent;if(B.shapeA=c,B.shapeB=h,B.bodyA=b,B.bodyB=g,B.contactEquations.length=0,"number"==typeof r)for(var C=a.contactEquations.length-r;C<a.contactEquations.length;C++)B.contactEquations.push(a.contactEquations[C]);this.emit(B)}if("number"==typeof r&&u>1)for(var C=a.frictionEquations.length-u;C<a.frictionEquations.length;C++){var D=a.frictionEquations[C];D.setSlipForce(D.getSlipForce()/u)}}}}},c.prototype.addSpring=function(a){this.springs.push(a),this.addSpringEvent.spring=a,this.emit(this.addSpringEvent)},c.prototype.removeSpring=function(a){var b=this.springs.indexOf(a);-1!==b&&q.splice(this.springs,b,1)},c.prototype.addBody=function(a){-1===this.bodies.indexOf(a)&&(this.bodies.push(a),a.world=this,this.addBodyEvent.body=a,this.emit(this.addBodyEvent))},c.prototype.removeBody=function(a){if(this.stepping)this.bodiesToBeRemoved.push(a);else{a.world=null;var b=this.bodies.indexOf(a);-1!==b&&(q.splice(this.bodies,b,1),this.removeBodyEvent.body=a,a.resetConstraintVelocity(),this.emit(this.removeBodyEvent))}},c.prototype.getBodyById=function(a){for(var b=this.bodies,c=0;c<b.length;c++){var d=b[c];if(d.id===a)return d}return!1},c.prototype.disableBodyCollision=function(a,b){this.disabledBodyCollisionPairs.push(a,b)},c.prototype.enableBodyCollision=function(a,b){for(var c=this.disabledBodyCollisionPairs,d=0;d<c.length;d+=2)if(c[d]===a&&c[d+1]===b||c[d+1]===a&&c[d]===b)return void c.splice(d,2)},c.prototype.clear=function(){this.time=0,this.fixedStepTime=0,this.solver&&this.solver.equations.length&&this.solver.removeAllEquations();for(var a=this.constraints,b=a.length-1;b>=0;b--)this.removeConstraint(a[b]);for(var d=this.bodies,b=d.length-1;b>=0;b--)this.removeBody(d[b]);for(var e=this.springs,b=e.length-1;b>=0;b--)this.removeSpring(e[b]);for(var f=this.contactMaterials,b=f.length-1;b>=0;b--)this.removeContactMaterial(f[b]);c.apply(this)},c.prototype.clone=function(){var a=new c;return a.fromJSON(this.toJSON()),a};var B=f.create(),C=f.fromValues(0,0),D=f.fromValues(0,0);c.prototype.hitTest=function(a,b,c){c=c||0;var d=new m({position:a}),e=new k,l=a,n=0,o=B,p=C,q=D;d.addShape(e);for(var r=this.narrowphase,s=[],t=0,u=b.length;t!==u;t++)for(var v=b[t],w=0,x=v.shapes.length;w!==x;w++){var y=v.shapes[w],z=v.shapeOffsets[w]||p,A=v.shapeAngles[w]||0;f.rotate(o,z,v.angle),f.add(o,o,v.position);var E=A+v.angle;(y instanceof g&&r.circleParticle(v,y,o,E,d,e,l,n,!0)||y instanceof h&&r.particleConvex(d,e,l,n,v,y,o,E,!0)||y instanceof i&&r.particlePlane(d,e,l,n,v,y,o,E,!0)||y instanceof j&&r.particleCapsule(d,e,l,n,v,y,o,E,!0)||y instanceof k&&f.squaredLength(f.sub(q,o,a))<c*c)&&s.push(v)}return s},c.prototype.setGlobalEquationParameters=function(a){a=a||{};for(var b=0;b!==this.constraints.length;b++)for(var c=this.constraints[b],d=0;d!==c.equations.length;d++){var e=c.equations[d];"undefined"!=typeof a.stiffness&&(e.stiffness=a.stiffness),"undefined"!=typeof a.relaxation&&(e.relaxation=a.relaxation),e.needsUpdate=!0}for(var b=0;b!==this.contactMaterials.length;b++){var c=this.contactMaterials[b];"undefined"!=typeof a.stiffness&&(c.stiffness=a.stiffness,c.frictionStiffness=a.stiffness),"undefined"!=typeof a.relaxation&&(c.relaxation=a.relaxation,c.frictionRelaxation=a.relaxation)}var c=this.defaultContactMaterial;"undefined"!=typeof a.stiffness&&(c.stiffness=a.stiffness,c.frictionStiffness=a.stiffness),"undefined"!=typeof a.relaxation&&(c.relaxation=a.relaxation,c.frictionRelaxation=a.relaxation)},c.prototype.setGlobalStiffness=function(a){this.setGlobalEquationParameters({stiffness:a})},c.prototype.setGlobalRelaxation=function(a){this.setGlobalEquationParameters({relaxation:a})}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/world/World.js","/world")},{"../../package.json":10,"../collision/Broadphase":12,"../collision/NaiveBroadphase":14,"../collision/Narrowphase":15,"../collision/SAPBroadphase":16,"../constraints/Constraint":17,"../constraints/DistanceConstraint":18,"../constraints/GearConstraint":19,"../constraints/LockConstraint":20,"../constraints/PrismaticConstraint":21,"../constraints/RevoluteConstraint":22,"../events/EventEmitter":29,"../material/ContactMaterial":30,"../material/Material":31,"../math/vec2":33,"../objects/Body":34,"../objects/LinearSpring":35,"../objects/RotationalSpring":36,"../shapes/Capsule":39,"../shapes/Circle":40,"../shapes/Convex":41,"../shapes/Line":43,"../shapes/Particle":44,"../shapes/Plane":45,"../shapes/Rectangle":46,"../shapes/Shape":47,"../solver/GSSolver":48,"../solver/Solver":49,"../utils/OverlapKeeper":50,"../utils/Utils":52,"./IslandManager":54,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}]},{},[38])(38)});
 /**
  * @classdesc 该类是soya中应用物理系统的统一接口，默认使用p2(https://github.com/schteppe/p2.js)物理引擎，
- * 其他引擎还在扩展中。<br/>引擎本身的设置参数请参考引擎对应文档
- * 
+ * 其他引擎还在扩展中。<br/>物理引擎本身的设置参数请参考引擎对应文档</br>
+ * 该类提供如下事件:<br/>
+ * <ul>
+ *     <li>contactstart</li>
+ *     <li>contactend</li>
+ * </ul>
+ * 所有事件的唯一回调参数为物理事件对象{@link soya2d.PhysicsEvent}
  * @class 
  * @param {Object} opts 物理系统参数
  * @param {Array} opts.gravity 重力向量[x,y]
@@ -8451,6 +8581,24 @@ soya2d.PHY_STATIC = 1;
  * @type {Number}
  */
 soya2d.PHY_DYNAMIC = 2;
+
+/**
+ * 事件类型 - 碰撞开始
+ * @type {String}
+ */
+soya2d.EVENT_CONTACTSTART = 'contactstart';
+/**
+ * 事件类型 - 碰撞结束
+ * @type {String}
+ */
+soya2d.EVENT_CONTACTEND = 'contactend';
+/**
+ * 物理事件对象
+ * @type {Object}
+ * @typedef {Object} soya2d.PhysicsEvent
+ * @property {Array} collisionPairs - 碰撞对一维数组[{a:xx,b:xx},{a:yy,b:yy}, ...]
+ * @property {soya2d.DisplayObject} otherCollider - 与当前对象产生碰撞的显示对象
+ */
 soya2d.module.install('physics',{
     onInit:function(game){
         /**

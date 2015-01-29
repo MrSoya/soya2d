@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+  <html>
+  	<head>
+			<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+			<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+			<script src="../../../build/soya2d.all.min.js" type="text/javascript" language='javascript'></script>
+			<script src="main.js" type="text/javascript" language='javascript'></script>
+			<style>
+				html,body{
+					margin:0;
+					padding:0;
+				}
+			</style>
+		</head>
+    <body style="font-family: dodger">
+      
+		<script>
+			//加载资源
+			var loader = new soya.LoaderScene({
+					nextScene:scene,
+					textures:['assets/bg.png'
+								,'assets/sand.png'
+								,'assets/cactus.png'
+								,'assets/rock.png'
+								,'assets/ball.png'
+								,'assets/enemy.png'
+								,'assets/wood1.png'
+								,'assets/wood2.png'
+								,'assets/glass1.png'
+								,'assets/glass2.png'
+								,'assets/stone1.png'
+								,'assets/stone2.png'
+								,'assets/stone3.png'
+								,'assets/expo1.png'
+								,'assets/expo2.png'
+								,'assets/expo3.png'
+								,'assets/expo.png'
+								,'assets/fly1.png'
+								,'assets/fly2.png'
+							]
+			});
+
+			var STATE_INIT = 'INIT';
+			var STATE_RUNNING = 'RUNNING';
+			var STATE_OVER = 'OVER';
+			
+			var game = new soya.Game({
+				w:1024,h:1024
+			});
+			
+			if(soya2d.Device.mobile){
+				game.view.scaleMode = soya2d.SCALEMODE_EXACTFIT;
+				if(game.view.orientation == 'landscape'){
+					game.view.rotate(soya2d.ROTATEMODE_0);
+				}
+			}
+			game.on('hov',function(e){
+				if(game.view.orientation == 'landscape'){
+					game.view.rotate(soya2d.ROTATEMODE_270);
+				}else{
+					game.view.rotate(soya2d.ROTATEMODE_0);
+				}
+			});
+			
+			game.start(loader);
+			
+		
+			/***************** 事件 ******************/
+			scene.on(game,soya2d.Device.mobile?'touchstart':'click',function(e){
+				
+			});
+		</script>
+	</body>
+</html>

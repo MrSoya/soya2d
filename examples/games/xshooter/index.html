@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+  <html>
+  	<head>
+			<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+			<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+			<script src="../../../build/soya2d.all.min.js" type="text/javascript" language='javascript'></script>
+			<script src="model/Player.js" type="text/javascript" language='javascript'></script>
+			<script src="model/Enemy.js" type="text/javascript" language='javascript'></script>
+			<script src="main.js" type="text/javascript" language='javascript'></script>
+			<style>
+				html,body{
+					margin:0;
+					padding:0;
+					background: #000;
+				}
+			</style>
+		</head>
+    <body style="font-family: dodger">
+      
+    </body>
+	</html>
+
+<script>
+		//加载资源
+		var loader = new soya.LoaderScene({
+			nextScene:scene,
+			texAtlas:[
+				{
+					id:'imgFont',
+					ssheet:'assets/image/font.ssheet',
+					image:'assets/image/font.png'
+				},
+			],
+			textures:['assets/image/bg.jpg'
+				,'assets/image/bg1.png'
+				,'assets/image/fog.png'
+				,'assets/image/bg2.png'
+				,'assets/image/player.png'
+				,'assets/image/bullet1.png'
+				,'assets/image/enemy1.png'
+				,'assets/image/enemy2.png'
+				,'assets/image/enemy4.png'
+				,'assets/image/enemy44.png'
+				,'assets/image/pstar.png'
+				,'assets/image/bean1.png'
+				,'assets/image/bean2.png'
+				,'assets/image/bean3.png'
+				,'assets/image/bean4.png'
+				,'assets/image/bomb.png'
+			],
+			sounds: [
+				['assets/sound/bgm.mp3']
+				,['assets/sound/bean1.mp3']
+				,['assets/sound/bean2.mp3']
+				,['assets/sound/bean3.mp3']
+				,['assets/sound/bean4.mp3']
+				,['assets/sound/appear1.mp3']
+				,['assets/sound/expo.mp3']
+				,['assets/sound/fire.mp3']
+				,['assets/sound/hurt.mp3']
+				,['assets/sound/gameover.mp3']
+			]
+		});
+		
+		var STATE_INIT = 'INIT';
+		var STATE_RUNNING = 'RUNNING';
+		var STATE_OVER = 'OVER';
+		var STATE_CUTTO = 'CUTTO';
+		
+		var game = new soya.Game({
+			w:960,h:640
+		});
+		game.view.maxWidth = 960;
+		game.view.maxHeight = 640;
+		
+		if(soya2d.Device.mobile){
+			game.view.scaleMode = soya2d.SCALEMODE_EXACTFIT;
+			if(game.view.orientation == 'portrait'){
+				game.view.rotate(soya2d.ROTATEMODE_90);
+			}
+		}
+		game.on('hov',function(e){
+			if(game.view.orientation == 'portrait'){
+				game.view.rotate(soya2d.ROTATEMODE_90);
+			}else{
+				game.view.rotate(soya2d.ROTATEMODE_0);
+			}
+		});
+		
+		game.start(loader);
+	
+		/***************** 事件 ******************/
+		scene.on(game,soya2d.Device.mobile?'touchstart':'click',function(e){
+			var bgm = game.soundManager.findOne({url:'bgm',fuzzy:true});
+			if(!bgm){
+					//加载音频，针对必须由事件触发的环境
+					game.loadRes({
+						sounds: [
+					['assets/sound/bgm.mp3']
+					,['assets/sound/bean1.mp3']
+					,['assets/sound/bean2.mp3']
+					,['assets/sound/bean3.mp3']
+					,['assets/sound/bean4.mp3']
+					,['assets/sound/appear1.mp3']
+					,['assets/sound/expo.mp3']
+					,['assets/sound/fire.mp3']
+					,['assets/sound/hurt.mp3']
+					,['assets/sound/gameover.mp3']
+					],
+						onLoad: function() {
+							
+						},
+						onEnd: function() {
+							
+						}
+					});
+			}
+			
+		});
+
+</script>

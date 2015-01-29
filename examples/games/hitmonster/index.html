@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+  <html>
+  	<head>
+			<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+			<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+			<script src="../../../build/soya2d.all.min.js" type="text/javascript" language='javascript'></script>
+			<script src="main.js" type="text/javascript" language='javascript'></script>
+			<style>
+				html,body{
+					margin:0;
+					padding:0;
+				}
+			</style>
+		</head>
+    <body style="font-family: dodger">
+      
+		<script>
+			//加载资源
+			var loader = new soya.LoaderScene({
+					nextScene:scene,
+					texAtlas:[
+						{id:'imgFont',ssheet:'assets/font.ssheet',image:'assets/font.png'},
+					],
+					textures:['assets/bg.png'
+								,'assets/fg.png'
+								,'assets/font.png'
+								,'assets/gameover.png'
+								,'assets/logo.png'
+								,'assets/monster1.png'
+								,'assets/monster2.png'
+								,'assets/monster3.png'
+								,'assets/monster4.png'
+								,'assets/monster5.png'
+								,'assets/particle.png'
+								,'assets/ready.png'
+								,'assets/restart.png'
+							]
+					/* 有些移动环境不支持主动加载
+					,sounds:[
+						['assets/sound/music.m4a','assets/sound/music.ogg','assets/sound/music.mp3']
+						,['assets/sound/hit.m4a','assets/sound/hit.ogg']
+						,['assets/sound/score.m4a','assets/sound/score.ogg']
+						,['assets/sound/miss.m4a','assets/sound/miss.ogg']
+						,['assets/sound/spawn1.m4a','assets/sound/spawn1.ogg']
+						,['assets/sound/spawn2.m4a','assets/sound/spawn2.ogg']
+						,['assets/sound/spawn3.m4a','assets/sound/spawn3.ogg']
+						,['assets/sound/spawn4.m4a','assets/sound/spawn4.ogg']
+						,['assets/sound/spawn5.m4a','assets/sound/spawn5.ogg']
+					]
+					//*/
+			});
+			
+			var STATE_INIT = 'INIT';
+			var STATE_RUNNING = 'RUNNING';
+			var STATE_OVER = 'OVER';
+			var STATE_CUTTO = 'CUTTO';
+			
+			var game = new soya.Game({
+				w:1024,h:768
+			});
+			game.view.maxWidth = 1024;
+			game.view.maxHeight = 768;
+			
+			if(soya2d.Device.mobile){
+				game.view.scaleMode = soya2d.SCALEMODE_EXACTFIT;
+				if(game.view.orientation == 'portrait'){
+					game.view.rotate(soya2d.ROTATEMODE_90);
+				}
+			}
+			game.on('hov',function(e){
+				if(game.view.orientation == 'portrait'){
+					game.view.rotate(soya2d.ROTATEMODE_90);
+				}else{
+					game.view.rotate(soya2d.ROTATEMODE_0);
+				}
+			});
+			
+			game.start(loader);
+			/***************** 任务 ******************/
+			game.addTask(function(){
+				if(game.scene.state != STATE_RUNNING)return;
+				
+				var sec = game.scene.duration-- + '';
+				if(sec.length<2)sec = '0'+sec;
+				game.scene.timeText.setText('00:'+sec);
+				
+				if(game.scene.duration < 0){
+					game.scene.gameover();	
+				}
+			},'* * *',soya2d.TRIGGER_TYPE_TIME);
+		
+			/***************** 事件 ******************/
+			scene.on(game,soya2d.Device.mobile?'touchstart':'click',function(e){
+				var music = game.soundManager.findOne({url:'music',fuzzy:true});
+				if(!music){
+					//加载音频，针对必须由事件触发的环境
+					game.loadRes({
+						sounds: [
+					['assets/sound/music.m4a','assets/sound/music.ogg','assets/sound/music.mp3']
+					,['assets/sound/hit.m4a','assets/sound/hit.ogg']
+					,['assets/sound/score.m4a','assets/sound/score.ogg']
+					,['assets/sound/miss.m4a','assets/sound/miss.ogg']
+					,['assets/sound/spawn1.m4a','assets/sound/spawn1.ogg']
+					,['assets/sound/spawn2.m4a','assets/sound/spawn2.ogg']
+					,['assets/sound/spawn3.m4a','assets/sound/spawn3.ogg']
+					,['assets/sound/spawn4.m4a','assets/sound/spawn4.ogg']
+					,['assets/sound/spawn5.m4a','assets/sound/spawn5.ogg']
+					],
+						onLoad: function() {
+							
+						},
+						onEnd: function() {
+							
+						}
+					});
+				}
+				
+				if(this.state == STATE_INIT){
+					this.play(game);
+				}
+				
+				if(this.state == STATE_RUNNING){
+					var x = e.x,y = e.y;
+					
+					if(soya2d.Device.mobile){
+						var touchList = e.touchList;
+						x = touchList[0];
+						y = touchList[1];
+					}
+					this.hit(x,y);
+				}
+			});
+		</script>
+	</body>
+</html>
