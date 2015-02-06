@@ -4719,7 +4719,7 @@ soya2d.Loader = new function(){
         for(var i=cfg.urls.length;i--;){
             var urls = cfg.urls[i];
             var handler = new Howl({
-                urls: urls,
+                urls: urls instanceof Array?urls:[urls],
                 onload:function(){
                     if(onLoad && onLoad.call){
                         var sound = new soya2d.Sound();

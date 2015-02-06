@@ -4719,7 +4719,7 @@ soya2d.Loader = new function(){
         for(var i=cfg.urls.length;i--;){
             var urls = cfg.urls[i];
             var handler = new Howl({
-                urls: urls,
+                urls: urls instanceof Array?urls:[urls],
                 onload:function(){
                     if(onLoad && onLoad.call){
                         var sound = new soya2d.Sound();
@@ -6894,7 +6894,18 @@ soya2d.KeyCode = {
     F9:120,
     F10:121,
     F11:122,
-    F12:123
+    F12:123,
+
+    '[':219,
+    ']':221,
+    '\\':220,
+    '=':187,
+    '-':189,
+    ',':188,
+    '.':190,
+    '/':191,
+    ';':186,
+    '\'':222
 };
 /**
  * @classdesc 移动设备事件处理类,提供如下事件:<br/>
@@ -7968,7 +7979,7 @@ soya2d.module.install('sound',{
          */
         game.soundManager = new soya2d.SoundManager();
     },
-    onStop:function(){
+    onStop:function(game){
         game.soundManager.stopAll();
     }
 });
