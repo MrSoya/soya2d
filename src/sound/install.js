@@ -10,7 +10,7 @@ soya2d.module.install('sound',{
          */
         game.soundManager = new soya2d.SoundManager();
     },
-    onStop:function(){
+    onStop:function(game){
         game.soundManager.stopAll();
     }
 });
