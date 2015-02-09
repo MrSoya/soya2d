@@ -1525,11 +1525,10 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
     /**
      * 返回该对象当前变形状态的4个顶点<br/>
      * *该方法依赖对象的[x、y、w、h、originX、originY]6个属性
-     * @return {Array} [topLeftX,topLeftY,
+     * @return {Array} [ topLeftX,topLeftY,
      *                  topRightX,topRightY,
      *                  bottomRightX,bottomRightY,
-     *                  bottomLeftX,bottomLeftY
-     *                  ]
+     *                  bottomLeftX,bottomLeftY ]
      */
     getBoundingPoints:function(){
         //加载矩阵
@@ -2140,20 +2139,7 @@ soya2d.Sprite = function(data){
 
     var textures = data.textures;
 
-    if(textures instanceof soya2d.Texture){
-        this.textures = [textures];
-    }else if(textures instanceof self.Image){
-    	this.textures = [soya2d.Texture.fromImage(textures)];
-    }else if(textures instanceof Array){
-    	this.textures = textures;
-    }else{
-    	this.textures = [];
-    }
-
-    if(!this.textures[0]){
-    	console.error('soya2d.Sprite: invalid param [textures]; '+this.textures[0]);
-    	return;
-    }
+    this.setTextures(textures);
     
     this.w = data.w || this.textures[0].w;
     this.h = data.h || this.textures[0].h;
@@ -2252,6 +2238,25 @@ soya2d.ext(soya2d.Sprite.prototype,/** @lends soya2d.Sprite.prototype */{
 				this.frameIndex = 0;
 			}
 		}
+	},
+	/**
+	 * 设置或者更改精灵纹理
+	 * @param {soya2d.Texture | HTMLImageElement | Array} textures 纹理对象或者纹理数组
+	 */
+	setTextures:function(textures){
+		if(textures instanceof soya2d.Texture){
+	        this.textures = [textures];
+	    }else if(textures instanceof self.Image){
+	    	this.textures = [soya2d.Texture.fromImage(textures)];
+	    }else if(textures instanceof Array){
+	    	this.textures = textures;
+	    }else{
+	    	this.textures = [];
+	    }
+
+	    if(!this.textures[0]){
+	    	console.error('soya2d.Sprite: invalid param [textures]; '+this.textures[0]);
+	    }
 	}
 });
 /**
@@ -5522,25 +5527,23 @@ soya2d.inherits(soya2d.LoaderScene,soya2d.Scene);
 /**
      * @classdesc 补间类，用于创建动画<br/>
      * 该类提供了在周期时间内，按照指定补间类型进行“补间目标”属性的计算，并提供反馈的过程<br/>
-     * 补间目标可以是一个可渲染对象，比如sprite，也可以是它的matrix属性，比如
+     * 补间目标可以是一个可渲染对象，比如sprite，也可以是它的对象属性，比如
      * @example
-     var ken = new soya2d.Sprite({
-    onRender:function(g){
-        g.fillText("Hi~~,i'm ken");
-    }
+var MrSoya = new soya2d.Text({
+    text:"Hi~~,i'm MrSoya"
 });
-         var tween1 = new soya2d.Tween(ken,
-         {opacity:1,scaleX:1},
-         1000,
-         {easing:soya2d.Tween.Expo.Out,cacheable:true,
-         onUpdate:function(target,ratio){
-             target.sclaeY = ratio;
-         }
+var tween1 = new soya2d.Tween(MrSoya,
+        {opacity:1,scaleX:1},
+        1000,{easing:soya2d.Tween.Expo.Out,
+        cacheable:true,
+        onUpdate:function(target,ratio){
+            target.sclaeY = ratio;
+        }
 });
-         var tween2 = new soya2d.Tween(ken.matrix,
-         {m13:100,m23:200},
-         1000,
-         {easing:soya2d.Tween.Expo.Out,cacheable:false
+var tween2 = new soya2d.Tween(MrSoya.bounds,
+        {w:100,h:200},
+        1000,
+        {easing:soya2d.Tween.Expo.Out,cacheable:false
 });
      * @param {Object} target 需要进行对象
      * @param {Object} attris 补间目标属性
