@@ -16,20 +16,7 @@ soya2d.Sprite = function(data){
 
     var textures = data.textures;
 
-    if(textures instanceof soya2d.Texture){
-        this.textures = [textures];
-    }else if(textures instanceof self.Image){
-    	this.textures = [soya2d.Texture.fromImage(textures)];
-    }else if(textures instanceof Array){
-    	this.textures = textures;
-    }else{
-    	this.textures = [];
-    }
-
-    if(!this.textures[0]){
-    	console.error('soya2d.Sprite: invalid param [textures]; '+this.textures[0]);
-    	return;
-    }
+    this.setTextures(textures);
     
     this.w = data.w || this.textures[0].w;
     this.h = data.h || this.textures[0].h;
@@ -128,5 +115,24 @@ soya2d.ext(soya2d.Sprite.prototype,/** @lends soya2d.Sprite.prototype */{
 				this.frameIndex = 0;
 			}
 		}
+	},
+	/**
+	 * 设置或者更改精灵纹理
+	 * @param {soya2d.Texture | HTMLImageElement | Array} textures 纹理对象或者纹理数组
+	 */
+	setTextures:function(textures){
+		if(textures instanceof soya2d.Texture){
+	        this.textures = [textures];
+	    }else if(textures instanceof self.Image){
+	    	this.textures = [soya2d.Texture.fromImage(textures)];
+	    }else if(textures instanceof Array){
+	    	this.textures = textures;
+	    }else{
+	    	this.textures = [];
+	    }
+
+	    if(!this.textures[0]){
+	    	console.error('soya2d.Sprite: invalid param [textures]; '+this.textures[0]);
+	    }
 	}
 });
