@@ -19,7 +19,7 @@ soya2d.Text = function(data){
     /**
      * 文本内容
      * *注意，直接设置该属性后，需要手动刷新才会更新显示内容。如果不想手动刷新，可以使用setText函数来更新内容
-     * @see soya2d.TextArea.refresh
+     * @see soya2d.Text.refresh
      * @type {String}
      */
     this.text = data.text||'';

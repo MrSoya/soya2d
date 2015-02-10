@@ -423,7 +423,7 @@ soya2d.Game = function(opts){
     
 };
 var t1 = 'soya2d is working...';
-var t2 = '==== thank you for useing soya2d, you\'ll love it! ====';
+var t2 = '==== thank you for using soya2d, you\'ll love it! ====';
 
 soya2d.console.log(t1);
 soya2d.console.log(t2);
