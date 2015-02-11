@@ -150,6 +150,7 @@ soya2d.Tween.prototype = {
      */
     delay:function(delay){
         var THAT = this;
+        this.stop();
         setTimeout(function(){THAT.start()},delay);
         return this;
     },
