@@ -2874,9 +2874,10 @@ soya2d.CanvasGraphics = function(ctx){
  * @param {Object} data 构造参数对象
  * @param {DOMElement} data.container 渲染容器，渲染器会在该容器范围内进行渲染
  * 容器可以是一个块级元素比如div。
- * @param {boolean} data.autoClear 见属性说明
- * @param {boolean} data.sortEnable 见属性说明
+ * @param {boolean} [data.autoClear=true] 是否自动清除图层，如果不清除，则渲染效果会叠加
+ * @param {boolean} [data.sortEnable=false] 是否开启自动排序。如果开启渲染器会在渲染前对所有DO进行Z轴排序
  * @param {boolean} [data.smoothEnable=true] 是否启用对图像边缘的平滑处理
+ * @param {boolean} [data.crispEnable=false] 是否启用图像非平滑渲染
  * @class 
  * @author {@link http://weibo.com/soya2d MrSoya}
  */
@@ -2901,7 +2902,7 @@ soya2d.CanvasRenderer = function(data){
      */
     this.h = data.h||(container?container.clientHeight:0);
     /**
-     * 是否自动清除图层，如果不清除，则渲染效果会在该图层叠加
+     * 是否自动清除图层，如果不清除，则渲染效果会叠加
      * @default true
      */
     this.autoClear = data.autoClear===undefined?true:data.autoClear;
@@ -2909,10 +2910,10 @@ soya2d.CanvasRenderer = function(data){
      * 是否开启自动排序。如果开启渲染器会在渲染前对所有DO进行Z轴排序
      * @default false
      */
-    this.sortEnable = data.sortEnable||false;
+    this.sortEnable = data.sortEnable || false;
 
     var smoothEnable = data.smoothEnable===false?false:data.smoothEnable||true;
-    var crispEnable = data.crispEnable===false?false:data.crispEnable||true;
+    var crispEnable = data.crispEnable || false;
 
 
     var cvs = document.createElement('canvas');cvs.style.position = 'absolute';
