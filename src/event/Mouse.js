@@ -85,7 +85,7 @@ soya2d.Mouse = function(){
             ooList.forEach(function(o){
                 var target = o.context;
                 var fn = o.fn;
-                if(!target.hitTest(mouse.x,mouse.y))return;
+                if(!target.hitTest || !target.hitTest(mouse.x,mouse.y))return;
 
                 currIn.push(target);
                 if(inList.indexOf(target) > -1)return;

@@ -247,7 +247,9 @@ soya2d.Game = function(opts){
 	this.start = function(scene){
 		if(this.running)return;
 		this.running = true;
-		this.cutTo(scene);
+        if(!this.scene){
+		  this.cutTo(scene);
+        }
 
         soya2d.console.log('game starting...');
         if(scene.children.length < 1){
