@@ -38,7 +38,7 @@ soya2d.LoaderScene = function(data){
         //初始化时启动
         var index = 0;
         //资源总数
-        var allSize = this.textures.length +this.sounds.length +this.fonts.length;
+        var allSize = this.textures.length +this.texAtlas.length +this.sounds.length +this.scripts.length +this.fonts.length;
         if(allSize<1){
             soya2d.console.warn('empty resources be loaded...');
             game.cutTo(this.nextScene);
