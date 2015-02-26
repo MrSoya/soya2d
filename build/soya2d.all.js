@@ -15,8 +15,8 @@ var soya2d = new function(){
      * @property {function} toString 返回版本
      */
 	this.version = {
-        v:[0,1,0,156],//[major,minor,patch,build]
-        state:'alpha',
+        v:[1,2,0],
+        state:'rc',
         toString:function(){
             return soya2d.version.v.join('.') + ' ' + soya2d.version.state;
         }
@@ -2745,7 +2745,6 @@ soya2d.CanvasGraphics = function(ctx){
 
     /**
      * 填充path
-     * @param {soya2d.CanvasPath} path 路径对象实例。如果为空则填充当前path，否则填充指定path
      * @method
      * @return this
      */
@@ -2755,7 +2754,6 @@ soya2d.CanvasGraphics = function(ctx){
     };
     /**
      * 描绘path的轮廓
-     * @param {soya2d.CanvasPath} path 路径对象实例。如果为空则描绘当前path，否则描绘指定path
      * @method
      * @return this
      */
@@ -2763,6 +2761,54 @@ soya2d.CanvasGraphics = function(ctx){
         this.ctx.stroke();
         return this;
     };
+
+    /**
+     * 向当前path中添加指定的subpath
+     * @param {soya2d.Path} path 路径结构
+     * @method
+     * @return this
+     */
+    this.path = function(path){
+        path._insQ.forEach(function(ins){
+            var type = ins[0].toLowerCase();
+            switch(type){
+                case 'm':this.ctx.moveTo(ins[1][0],ins[1][1]);break;
+                case 'l':
+                    var xys = ins[1];
+                    if(xys.length>2){
+                        for(var i=0;i<xys.length;i+=2){
+                            this.ctx.lineTo(xys[i],xys[i+1]);
+                        }
+                    }else{
+                        this.ctx.lineTo(xys[0],xys[1]);
+                    }
+                    break;
+                case 'c':
+                    var xys = ins[1];
+                    if(xys.length>6){
+                        for(var i=0;i<xys.length;i+=6){
+                            this.ctx.bezierCurveTo((xys[i]),(xys[i+1]),(xys[i+2]),
+                                                (xys[i+3]),(xys[i+4]),(xys[i+5]));
+                        }
+                    }else{
+                        this.ctx.bezierCurveTo(xys[0],xys[1],xys[2],xys[3],xys[4],xys[5]);
+                    }
+                    break;
+                case 'q':
+                    var xys = ins[1];
+                    if(xys.length>4){
+                        for(var i=0;i<xys.length;i+=4){
+                            this.ctx.quadraticCurveTo((xys[i]),(xys[i+1]),(xys[i+2]),
+                                                (xys[i+3]));
+                        }
+                    }else{
+                        this.ctx.quadraticCurveTo(xys[0],xys[1],xys[2],xys[3]);
+                    }
+                    break;
+                case 'z':this.ctx.closePath();break;
+            }
+        },this);
+    }
 
     /**
      * 以x,y为左上角填充一个宽w高h的矩形
@@ -5555,10 +5601,10 @@ soya2d.LoaderScene = function(data){
 };
 soya2d.inherits(soya2d.LoaderScene,soya2d.Scene);
 /**
-     * @classdesc 补间类，用于创建动画<br/>
-     * 该类提供了在周期时间内，按照指定补间类型进行“补间目标”属性的计算，并提供反馈的过程<br/>
-     * 补间目标可以是一个可渲染对象，比如sprite，也可以是它的对象属性，比如
-     * @example
+    * @classdesc 补间类，用于创建动画<br/>
+    * 该类提供了在周期时间内，按照指定补间类型进行“补间目标”属性的计算，并提供反馈的过程<br/>
+    * 补间目标可以是一个可渲染对象，比如sprite，也可以是它的对象属性，比如
+    * @example
 var MrSoya = new soya2d.Text({
     text:"Hi~~,i'm MrSoya"
 });
@@ -5575,20 +5621,20 @@ var tween2 = new soya2d.Tween(MrSoya.bounds,
         1000,
         {easing:soya2d.Tween.Expo.Out,cacheable:false
 });
-     * @param {Object} target 需要进行对象
-     * @param {Object} attris 补间目标属性
-     * @param {int} duration 补间周期(ms)
-     * @param {Object} opts 补间属性
-     * @param {Object} opts.easing 补间类型，包括线性和非线性,默认Pea.Tween.Linear
-     * @param {Object} opts.cacheable 是否缓存，启用缓存可以提高动画性能，但是动画过程会有些许误差
-     * @param {int} opts.iteration 循环播放次数，-1为无限。默认0
-     * @param {Object} opts.alternate 是否交替反向播放动画，只在循环启用时生效，默认false
-     * @param {Object} opts.onUpdate 补间更新事件
-     * @param {Object} opts.onEnd 补间结束事件
-     * @class
-     * @see {soya2d.Tween.Linear}
-     * @author {@link http://weibo.com/soya2d MrSoya}
-     */
+    * @param {Object} target 需要进行对象
+    * @param {Object} attris 补间目标属性
+    * @param {int} duration 补间周期(ms)
+    * @param {Object} [opts] 补间属性
+    * @param {function} [opts.easing=soya2d.Tween.Linear] 补间类型
+    * @param {boolean} [opts.cacheable=false] 是否缓存，启用缓存可以提高动画性能，但是动画过程会有些许误差
+    * @param {int} [opts.iteration=0] 循环播放次数，-1为无限
+    * @param {boolean} [opts.alternate=false] 是否交替反向播放动画，只在循环启用时生效
+    * @param {function} [opts.onUpdate] 补间更新事件
+    * @param {function} [opts.onEnd] 补间结束事件
+    * @class
+    * @see {soya2d.Tween.Linear}
+    * @author {@link http://weibo.com/soya2d MrSoya}
+    */
 soya2d.Tween = function(target,attris,duration,opts){
 
     //用来保存每个属性的，变化值，补间值
@@ -5632,6 +5678,7 @@ soya2d.Tween = function(target,attris,duration,opts){
     this.cacheable = opts.cacheable||false;
 
     this.__loops = 0;//已经循环的次数
+    this.__delay = 0;
 };
 
 soya2d.Tween.prototype = {
@@ -5685,7 +5732,8 @@ soya2d.Tween.prototype = {
     },
     /**
      * 启动补间器<br/>
-     * 如果在当前tween还未执行完时再次启动当前tween无效
+     * *启动新的补间实例，会立即停止当前目标正在执行的补间
+     * @return this
      */
     start:function(){
         this.__calc();
@@ -5703,11 +5751,10 @@ soya2d.Tween.prototype = {
     /**
      * 延迟启动补间器
      * @param {int} delay 延迟毫秒数
+     * @return this
      */
     delay:function(delay){
-        var THAT = this;
-        this.stop();
-        setTimeout(function(){THAT.start()},delay);
+        this.__delay = delay;
         return this;
     },
     /**
@@ -5718,7 +5765,7 @@ soya2d.Tween.prototype = {
         return this;
     },
     /**
-     * 调转到指定间隔
+     * 跳转到指定间隔
      */
     goTo:function(target,time,un){
         var ratio,attNames=this.__attriNames,attr=this.__attr,t=target;
@@ -5751,8 +5798,13 @@ soya2d.Tween.prototype = {
     /**
      * 更新补间实例
      */
-    update:function(now){
+    update:function(now,d){
         var c = now - this.__startTime;
+        if(this.__delay > 0){
+            this.__delay -= d;
+            if(this.__delay <=0)this.__startTime = Date.now();
+            return;
+        }
         var t=this.target;
         var ratio = this.goTo(t,c);
 
@@ -5779,6 +5831,11 @@ soya2d.Tween.prototype = {
             //销毁
             this.destroy();
             soya2d.TweenManager.remove(this);
+
+            if(this.__next){
+                this.__next.start();
+            }
+
             return;
         }
         //调用更新[target,ratio]
@@ -5795,6 +5852,19 @@ soya2d.Tween.prototype = {
         this.target = null;
         this.onUpdate = null;
         this.onEnd = null;
+    },
+    /**
+     * 设置当前补间完成后的下一个补间，进行链式执行<br/>
+     * *如果当前补间设置了无限循环，永远不会进入下一个
+     * @param  {soya2d.Tween} tween 下一个补间
+     * @return this
+     */
+    next:function(tween){
+        this.__next = tween;
+        if(this.iteration===-1){
+            soya2d.console.warn('invalid [next] setting on infinite loop instance...');
+        }
+        return this;
     }
 };
 
@@ -5804,19 +5874,22 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
     * 播放补间动画
     * @param {Object} attris 补间目标属性
     * @param {int} duration 补间周期(ms)
-    * @param {Object} opts 补间属性
-    * @param {Function} opts.easing 补间类型，包括线性和非线性,默认Pea.Tween.Linear
-    * @param {boolean} opts.cacheable 是否缓存，启用缓存可以提高动画性能，但是动画过程会有些许误差
-    * @param {int} opts.iteration 循环播放次数，-1为无限。默认0
-    * @param {boolean} opts.alternate 是否交替反向播放动画，只在循环启用时生效，默认false
-    * @param {Function} opts.onUpdate 补间更新事件
-    * @param {Function} opts.onEnd 补间结束事件
+    * @param {Object} [opts] 补间属性
+    * @param {function} [opts.easing=soya2d.Tween.Linear] 补间类型
+    * @param {boolean} [opts.cacheable=false] 是否缓存，启用缓存可以提高动画性能，但是动画过程会有些许误差
+    * @param {int} [opts.iteration=0] 循环播放次数，-1为无限
+    * @param {boolean} [opts.alternate=false] 是否交替反向播放动画，只在循环启用时生效
+    * @param {function} [opts.onUpdate] 补间更新事件
+    * @param {function} [opts.onEnd] 补间结束事件
+    * @param {boolean} [si=true] 是否立即启动
     * @see {soya2d.Tween.Linear}
     * @return {soya2d.Tween} 补间实例
     * @requires tween
     */
-	animate:function(attris,duration,opts){
-        var tween = new soya2d.Tween(this,attris,duration,opts).start();
+	animate:function(attris,duration,opts,si){
+        var tween = new soya2d.Tween(this,attris,duration,opts);
+        si = si===false?false:si || true;
+        if(si)tween.start();
 		return tween;
 	},
     /**
@@ -5830,35 +5903,362 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
             delete this.__tween;
         }
         return this;
+    }
+});
+/**
+ * @classdesc 路径描述结构。既可用于支持路径动画的路径检索，也可以用于绘制路径
+ * @class 
+ * @author {@link http://weibo.com/soya2d MrSoya}
+ */
+soya2d.Path = function(d){
+    /**
+     * 路径指令集。同{@link http://www.w3.org/TR/SVG11/paths.html SVG}，但仅支持绝对坐标，
+     * 并限于以下指令：
+     * <table>
+     *     <th>段类型</th><th>命令</th><th>参数</th><th>示例</th>
+     *     <tr><td>moveto</td><td>M/m</td><td>x y</td><td><code>M 50 50</code> － 将画笔移到 50,50</td></tr>
+     *     <tr><td>lineto</td><td>L/l</td><td>(x y)+</td><td><code>L 50 50 100 100</code> － 直线到 50,50再到100,100</td></tr>
+     *     <tr><td>quadraticCurveTo</td><td>Q/q</td><td>(cpx cpy x y)+</td><td><code>Q 110 45 90 30</code> - 曲线到 90, 30，控制点位于 110, 45</td></tr>
+     *     <tr><td>bezierCurveTo</td><td>C/c</td><td>(cp1x cp1y cp2x cp2y x y)+</td><td><code>C 45 50 20 30 10 20</code> － 曲线到 10, 20，第一个控制点位于 45, 50，第二个控制点位于 20, 30</td></tr>
+     *     <tr><td>closepath</td><td>Z/z</td><td>无</td><td>关闭路径</td></tr>
+     * </table>
+     * @type {string}
+     */
+    this.d = d || '';
+
+    this.cmd = ['m','l','c','q','z'];
+
+    this._insQ = [];
+
+    this.__parse();
+}
+soya2d.ext(soya2d.Path.prototype,/** @lends soya2d.Path.prototype */{
+    /**
+     * 解析指令
+     * @private
+     */
+    __parse:function(){
+        var exp = new RegExp("["+this.cmd.join('')+"]([^"+this.cmd.join('')+"]+|$)",'img');
+        var segs = this.d.replace(/^\s+|\s+$/,'').match(exp);
+
+        //过滤有效指令，插入指令队列
+        segs.forEach(function(seg){
+            seg = seg.replace(/^\s+|\s+$/,'');
+            var cmd = seg[0].toLowerCase();
+            if(this.cmd.indexOf(cmd) > -1){
+                //解析坐标值
+                var xys = seg.substr(1).replace(/^\s/mg,'').split(/\n|,|\s/gm);
+
+                this._insQ.push([cmd,xys]);
+            }
+        },this);
     },
-	/**
-	 * 播放基于补间模版的动画。
-	 * @param {Object} tweenTpl 补间模版数据。主要来自Soya Studio
-     * @param {Function} onUpdate 补间更新事件
-     * @param {Function} onEnd 补间结束事件
-	 * @return {soya2d.Tween} 补间实例
+    /**
+     * 设置path指令串，并解析
+     * @param {string} d path指令串
+     */
+    setData:function(d){
+        this.d = d;
+        this.__parse();
+    }
+});
+/**
+     * @classdesc 路径补间类，用于创建路径动画<br/>
+     * 该类提供了在周期时间内，按照指定补间类型进行“补间目标”路径的计算，并提供反馈的过程<br/>
+     * @example
+var MrSoya = new soya2d.Text({
+    text:"Hi~~,i'm MrSoya"
+});
+var path = new soya2d.Path("M250 150 L150 350 L350 350 Z");
+var pt = new soya2d.PathTween(MrSoya,
+        path,
+        1000,{easing:soya2d.Tween.Bounce.Out}
+    );
+    * @param {Object} target 需要进行对象
+    * @param {soya2d.Path} path 路径实例
+    * @param {int} duration 补间周期(ms)
+    * @param {Object} opts 补间属性
+    * @param {function} [opts.easing=soya2d.Tween.Linear] 补间类型
+    * @param {int} [opts.iteration=0] 循环播放次数，-1为无限
+    * @param {boolean} [opts.alternate=false] 是否交替反向播放动画，只在循环启用时生效
+    * @param {function} [opts.onUpdate] 补间更新事件
+    * @param {function} [opts.onEnd] 补间结束事件
+    * @class
+    * @see {soya2d.Tween.Linear}
+    * @author {@link http://weibo.com/soya2d MrSoya}
+    */
+soya2d.PathTween = function(target,path,duration,opts){
+
+    this.__pps = [];
+    this.__pps_inverse = [];
+
+    this.path = path;
+    this.target = target;
+    this.duration = duration;
+
+    opts = opts||{};
+    this.easing = opts.easing||soya2d.Tween.Linear;
+    this.iteration = opts.iteration||0;
+    this.alternate = opts.alternate||false;
+
+    /**
+     * @name soya2d.PathTween#onUpdate
+     * @desc  补间每运行一次时触发，this指向补间器
+     * @param {Object} target 补间目标，可能为null
+     * @param {Number} ratio 补间系数。当补间器运行时，会回传0-1之间的补间系数
+     * @param {Number} angle 切线角
+     * @event
+     */
+    this.onUpdate = opts.onUpdate;
+    /**
+     * @name soya2d.PathTween#onEnd
+     * @desc  补间运行完触发，this指向补间器
+     * @param {Object} target 补间目标
+     * @event
+     */
+    this.onEnd = opts.onEnd;
+
+    this.__loops = 0;
+
+    this.__radian;
+};
+soya2d.PathTween.prototype = {
+    __calc:function(un){
+        var sx=0,sy=0;
+        var ox=0,oy=0;
+        this.path._insQ.forEach(function(ins){
+            var type = ins[0].toLowerCase();
+            switch(type){
+                case 'm':ox=sx=parseFloat(ins[1][0]),oy=sy=parseFloat(ins[1][1]);break;
+                case 'l':
+                    var xys = ins[1];
+                    for(var i=0;i<xys.length;i+=2){
+                        var k = (xys[i+1] - sy)/(xys[i] - sx);
+                        var diff = sx - xys[i];
+                        var dir = diff>0?-1:1;
+                        for(var d=0;d<Math.abs(diff);d++){
+                            var x = sx + dir*d;
+                            var y = k * (x - sx) + sy;
+                            this.__pps.push(x,y);
+                        }
+
+                        sx=parseFloat(xys[i]),sy=parseFloat(xys[i+1]);
+                    }
+                    break;
+                case 'c':
+                    var xys = ins[1];
+                    for(var i=0;i<xys.length;i+=6){
+
+                        for(var t=0;t<1;t+=.01){
+                            var ts = t*t;
+                            var tc = ts*t;
+
+                            var x = sx*(1-3*t+3*ts-tc) + 3*xys[i]*t*(1-2*t+ts) + 3*xys[i+2]*ts*(1-t) + xys[i+4]*tc;
+                            var y = sy*(1-3*t+3*ts-tc) + 3*xys[i+1]*t*(1-2*t+ts) + 3*xys[i+3]*ts*(1-t) + xys[i+5]*tc;
+                            this.__pps.push(x,y);
+                        }
+
+                        sx=parseFloat(xys[i+4]),sy=parseFloat(xys[i+5]);
+                    }
+                    break;
+                case 'q':
+                    var xys = ins[1];
+                    for(var i=0;i<xys.length;i+=4){
+               
+                        for(var t=0;t<1;t+=.01){
+                            var ts = t*t;
+                            var tc = ts*t;
+
+                            var x = sx*(1-2*t+ts) + 2*xys[i]*t*(1-t) + xys[i+2]*ts;
+                            var y = sy*(1-2*t+ts) + 2*xys[i+1]*t*(1-t) + xys[i+3]*ts;
+                            this.__pps.push(x,y);
+                        }
+
+                        sx=parseFloat(xys[i+2]),sy=parseFloat(xys[i+3]);
+                    }
+                    break;
+                case 'z':
+                    var k = (oy - sy)/(ox - sx);
+                    var diff = sx - ox;
+                    var dir = diff>0?-1:1;
+                    for(var d=0;d<Math.abs(diff);d++){
+                        var x = sx + dir*d;
+                        var y = k * (x - sx) + sy;
+                        this.__pps.push(x,y);
+                    }
+                    break;
+            }
+        },this);
+
+        for(var i=this.__pps.length-2;i>0;i-=2){
+            this.__pps_inverse.push(this.__pps[i],this.__pps[i+1]);
+        }
+    },
+    /**
+     * 启动补间器<br/>
+     * *启动新的补间实例，会立即停止当前目标正在执行的补间
+     */
+    start:function(){
+        this.__calc();
+        this.__startTime = Date.now();
+
+        if(this.target.__pt instanceof soya2d.PathTween){
+            this.target.__pt.stop();
+        }
+
+        this.target.__pt = this;
+
+        soya2d.TweenManager.add(this);
+        return this;
+    },
+    /**
+     * 延迟启动补间器
+     * @param {int} delay 延迟毫秒数
+     */
+    delay:function(delay){
+        this.__delay = delay;
+        return this;
+    },
+    /**
+     * 停止补间器
+     */
+    stop:function(){
+        soya2d.TweenManager.remove(this);
+        return this;
+    },
+    /**
+     * 跳转到指定间隔
+     */
+    goTo:function(target,time,un){
+        var ratio,pps=this.__pps,t=target;
+        
+        ratio = this.easing(time,0,1,this.duration);
+        if(time>this.duration)ratio=1;
+
+        var i = (pps.length-2) * ratio >> 0;
+        if(i>pps.length-2)i=pps.length-2;
+        if(i<0)i *= -1;
+        if(i%2!=0){
+            i++;
+        }
+        
+        t.x = pps[i];
+        t.y = pps[i+1];
+
+        var nx,ny;
+        if(i<1){
+            nx = pps[i+2];
+            ny = pps[i+3];
+
+            this.__radian = Math.atan2(ny-t.y,nx-t.x);
+        }else{
+            nx = pps[i-2];
+            ny = pps[i-1];
+
+            this.__radian = Math.atan2(t.y-ny,t.x-nx);
+        }
+        
+        return ratio;
+    },
+    /**
+     * 更新补间实例
+     */
+    update:function(now,d){
+        var c = now - this.__startTime;
+        if(this.__delay > 0){
+            this.__delay -= d;
+            if(this.__delay <=0)this.__startTime = Date.now();
+            return;
+        }
+        var t=this.target;
+        var ratio = this.goTo(t,c);
+
+        if(c>=this.duration){
+            if(this.onEnd)this.onEnd(t);
+			if(this.iteration===-1 ||
+                (this.iteration>0 && this.__loops++ < this.iteration)){
+                this.__startTime = Date.now();
+                if(this.alternate){
+                    var tmp = this.__pps;
+                    this.__pps = this.__pps_inverse;
+                    this.__pps_inverse = tmp;
+                }
+                return;
+            }
+            //销毁
+            this.destroy();
+            soya2d.TweenManager.remove(this);
+
+            if(this.__next){
+                this.__next.start();
+            }
+
+            return;
+        }
+
+        if(this.onUpdate)this.onUpdate(t,ratio,this.__radian*soya2d.Math.ONEANG);
+    },
+    /**
+     * 销毁补间实例，释放内存
+     */
+    destroy:function(){
+        this.__pps = null;
+        this.__pps_inverse = null;
+        this.easing = null;
+        this.target = null;
+        this.onUpdate = null;
+        this.onEnd = null;
+    },/**
+     * 设置当前补间完成后的下一个补间，进行链式执行<br/>
+     * *如果当前补间设置了无限循环，永远不会进入下一个
+     * @param  {soya2d.PathTween} tween 下一个补间
+     * @return this
+     */
+    next:function(tween){
+        this.__next = tween;
+        if(this.iteration===-1){
+            soya2d.console.warn('invalid [next] setting on infinite loop instance...');
+        }
+        return this;
+    }
+};
+
+/********* 扩展 **********/
+soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.prototype */{
+    /**
+    * 播放路径补间动画
+    * @param {soya2d.Path} path 路径
+    * @param {int} duration 补间周期(ms)
+    * @param {Object} [opts] 补间属性
+    * @param {function} [opts.easing=soya2d.Tween.Linear] 补间类型
+    * @param {boolean} [opts.cacheable=false] 是否缓存，启用缓存可以提高动画性能，但是动画过程会有些许误差
+    * @param {int} [opts.iteration=0] 循环播放次数，-1为无限
+    * @param {boolean} [opts.alternate=false] 是否交替反向播放动画，只在循环启用时生效
+    * @param {function} [opts.onUpdate] 补间更新事件
+    * @param {function} [opts.onEnd] 补间结束事件
+    * @param {boolean} [si=true] 是否立即启动
+    * @see {soya2d.Tween.Linear}
+    * @return {soya2d.PathTween} 补间实例
+    * @requires tween
+    */
+    pathAnimate:function(path,duration,opts,si){
+        var tween = new soya2d.PathTween(this,path,duration,opts);
+        si = si===false?false:si || true;
+        if(si)tween.start();
+        return tween;
+    },
+    /**
+     * 停止当前对象正在执行的路径补间动画
+     * @return {soya2d.DisplayObject} 
      * @requires tween
-	 */
-	playTween:function(tweenTpl,onUpdate,onEnd){
-		if(!tweenTpl.tweenTpl)return;
-		
-		//解析easing
-		var easingPair = tweenTpl.easing.split('-');
-		var easing = tweenTpl.easing==='Linear'?soya2d.Tween.Linear:soya2d.Tween[easingPair[0]][easingPair[1]];
-		//解析属性
-		var obj = {};
-		for(var i in tweenTpl.attr){
-			obj[i] = tweenTpl.attr[i].symbol + tweenTpl.attr[i].value;
-		}
-		
-		return new soya2d.Tween(this,obj,tweenTpl.duration,{
-			easing:easing,
-			iteration:tweenTpl.isRepeat?-1:0,
-			alternate:tweenTpl.alternate,
-            onUpdate:onUpdate,
-            onEnd:onEnd
-		}).start();
-	}
+     */
+    stopPathAnimation:function(){
+        if(this.__pt){
+            this.__pt.stop();
+            delete this.__pt;
+        }
+        return this;
+    }
 });
 /**
  * 补间动画管理器接口，用于管理补间实例的运行<br/>
@@ -5900,9 +6300,9 @@ soya2d.TweenManager = new function(){
     /**
      * 更新管理器中的所有补间实例，当实例运行时间结束后，管理器会自动释放实例
      */
-	this.update = function(now){
+	this.update = function(now,d){
 		for(var i=ins.length;i--;){
-			ins[i].update(now);
+			ins[i].update(now,d);
 		}
 	};
 }
@@ -6113,7 +6513,7 @@ soya2d.Tween.Bounce = {
 
 soya2d.module.install('tween',{
     onUpdate:function(game,now,d){
-    	soya2d.TweenManager.update(now);
+    	soya2d.TweenManager.update(now,d);
     },
     onStop:function(){
     	soya2d.TweenManager.stop();

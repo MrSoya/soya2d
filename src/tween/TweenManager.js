@@ -38,9 +38,9 @@ soya2d.TweenManager = new function(){
     /**
      * 更新管理器中的所有补间实例，当实例运行时间结束后，管理器会自动释放实例
      */
-	this.update = function(now){
+	this.update = function(now,d){
 		for(var i=ins.length;i--;){
-			ins[i].update(now);
+			ins[i].update(now,d);
 		}
 	};
 }

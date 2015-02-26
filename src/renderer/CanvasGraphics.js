@@ -351,7 +351,6 @@ soya2d.CanvasGraphics = function(ctx){
 
     /**
      * 填充path
-     * @param {soya2d.CanvasPath} path 路径对象实例。如果为空则填充当前path，否则填充指定path
      * @method
      * @return this
      */
@@ -361,7 +360,6 @@ soya2d.CanvasGraphics = function(ctx){
     };
     /**
      * 描绘path的轮廓
-     * @param {soya2d.CanvasPath} path 路径对象实例。如果为空则描绘当前path，否则描绘指定path
      * @method
      * @return this
      */
@@ -369,6 +367,54 @@ soya2d.CanvasGraphics = function(ctx){
         this.ctx.stroke();
         return this;
     };
+
+    /**
+     * 向当前path中添加指定的subpath
+     * @param {soya2d.Path} path 路径结构
+     * @method
+     * @return this
+     */
+    this.path = function(path){
+        path._insQ.forEach(function(ins){
+            var type = ins[0].toLowerCase();
+            switch(type){
+                case 'm':this.ctx.moveTo(ins[1][0],ins[1][1]);break;
+                case 'l':
+                    var xys = ins[1];
+                    if(xys.length>2){
+                        for(var i=0;i<xys.length;i+=2){
+                            this.ctx.lineTo(xys[i],xys[i+1]);
+                        }
+                    }else{
+                        this.ctx.lineTo(xys[0],xys[1]);
+                    }
+                    break;
+                case 'c':
+                    var xys = ins[1];
+                    if(xys.length>6){
+                        for(var i=0;i<xys.length;i+=6){
+                            this.ctx.bezierCurveTo((xys[i]),(xys[i+1]),(xys[i+2]),
+                                                (xys[i+3]),(xys[i+4]),(xys[i+5]));
+                        }
+                    }else{
+                        this.ctx.bezierCurveTo(xys[0],xys[1],xys[2],xys[3],xys[4],xys[5]);
+                    }
+                    break;
+                case 'q':
+                    var xys = ins[1];
+                    if(xys.length>4){
+                        for(var i=0;i<xys.length;i+=4){
+                            this.ctx.quadraticCurveTo((xys[i]),(xys[i+1]),(xys[i+2]),
+                                                (xys[i+3]));
+                        }
+                    }else{
+                        this.ctx.quadraticCurveTo(xys[0],xys[1],xys[2],xys[3]);
+                    }
+                    break;
+                case 'z':this.ctx.closePath();break;
+            }
+        },this);
+    }
 
     /**
      * 以x,y为左上角填充一个宽w高h的矩形

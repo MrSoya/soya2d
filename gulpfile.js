@@ -45,6 +45,8 @@ var src_core = [
 var src_ext = [
     //tween
     "src/tween/Tween.js",
+    "src/tween/Path.js",
+    "src/tween/PathTween.js",
     "src/tween/TweenManager.js",
     "src/tween/Easing.js",
     "src/tween/install.js",
