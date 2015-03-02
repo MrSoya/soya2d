@@ -6033,12 +6033,13 @@ soya2d.PathTween.prototype = {
                 case 'l':
                     var xys = ins[1];
                     for(var i=0;i<xys.length;i+=2){
-                        var k = (xys[i+1] - sy)/(xys[i] - sx);
-                        var diff = sx - xys[i];
-                        var dir = diff>0?-1:1;
-                        for(var d=0;d<Math.abs(diff);d++){
-                            var x = sx + dir*d;
-                            var y = k * (x - sx) + sy;
+
+                        var r = Math.atan2(xys[i+1] - sy,xys[i] - sx);
+                        var len = soya2d.Math.len2D(sx,sy,xys[i],xys[i+1]);
+                        
+                        for(var d=0;d<len;d++){
+                            var x = d*Math.cos(r) + sx;
+                            var y = d*Math.sin(r) + sy;
                             this.__pps.push(x,y);
                         }
 
@@ -6046,22 +6047,57 @@ soya2d.PathTween.prototype = {
                     }
                     break;
                 case 'c':
+                    var pps = [];
                     var xys = ins[1];
                     for(var i=0;i<xys.length;i+=6){
-
                         for(var t=0;t<1;t+=.01){
                             var ts = t*t;
                             var tc = ts*t;
 
                             var x = sx*(1-3*t+3*ts-tc) + 3*xys[i]*t*(1-2*t+ts) + 3*xys[i+2]*ts*(1-t) + xys[i+4]*tc;
                             var y = sy*(1-3*t+3*ts-tc) + 3*xys[i+1]*t*(1-2*t+ts) + 3*xys[i+3]*ts*(1-t) + xys[i+5]*tc;
-                            this.__pps.push(x,y);
+                            pps.push(x,y);
                         }
-
                         sx=parseFloat(xys[i+4]),sy=parseFloat(xys[i+5]);
                     }
+                    if(pps[pps.length-2] != xys[xys.length-2] || 
+                        pps[pps.length-1] != xys[xys.length-1] ){
+                        pps.push(xys[xys.length-2],xys[xys.length-1]);
+                    }
+                    var totalLen = 0;
+                    var ks = {};
+                    for(var i=0;i<pps.length-2;i+=2){
+                        var len = soya2d.Math.len2D(pps[i],pps[i+1],pps[i+2],pps[i+3]);
+                        
+                        var r = Math.atan2(pps[i+3]-pps[i+1],pps[i+2]-pps[i]);
+                        ks[totalLen] = [r,pps[i],pps[i+1],len];
+
+                        totalLen += len;
+                    }
+                    var ppsa = [pps[0],pps[1]];
+                    for(var i=1;i<totalLen;i++){
+                        var r=0,nx,ny,s;
+                        var keys = Object.keys(ks);
+                        for(var k=keys.length;k--;){
+                            s = parseFloat(keys[k]);
+                            if(i>=s){
+                                r = ks[s][0];
+                                nx = ks[s][1];
+                                ny = ks[s][2];
+                                l = ks[s][3];
+                                break;
+                            }
+                        }
+                        if(r===0)continue;
+                        var x = (i-s)*Math.cos(r) + nx;
+                        var y = (i-s)*Math.sin(r) + ny;
+                        ppsa.push(x,y);
+                    }
+                    
+                    this.__pps = this.__pps.concat(ppsa);
                     break;
                 case 'q':
+                    var pps = [];
                     var xys = ins[1];
                     for(var i=0;i<xys.length;i+=4){
                
@@ -6071,21 +6107,56 @@ soya2d.PathTween.prototype = {
 
                             var x = sx*(1-2*t+ts) + 2*xys[i]*t*(1-t) + xys[i+2]*ts;
                             var y = sy*(1-2*t+ts) + 2*xys[i+1]*t*(1-t) + xys[i+3]*ts;
-                            this.__pps.push(x,y);
+                            pps.push(x,y);
                         }
-
                         sx=parseFloat(xys[i+2]),sy=parseFloat(xys[i+3]);
                     }
+                    if(pps[pps.length-2] != xys[xys.length-2] || 
+                        pps[pps.length-1] != xys[xys.length-1] ){
+                        pps.push(xys[xys.length-2],xys[xys.length-1]);
+                    }
+                    var totalLen = 0;
+                    var ks = {};
+                    for(var i=0;i<pps.length-2;i+=2){
+                        var len = soya2d.Math.len2D(pps[i],pps[i+1],pps[i+2],pps[i+3]);
+                        
+                        var r = Math.atan2(pps[i+3]-pps[i+1],pps[i+2]-pps[i]);
+                        ks[totalLen] = [r,pps[i],pps[i+1],len];
+
+                        totalLen += len;
+                    }
+                    var ppsa = [pps[0],pps[1]];
+                    for(var i=1;i<totalLen;i++){
+                        var r=0,nx,ny,s;
+                        var keys = Object.keys(ks);
+                        for(var k=keys.length;k--;){
+                            s = parseFloat(keys[k]);
+                            if(i>=s){
+                                r = ks[s][0];
+                                nx = ks[s][1];
+                                ny = ks[s][2];
+                                l = ks[s][3];
+                                break;
+                            }
+                        }
+                        if(r===0)continue;
+                        var x = (i-s)*Math.cos(r) + nx;
+                        var y = (i-s)*Math.sin(r) + ny;
+                        ppsa.push(x,y);
+                    }
+                    
+                    this.__pps = this.__pps.concat(ppsa);
                     break;
                 case 'z':
-                    var k = (oy - sy)/(ox - sx);
-                    var diff = sx - ox;
-                    var dir = diff>0?-1:1;
-                    for(var d=0;d<Math.abs(diff);d++){
-                        var x = sx + dir*d;
-                        var y = k * (x - sx) + sy;
+                    var r = Math.atan2(oy - sy,ox - sx);
+                    var len = soya2d.Math.len2D(sx,sy,ox,oy);
+ 
+                    for(var d=0;d<len;d++){
+                        var x = d*Math.cos(r) + sx;
+                        var y = d*Math.sin(r) + sy;
                         this.__pps.push(x,y);
                     }
+
                     break;
             }
         },this);
