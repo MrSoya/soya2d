@@ -2,13 +2,14 @@
  * @classdesc 路径描述结构。既可用于支持路径动画的路径检索，也可以用于绘制路径
  * @class 
  * @author {@link http://weibo.com/soya2d MrSoya}
+ * @since 1.2.0
  */
 soya2d.Path = function(d){
     /**
      * 路径指令集。同{@link http://www.w3.org/TR/SVG11/paths.html SVG}，但仅支持绝对坐标，
      * 并限于以下指令：
-     * <table>
-     *     <th>段类型</th><th>命令</th><th>参数</th><th>示例</th>
+     * <table border="1">
+     *     <tr style="background: #ddd;"><th>段类型</th><th>命令</th><th>参数</th><th>示例</th></tr>
      *     <tr><td>moveto</td><td>M/m</td><td>x y</td><td><code>M 50 50</code> － 将画笔移到 50,50</td></tr>
      *     <tr><td>lineto</td><td>L/l</td><td>(x y)+</td><td><code>L 50 50 100 100</code> － 直线到 50,50再到100,100</td></tr>
      *     <tr><td>quadraticCurveTo</td><td>Q/q</td><td>(cpx cpy x y)+</td><td><code>Q 110 45 90 30</code> - 曲线到 90, 30，控制点位于 110, 45</td></tr>

@@ -5,8 +5,8 @@
  * @extends soya2d.DisplayObjectContainer
  * @param {Object} data 所有父类参数，以及新增参数，参数如下：
  * @param {soya2d.Texture | HTMLImageElement | Array} data.textures 纹理对象或者纹理数组
- * @param {int} data.w 精灵的宽度
- * @param {int} data.h 精灵的高度
+ * @param {int} [data.w] 精灵的宽度,默认纹理宽度
+ * @param {int} [data.h] 精灵的高度,默认纹理高度
  * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Sprite = function(data){

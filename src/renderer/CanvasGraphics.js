@@ -308,7 +308,6 @@ soya2d.CanvasGraphics = function(ctx){
 
     /**
      * 裁剪路径
-     * @param {soya2d.CanvasPath} path 路径对象实例。如果为空则裁剪当前path，否则裁剪指定path
      * @method
      * @return this
      */
@@ -373,6 +372,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {soya2d.Path} path 路径结构
      * @method
      * @return this
+     * @since 1.2.0
      */
     this.path = function(path){
         path._insQ.forEach(function(ins){
