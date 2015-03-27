@@ -68,7 +68,7 @@ soya2d.ext(soya2d.ScrollSprite.prototype, /** @lends soya2d.ScrollSprite.prototy
             if(target.roid === ro.roid)return true;
         },true);
         if(tmp.length<0){
-            console.error('soya2d.ScrollSprite: '+target.toString()+' must be a child node of soya2d.ScrollSprite');
+            soya2d.console.error('soya2d.ScrollSprite: '+target.toString()+' must be a child node of soya2d.ScrollSprite');
         }
         this.target = target;
 

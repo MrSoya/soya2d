@@ -118,12 +118,12 @@ var scene = new soya.Scene({
 		game.on('mouseup',function(e){
 			thisScene.player.holdfire();
 		});
-		thisScene.player.on(game,'keydown',function(e){
+		thisScene.player.on('keydown',function(e){
 			if(e.keyCode == soya2d.KeyCode.SPACE){
 				this.boom();
 			}
 		});
-		this.on(game,'keypress',function(e){
+		this.on('keypress',function(e){
 			var playerx=0,playery=0;
 			var x=0,y=0;
 			var tileSpd = 2;
@@ -397,4 +397,45 @@ var scene = new soya.Scene({
 	hit:function(x,y){
 		
 	}
+});
+
+//加载资源
+var loader = new soya.LoaderScene({
+    nextScene:scene,
+    texAtlas:[
+        {
+            id:'imgFont',
+            ssheet:'xshooter/assets/image/font.ssheet',
+            image:'xshooter/assets/image/font.png'
+        },
+    ],
+    textures:['xshooter/assets/image/bg.jpg'
+        ,'xshooter/assets/image/bg1.png'
+        ,'xshooter/assets/image/fog.png'
+        ,'xshooter/assets/image/bg2.png'
+        ,'xshooter/assets/image/player.png'
+        ,'xshooter/assets/image/bullet1.png'
+        ,'xshooter/assets/image/enemy1.png'
+        ,'xshooter/assets/image/enemy2.png'
+        ,'xshooter/assets/image/enemy4.png'
+        ,'xshooter/assets/image/enemy44.png'
+        ,'xshooter/assets/image/pstar.png'
+        ,'xshooter/assets/image/bean1.png'
+        ,'xshooter/assets/image/bean2.png'
+        ,'xshooter/assets/image/bean3.png'
+        ,'xshooter/assets/image/bean4.png'
+        ,'xshooter/assets/image/bomb.png'
+    ],
+    sounds: [
+        ['xshooter/assets/sound/bgm.mp3']
+        ,['xshooter/assets/sound/bean1.mp3']
+        ,['xshooter/assets/sound/bean2.mp3']
+        ,['xshooter/assets/sound/bean3.mp3']
+        ,['xshooter/assets/sound/bean4.mp3']
+        ,['xshooter/assets/sound/appear1.mp3']
+        ,['xshooter/assets/sound/expo.mp3']
+        ,['xshooter/assets/sound/fire.mp3']
+        ,['xshooter/assets/sound/hurt.mp3']
+        ,['xshooter/assets/sound/gameover.mp3']
+    ]
 });

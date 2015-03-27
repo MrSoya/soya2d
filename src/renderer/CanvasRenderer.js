@@ -94,56 +94,121 @@ soya2d.CanvasRenderer = function(data){
             ctx.clearRect(0,0,this.w,this.h);
         }
 
-        render(ctx,scene,renderStyle,this.sortEnable);
+        render(ctx,scene,g,this.sortEnable,renderStyle);
     };
 
-    function render(ctx,ro,rs,sortEnable){
-        if(ro.opacity===0 || !ro.visible)return;
+    var ctxFnMap = {
+        stroke:ctx.stroke,
+        fill:ctx.fill,
+        fillRect:ctx.fillRect,
+        strokeRect:ctx.strokeRect,
+        drawImage:ctx.drawImage,
+        fillText:ctx.fillText,
+        strokeText:ctx.strokeText,
+        beginPath:ctx.beginPath,
+        closePath:ctx.closePath
+    };
+    function invalidCtx(ctx) {
+        ctx.stroke = function() {};
+        ctx.fill = function() {};
+        ctx.fillRect = function(x, y, w, h) {
+            ctx.rect(x, y, w, h);
+        };
+        ctx.strokeRect = function(x, y, w, h) {
+            ctx.rect(x, y, w, h);
+        };
+        ctx.drawImage = function(img,sx,sy,sw,sh,dx,dy,dw,dh){
+            if(arguments.length===3){
+                ctx.rect(sx,sy,img.width,img.height);
+            }else if(arguments.length===5){
+                ctx.rect(sx,sy,sw,sh);
+            }else if(arguments.length===9){
+                ctx.rect(dx,dy,dw,dh);
+            } 
+        };
+        ctx.fillText = function(){};
+        ctx.strokeText = function(){};
+        ctx.beginPath = function(){};
+        ctx.closePath = function(){};
+    }
+    function validCtx(ctx) {
+        ctx.stroke = ctxFnMap.stroke;
+        ctx.fill = ctxFnMap.fill;
+        ctx.fillRect = ctxFnMap.fillRect;
+        ctx.strokeRect = ctxFnMap.strokeRect;
+        ctx.drawImage = ctxFnMap.drawImage;
+        ctx.fillText = ctxFnMap.fillText;
+        ctx.strokeText = ctxFnMap.strokeText;
+        ctx.beginPath = ctxFnMap.beginPath;
+        ctx.closePath = ctxFnMap.closePath;
+    }
+    function renderMask(ctx,mask){
+        if(mask.onRender){
+            var te = mask.__worldTransform.e;
+            var pe = mask.__worldPosition.e;
+            ctx.setTransform(te[0],te[1],te[2],te[3],pe[0],pe[1]);
 
-        if(ro.mask instanceof soya2d.Mask && ro.mask.list.length>0){
+            //css style
+            var oe = mask.__originPosition.e;
+            ctx.translate(-oe[0], -oe[1]);
+            mask.onRender(g);
+        }//over onRender
+        //渲染子节点
+        if(mask.children && mask.children.length>0){
+            var children = mask.children;
+
+            for(var i=0;i<children.length;i++){
+                renderMask(ctx,children[i]);
+            }
+        }
+    }
+    function render(ctx,ro,g,sortEnable,rs){
+        if(ro.opacity===0 
+        || !ro.visible
+        || ro.__masker)return;
+
+        if(ro.mask instanceof soya2d.DisplayObject){
             ctx.save();
             ctx.beginPath();
-            ctx.setTransform(1,0,0,1,0,0);
-            var list = ro.mask.list;
-            for(var l=0;l<list.length;l++){
-                var geom = list[l];
-                if(geom instanceof soya2d.Rectangle){
-                    g.rect(geom.x,geom.y,geom.w,geom.h);
-                }else if(geom instanceof soya2d.Circle){
-                    ctx.moveTo(geom.x+geom.r,geom.y);
-                    g.arc(geom.x,geom.y,geom.r);
-                }else if(geom instanceof soya2d.Polygon){
-                    g.polygon(geom.vtx);
-                }
-            }
+            invalidCtx(ctx);
+                renderMask(ctx,ro.mask);
+                ctx.clip();
+            validCtx(ctx);
             ctx.closePath();
-            ctx.clip();
         }
 
         if(ro instanceof soya2d.ScrollSprite){
             ctx.save();
         }
-
+        
         if(ro.onRender){
             var te = ro.__worldTransform.e;
             var pe = ro.__worldPosition.e;
-            ctx.setTransform(te[0],te[1],te[2],te[3],pe[0],pe[1]);
+            var oe = ro.__originPosition.e;
+            if(ro.__updateCache){
+                ctx.setTransform(1,0,0,1,oe[0]<<1,oe[1]<<1);
+            }else{
+                ctx.setTransform(te[0],te[1],te[2],te[3],pe[0],pe[1]);
+            }
 
             //apply alpha
-            if(ro.opacity<=1 && ro.opacity!==rs.opacity){
+            if(rs && ro.opacity<=1 && ro.opacity!==rs.opacity){
                 rs.opacity = ro.opacity;
                 ctx.globalAlpha = ro.opacity;
             }
             //apply blendMode
-            if(rs.blendMode !== ro.blendMode){
+            if(rs && rs.blendMode !== ro.blendMode){
                 rs.blendMode = ro.blendMode;
                 ctx.globalCompositeOperation = ro.blendMode;
             }
 
             //css style
-            var oe = ro.__originPosition.e;
             ctx.translate(-oe[0], -oe[1]);
-            ro.onRender(g);
+            if(ro.imageCache && !ro.__updateCache){
+                ctx.drawImage(ro.imageCache,0,0);
+            }else{
+                ro.onRender(g);
+            }
         }//over onRender
         //渲染子节点
         if(ro.children && ro.children.length>0){
@@ -158,7 +223,7 @@ soya2d.CanvasRenderer = function(data){
             });
 
             for(var i=0;i<children.length;i++){
-                render(ctx,children[i],rs,sortEnable);
+                render(ctx,children[i],g,sortEnable,rs);
             }
         }
 
@@ -167,10 +232,16 @@ soya2d.CanvasRenderer = function(data){
         }
 
         //mask
-        if(ro.mask instanceof soya2d.Mask && ro.mask.list.length>0){
+        if(ro.mask instanceof soya2d.DisplayObject){
             ctx.restore();
         }
     }
+
+    /**
+     * 渲染显示对象
+     * @private
+     */
+    this.renderDO = render;
     
     /**
      * 缩放所渲染窗口
@@ -368,7 +439,7 @@ soya2d.CanvasRenderer.prototype.getImageFrom = function(ro,w,h){
 
 soya2d.__HitPathTester = function(w,h){
 
-    function voidPathCtx(ctx) {
+    function invalidCtx(ctx) {
         ctx.stroke = function() {};
         ctx.fill = function() {};
         ctx.fillRect = function(x, y, w, h) {
@@ -397,7 +468,7 @@ soya2d.__HitPathTester = function(w,h){
 
     var ctx = layer.getContext('2d');
     var cg = new soya2d.CanvasGraphics(ctx);
-    voidPathCtx(ctx);
+    invalidCtx(ctx);
 
     this.test = function(ro,x,y){
         render(ro,ctx,cg);

@@ -71,7 +71,7 @@ soya2d.Events = function(){
     /**
      * 删除事件监听
      * @param {string} events 一个或多个用空格分隔的事件类型
-     * @param {Function} callback 回调函数，可选。如果该参数为空。则删除指定类型下所有监听
+     * @param {Function} [callback] 回调函数。如果该参数为空。则删除指定类型下所有监听
      */
     this.removeListener = function(events,callback,context){
     	var evs = events.split(' ');
@@ -83,6 +83,26 @@ soya2d.Events = function(){
                     evts[j][1].removeListener(ev,callback,context);
                     break;
                 }
+            }
+        }
+    }
+
+    /**
+     * 清除事件监听器
+     * @param  {soya2d.EventHandler} [handler] 需要清除的事件处理器类型。如果为空，清除所有监听器
+     * @param  {string} [ev] 事件类型。如果为空，清除该事件处理器下的所有监听器
+     */
+    this.clearListener = function(handler,ev){
+        if(handler){
+            for(var i=evts.length;i--;){
+                if(evts[i][1] instanceof handler){
+                    evts[i][1].clearListener(ev);
+                    return;
+                }
+            }
+        }else{
+            for(var i=evts.length;i--;){
+                evts[i][1].clearListener();
             }
         }
     }

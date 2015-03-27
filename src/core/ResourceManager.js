@@ -10,7 +10,7 @@ soya2d.ResourceManager = function(){
 soya2d.ResourceManager.prototype = {
     /**
      * 获取一个资源对象，如果匹配到多个，只返回第一个
-     * @param {string | Object} opts 参数对象,url字符串，或者参数对象，参数如下：
+     * @param {string | Object} opts url字符串，或者参数对象，参数如下：
      * @param {string} opts.url 需要查找的资源url，可以是全路径或部分路径，当fuzzy属性为false时，部分路径无效
      * @param {boolean} [opts.fuzzy=true] 是否进行url模糊匹配
      * @return {Object | null} 资源对象或者null
@@ -33,7 +33,7 @@ soya2d.ResourceManager.prototype = {
     },
     /**
      * 获取一组资源对象
-     * @param {string | Object} opts 参数对象(如果为空返回所有资源)。url字符串，或者参数对象，参数如下：
+     * @param {string | Object} opts url字符串，或者参数对象，参数如下(如果为空返回所有资源)：
      * @param {Array} opts.urls 需要查找的资源url数组，可以是全路径或部分路径，当fuzzy属性为false时，部分路径无效。支持多标识
      * @param {boolean} [opts.fuzzy=true] 是否进行url模糊匹配
      * @return {Array | null} 资源数组或者null

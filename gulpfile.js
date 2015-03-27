@@ -57,6 +57,7 @@ var src_ext = [
     "src/shapes/Rect.js",
     "src/shapes/RPoly.js",
     "src/shapes/RRect.js",
+    "src/shapes/EArc.js",
     //event
     "src/event/EventHandler.js",
     "src/event/Events.js",

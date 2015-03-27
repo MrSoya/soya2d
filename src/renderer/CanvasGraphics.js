@@ -98,6 +98,50 @@ soya2d.CanvasGraphics = function(ctx){
         return this;
     };
     /**
+     * 向当前path中添加圆弧形subpath
+     * @param {Number} cx 圆心
+     * @param {Number} cy 圆心
+     * @param {Number} r 半径
+     * @param {Number} [sr=0] 起始弧度
+     * @param {Number} [er=soya2d.Math.PIM2] 结束弧度
+     * @return this
+     */
+    this.arc = function(cx,cy,r,sr,er){
+        this.ctx.arc(cx,cy,r,sr||0,er||soya2d.Math.PIM2);
+        return this;
+    };
+    /**
+     * 向当前path中添加椭圆弧形subpath
+     * @param {Number} cx 圆心
+     * @param {Number} cy 圆心
+     * @param {Number} a 长半径
+     * @param {Number} b 短半径
+     * @param {int} [sa=0] 起始角度
+     * @param {int} [ea=360] 结束角度
+     * @return this
+     */
+    this.eArc = function(cx,cy,a,b,sa,ea){
+        sa = (sa || 0)>>0;
+        ea = (ea || 360)>>0;
+        var m = soya2d.Math;
+        var x = cx+a*m.COSTABLE[sa];
+        var y = cy+b*m.SINTABLE[sa];
+        ctx.moveTo(x,y);
+        var len = 0;
+        if(ea < sa){
+            len = 360-sa+ea;
+        }else{
+            len = ea - sa;
+        }
+        for(var i=1;i<=len;i++){
+            var angle = (sa+i)%360;
+            x = cx+a*m.COSTABLE[angle];
+            y = cy+b*m.SINTABLE[angle];
+            ctx.lineTo(x,y);
+        }
+        return this;
+    };
+    /**
      * 向当前path中添加矩形subpath
      * @param {Number} x
      * @param {Number} y
@@ -172,19 +216,6 @@ soya2d.CanvasGraphics = function(ctx){
         c.arc(x+r,y+h-r,r,soya2d.Math.PID2,Math.PI);
         c.lineTo(x,y+r);
         c.arc(x+r,y+r,r,Math.PI,Math.PI*3/2);
-        return this;
-    };
-    /**
-     * 向当前path中添加圆弧形subpath
-     * @param {Number} cx 圆心
-     * @param {Number} cy 圆心
-     * @param {Number} r 半径
-     * @param {Number} [sr=0] 起始弧度
-     * @param {Number} [er=soya2d.Math.PIM2] 结束弧度
-     * @return this
-     */
-    this.arc = function(cx,cy,r,sr,er){
-        this.ctx.arc(cx,cy,r,sr||0,er||soya2d.Math.PIM2);
         return this;
     };
     /**

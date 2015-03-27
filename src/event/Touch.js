@@ -81,7 +81,7 @@ soya2d.Touch = function(){
             var x = touchList[i];
             var y = touchList[i+1];
             
-            switch(this.game.view.rotate()){
+            switch(thisGame.view.rotate()){
                 case soya2d.ROTATEMODE_90:
                     //平移，计算出canvas内坐标
                     x = x + cvs.offsetLeft - marginTop;
@@ -90,7 +90,7 @@ soya2d.Touch = function(){
                     //旋转
                     var tmp = x;
                     x = y;
-                    y = this.game.view.w - Math.abs(tmp);
+                    y = thisGame.view.w - Math.abs(tmp);
                     break;
                 case soya2d.ROTATEMODE_270:
                     //平移，计算出canvas内坐标
@@ -100,12 +100,12 @@ soya2d.Touch = function(){
                     //旋转
                     var tmp = y;
                     y = x;
-                    x = this.game.view.h - Math.abs(tmp);
+                    x = thisGame.view.h - Math.abs(tmp);
                     break;
                 case soya2d.ROTATEMODE_180:
                     //旋转
-                    x = this.game.view.w - Math.abs(x);
-                    y = this.game.view.h - Math.abs(y);
+                    x = thisGame.view.w - Math.abs(x);
+                    y = thisGame.view.h - Math.abs(y);
                     break;
             }
             

@@ -26,7 +26,7 @@ soya2d.DisplayObject = function(data){
      */
     this.name = data.name||this.roid;
     /**
-     * 精灵是否可见<br/>
+     * 是否可见<br/>
      * true:可见
      * false:不可见
      * @type boolean
@@ -104,7 +104,7 @@ soya2d.DisplayObject = function(data){
             enumerable:true
         },
         /**
-         * 宽度。和高度一起，标识精灵的碰撞区、以及事件触发区<br/>
+         * 宽度。和高度一起，标识对象的碰撞区、以及事件触发区<br/>
          * *originX属性也依赖该属性
          * @type Number
          * @instance
@@ -122,7 +122,7 @@ soya2d.DisplayObject = function(data){
             enumerable:true
         },
         /**
-         * 高度。和宽度一起，标识精灵的碰撞区、以及事件触发区<br/>
+         * 高度。和宽度一起，标识对象的碰撞区、以及事件触发区<br/>
          * *originY属性也依赖该属性
          * @type Number
          * @instance
@@ -140,7 +140,7 @@ soya2d.DisplayObject = function(data){
             enumerable:true
         },
         /**
-         * x轴参考点，精灵变形时的原点,可以设置百分比字符串或者数字。
+         * x轴参考点，对象变形时的原点,可以设置百分比字符串或者数字。
          * @type {String|Number}
          * @instance
          * @memberof soya2d.DisplayObject
@@ -157,7 +157,7 @@ soya2d.DisplayObject = function(data){
             enumerable:true
         },
         /**
-         * y轴参考点，精灵变形时的原点,可以设置百分比字符串或者数字。
+         * y轴参考点，对象变形时的原点,可以设置百分比字符串或者数字。
          * @type {String|Number}
          * @instance
          * @memberof soya2d.DisplayObject
@@ -192,9 +192,9 @@ soya2d.DisplayObject = function(data){
         },
         /**
          * x轴缩放比<br/>
-         * 如果大于1，则会把精灵变宽<br/>
+         * 如果大于1，则会把对象横向拉伸<br/>
          * 如果等于1，不改变<br/>
-         * 如果小于1，则会把精灵变窄
+         * 如果小于1，则会把对象横向缩短
          * @type Number
          * @instance
          * @memberof soya2d.DisplayObject
@@ -212,9 +212,9 @@ soya2d.DisplayObject = function(data){
         },
         /**
          * y轴缩放比<br/>
-         * 如果大于1，则会把精灵变长<br/>
+         * 如果大于1，则会把对象纵向拉伸<br/>
          * 如果等于1，不改变<br/>
-         * 如果小于1，则会把精灵变短
+         * 如果小于1，则会把对象纵向缩短
          * @type Number
          * @instance
          * @memberof soya2d.DisplayObject
@@ -267,7 +267,7 @@ soya2d.DisplayObject = function(data){
     });
    
     /**
-     * z坐标。标识精灵所属图层，并且引擎会按照z值的大小进行渲染
+     * z坐标。标识对象所属图层，并且引擎会按照z值的大小进行渲染
      * @type Number
      * @default 0
      */
@@ -304,14 +304,43 @@ soya2d.DisplayObject = function(data){
      * @default soya2d.BLEND_NORMAL
      * @see soya2d.BLEND_NORMAL
      */
-    this.blendMode = data.blendMode||'source-over';
+    this.blendMode = data.blendMode || 'source-over';
+
+    this.__mask = data.mask || null;
+    Object.defineProperties(this,{
+        /**
+         * 遮罩。可以是一个绘制的简单图形比如圆，也可以是包含了多个形状子节点的复合形状。
+         * 被用于遮罩的对象只能同时存在一个需要遮罩的对象上，多次设置只会保留最后一次，
+         * 并且被用于遮罩的对象不会出现在画面上<br/>
+         * *如果需要动态控制遮罩对象，需要把遮罩对象添加到场景中
+         * @type {soya2d.DisplayObject}
+         * @instance
+         * @memberof soya2d.DisplayObject
+         * @default null; 
+         */
+        mask:{
+            set:function(m){
+                if(m){
+                    if(m.__masker){
+                        m.__masker.__mask = null;
+                    }
+                    this.__mask = m;
+                    m.__masker = this;
+                }
+            },
+            get:function(){
+                return this.__mask;
+            },
+            enumerable:true
+        }
+    });
     /**
-     * 遮罩设置
-     * @type {soya2d.Mask}
+     * 使用当前对象作为遮罩的对象，如果该属性有值，则不会被渲染
+     * @private
      */
-    this.mask = data.mask || new soya2d.Mask();
+    this.__masker = null;
     /**
-     * 精灵范围，用于拾取测试和物理碰撞
+     * 对象范围，用于拾取测试和物理碰撞
      * @type {soya2d.Rectangle | soya2d.Circle | soya2d.Polygon}
      * @default soya2d.Rectangle实例
      */
@@ -326,6 +355,27 @@ soya2d.DisplayObject = function(data){
      * @type {Object}
      */
     this.body = null;
+    /**
+     * 对象所属的游戏实例。当对象被添加到一个game上时，该值为game实例的引用。
+     * 当对象被创建或从game实例上删除时，该值为null<br/>
+     * 必须先创建game实例(这样引擎会自动引用该实例)或者显式指定game参数，否则会引起异常
+     * @default null
+     * @readOnly
+     * @type {soya2d.Game}
+     */
+    this.game = data.game || soya2d.games[0];
+    /**
+     * 对象缓存的的内部图形。删除该属性可以取消缓存
+     * @type {HTMLCanvasElement}
+     * @default null 
+     */
+    this.imageCache = null;
+    this.__updateCache = false;
+
+    //check valid
+    if(!this.game){
+        throw new Error('soya2d.DisplayObject: invalid param [game]; '+this.game);
+    }
 };
 /**
  * @name soya2d.DisplayObject#onRender
@@ -770,5 +820,25 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
         
         //计算顶点[x,y,1] * m
         return [anchorX*m11+anchorY*m21+bx,anchorX*m12+anchorY*m22+by];
+    },
+    /**
+     * 缓存当前对象的矢量绘图为贴图，提高显示性能。提高幅度根据所使用的path API的复杂度决定。
+     * 越复杂的path绘制，cache效果越明显。缓存大小根据对象的w/h决定，但是不能超过1024*1024。
+     * 需要注意的是，缓存不会自动更新，当对象发生变形时，并不会反馈到缓存，直到你显式调用该方法
+     */
+    cache:function(){
+        if(this.__w > 1024 || this.__h > 1024)return;
+        if(!this.imageCache){
+            this.imageCache = document.createElement('canvas');
+        }
+        this.imageCache.width = this.__w;
+        this.imageCache.height = this.__h;
+        //redraw
+        this.updateTransform();
+        this.__updateCache = true;
+        var ctx = this.imageCache.getContext('2d');
+        var g = new soya2d.CanvasGraphics(ctx);
+        this.game.getRenderer().renderDO(ctx,this,g,true);
+        this.__updateCache = false;
     }
 });

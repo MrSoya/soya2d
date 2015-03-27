@@ -25,18 +25,29 @@ soya2d.EventHandler = function(){
      */
     this.removeListener = function(ev,callback,context){
         if(!this.__eventMap[ev])return;
-        if(callback){
-            var index = -1;
-            for(var i=this.__eventMap[ev].length;i--;){
-                if(this.__eventMap[ev].fn == callback && context == this.__eventMap[ev].context){
-                    index = i;
-                    break;
-                }
+
+        var index = -1;
+        for(var i=this.__eventMap[ev].length;i--;){
+            if(context == this.__eventMap[ev].context && 
+                (callback?this.__eventMap[ev].fn == callback:true)){
+                index = i;
+                break;
             }
-            if(index > -1)this.__eventMap[ev].splice(index,1);
-        }else{
+        }
+        if(index > -1)this.__eventMap[ev].splice(index,1);
+    }
+
+    /**
+     * 清除事件监听
+     * @param  {string} [ev] 事件类型。如果为空，清除该事件处理器下的所有监听器
+     * @return {[type]}    [description]
+     */
+    this.clearListener = function(ev){
+        if(ev){
             this.__eventMap[ev] = null;
             delete this.__eventMap[ev];
+        }else{
+            this.__eventMap = {};
         }
     }
 }

@@ -15,8 +15,8 @@ var soya2d = new function(){
      * @property {function} toString 返回版本
      */
 	this.version = {
-        v:[1,2,0],
-        state:'rc',
+        v:[1,3,0],
+        state:'beta',
         toString:function(){
             return soya2d.version.v.join('.') + ' ' + soya2d.version.state;
         }
@@ -112,19 +112,16 @@ self.console = self.console||new function(){
  * @type {object}
  */
 soya2d.console = new function(){
+    var level = 1;
+
     /**
-     * 输出日志信息
-     * @param  {string} txt  输出文本
-     * @param  {string} [css] 字体css
-     * @alias console.log
-     * @memberof! soya2d#
+     * 设置输出级别。按照优先级从高到底的顺序为 error > warn > info > debug | none，
+     * 对应值为 4 > 3 > 2 > 1 > 0。设置为低级别时，高级别的信息也会输出。比如设置为warn时,
+     * error也会输出，但是info/debug不会。当界别设置为0时，console不会有任何输出
+     * @param  {int} [l=1] 输出级别，默认全部 
      */
-    this.log = function(txt,css){
-        if(soya2d.Device.ie){
-            console.log(txt);
-        }else{
-            console.log('%c'+txt,css||'padding:1px 50px;font-size:14px;color:#fff;background:#2DB008;');
-        }
+    this.level = function(l){
+        level = l==0?0:l||1;
     }
     /**
      * 输出调试信息
@@ -134,6 +131,8 @@ soya2d.console = new function(){
      * @memberof! soya2d#
      */
     this.debug = function(txt,css){
+        if(level!=1)return;
+
         if(soya2d.Device.ie){
             console.debug(txt);
         }else{
@@ -141,17 +140,19 @@ soya2d.console = new function(){
         }
     }
     /**
-     * 输出错误信息
+     * 输出日志信息
      * @param  {string} txt  输出文本
      * @param  {string} [css] 字体css
-     * @alias console.error
+     * @alias console.info
      * @memberof! soya2d#
      */
-    this.error = function(txt,css){
+    this.info = function(txt,css){
+        if(level<1 || level>2)return;
+
         if(soya2d.Device.ie){
-            console.error(txt);
+            console.log(txt);
         }else{
-            console.error('%c'+txt,css||'padding:1px 50px;font-size:14px;color:#fff;background:#ff0000;');
+            console.log('%c'+txt,css||'padding:1px 50px;font-size:14px;color:#fff;background:#2DB008;');
         }
     }
     /**
@@ -162,10 +163,28 @@ soya2d.console = new function(){
      * @memberof! soya2d#
      */
     this.warn = function(txt,css){
+        if(level<1 || level>3)return;
+
         if(soya2d.Device.ie){
             console.warn(txt);
         }else{
             console.warn('%c'+txt,css||'padding:1px 50px;font-size:14px;color:#fff;background:#FFB502;');
+        }
+    }
+    /**
+     * 输出错误信息
+     * @param  {string} txt  输出文本
+     * @param  {string} [css] 字体css
+     * @alias console.error
+     * @memberof! soya2d#
+     */
+    this.error = function(txt,css){
+        if(level<1)return;
+
+        if(soya2d.Device.ie){
+            console.error(txt);
+        }else{
+            console.error('%c'+txt,css||'padding:1px 50px;font-size:14px;color:#fff;background:#ff0000;');
         }
     }
 }

@@ -253,15 +253,15 @@ var scene = new soya.Scene({
 		});
 		this.add(this.restart);
 		
-		this.restart.on(game,soya2d.Device.mobile?'touchstart':'click',function(e){
+		this.restart.on(soya2d.Device.mobile?'touchstart':'click',function(e){
 			if(this.isRendered())
 			thisScene.start(game);
 		});
 		//pc only
-		this.restart.on(game,'mouseover',function(e){
+		this.restart.on('mouseover',function(e){
 			this.scaleBy(0.1);
 		});
-		this.restart.on(game,'mouseout',function(e){
+		this.restart.on('mouseout',function(e){
 			this.scaleBy(-0.1);
 		});
 		
@@ -304,7 +304,7 @@ var scene = new soya.Scene({
 		for(var i=this.monsters.length;i--;){
 			var m = this.monsters[i];
 			this.add(m);
-			m.on(game,soya2d.Device.mobile?'touchstart':'click',function(e){
+			m.on(soya2d.Device.mobile?'touchstart':'click',function(e){
 				if(thisScene.state == STATE_RUNNING){
 					var y = e.y;
 					if(soya2d.Device.mobile){
@@ -463,5 +463,81 @@ var scene = new soya.Scene({
 		if(this.score < 0)this.score=0;
 		this.scoreText.setText(this.score);
 		
+	}
+});
+//加载资源
+var loader = new soya.LoaderScene({
+		nextScene:scene,
+		texAtlas:[
+			{id:'imgFont',ssheet:'assets/font.ssheet',image:'assets/font.png'},
+		],
+		textures:['assets/bg.png'
+					,'assets/fg.png'
+					,'assets/font.png'
+					,'assets/gameover.png'
+					,'assets/logo.png'
+					,'assets/monster1.png'
+					,'assets/monster2.png'
+					,'assets/monster3.png'
+					,'assets/monster4.png'
+					,'assets/monster5.png'
+					,'assets/particle.png'
+					,'assets/ready.png'
+					,'assets/restart.png'
+				]
+		/* 有些移动环境不支持主动加载
+		,sounds:[
+			['assets/sound/music.m4a','assets/sound/music.ogg','assets/sound/music.mp3']
+			,['assets/sound/hit.m4a','assets/sound/hit.ogg']
+			,['assets/sound/score.m4a','assets/sound/score.ogg']
+			,['assets/sound/miss.m4a','assets/sound/miss.ogg']
+			,['assets/sound/spawn1.m4a','assets/sound/spawn1.ogg']
+			,['assets/sound/spawn2.m4a','assets/sound/spawn2.ogg']
+			,['assets/sound/spawn3.m4a','assets/sound/spawn3.ogg']
+			,['assets/sound/spawn4.m4a','assets/sound/spawn4.ogg']
+			,['assets/sound/spawn5.m4a','assets/sound/spawn5.ogg']
+		]
+		//*/
+});
+
+/***************** 事件 ******************/
+scene.on(soya2d.Device.mobile?'touchstart':'click',function(e){
+	var music = game.soundManager.findOne({url:'music',fuzzy:true});
+	if(!music){
+		//加载音频，针对必须由事件触发的环境
+		game.loadRes({
+			sounds: [
+		['assets/sound/music.m4a','assets/sound/music.ogg','assets/sound/music.mp3']
+		,['assets/sound/hit.m4a','assets/sound/hit.ogg']
+		,['assets/sound/score.m4a','assets/sound/score.ogg']
+		,['assets/sound/miss.m4a','assets/sound/miss.ogg']
+		,['assets/sound/spawn1.m4a','assets/sound/spawn1.ogg']
+		,['assets/sound/spawn2.m4a','assets/sound/spawn2.ogg']
+		,['assets/sound/spawn3.m4a','assets/sound/spawn3.ogg']
+		,['assets/sound/spawn4.m4a','assets/sound/spawn4.ogg']
+		,['assets/sound/spawn5.m4a','assets/sound/spawn5.ogg']
+		],
+			onLoad: function() {
+				
+			},
+			onEnd: function() {
+				
+			}
+		});
+	}
+	
+	if(this.state == STATE_INIT){
+		this.play(game);
+	}
+	
+	if(this.state == STATE_RUNNING){
+		var x = e.x,y = e.y;
+		
+		if(soya2d.Device.mobile){
+			var touchList = e.touchList;
+			x = touchList[0];
+			y = touchList[1];
+		}
+		this.hit(x,y);
 	}
 });

@@ -4,15 +4,15 @@
  * @class 
  * @extends soya2d.Scene
  * @param {Object} data 所有父类参数，以及新增参数，如下：
- * @param {soya2d.Scene} data.nextScene 加载完成后需要跳转的场景
+ * @param {soya2d.Scene} [data.nextScene] 加载完成后需要跳转的场景，如果为空需要手动切换场景
  * @param {Array} data.textures 需要加载的纹理数组
  * @param {Array} data.texAtlas 需要加载的纹理集数组
  * @param {Array} data.sounds 需要加载的声音数组
  * @param {Array} data.scripts 需要加载的脚本数组
  * @param {Array} data.fonts 需要加载的字体数组
- * @param {function} data.onStart 开始加载回调,回调参数[game,length]
- * @param {function} data.onProgress 加载时回调,回调参数[game,length,index]
- * @param {function} data.onEnd 加载结束时回调,回调参数[game,length]
+ * @param {function} [data.onStart] 开始加载回调,回调参数[game,length]
+ * @param {function} [data.onProgress] 加载时回调,回调参数[game,length,index]
+ * @param {function} [data.onEnd] 加载结束时回调,回调参数[game,length]
  * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.LoaderScene = function(data){
@@ -21,9 +21,6 @@ soya2d.LoaderScene = function(data){
     soya2d.ext(this,data);
     
     this.nextScene = data.nextScene;
-    if(!(this.nextScene instanceof soya2d.Scene)){
-        console.error('soya2d.LoaderScene: invalid param [nextScene], it must be a instance of soya2d.Scene');
-    }
     this.textures = data.textures||[];
     this.texAtlas = data.texAtlas||[];
     this.sounds = data.sounds||[];
@@ -41,6 +38,7 @@ soya2d.LoaderScene = function(data){
         var allSize = this.textures.length +this.texAtlas.length +this.sounds.length +this.scripts.length +this.fonts.length;
         if(allSize<1){
             soya2d.console.warn('empty resources be loaded...');
+            if(this.nextScene)
             game.cutTo(this.nextScene);
             return;
         }
@@ -62,7 +60,7 @@ soya2d.LoaderScene = function(data){
             onEnd: function() {
                 if(loader.onEnd)loader.onEnd(game,allSize);
                 if(endCbk instanceof Function)endCbk.call(loader,game,allSize);
-
+                if(loader.nextScene)
                 game.cutTo(loader.nextScene);
             }
         });

@@ -217,14 +217,14 @@ var scene = new soya2d.Scene({
 		var cr = new p2.DistanceConstraint(fly.body, ball.body);
 		phy.world.addConstraint(cr);
 
-		this.on(game,'click',function(){
+		this.on('click',function(){
 			if(this.state != STATE_RUNNING)return;
 			phy.world.removeConstraint(cr);
 			line.opacity = 0;
 		});
 
 		var thisScene = this;
-		enemy.on(game,'contactstart',function(e){
+		enemy.on('contactstart',function(e){
 			console.log(e);
 			if(thisScene.state == STATE_RUNNING){
 				phy.unbind(this);
@@ -329,7 +329,7 @@ var scene = new soya2d.Scene({
 		this.add(babyTxt1);
 
 		this.dialog = 1;
-		this.on(game,'click',function(){
+		this.on('click',function(){
 			switch(this.dialog){
 				case 1:
 					this.dialog = 2;
@@ -376,4 +376,29 @@ var scene = new soya2d.Scene({
 	gameover:function(){
 		
 	}
+});
+
+//加载资源
+var loader = new soya.LoaderScene({
+		nextScene:scene,
+		textures:['assets/bg.png'
+					,'assets/sand.png'
+					,'assets/cactus.png'
+					,'assets/rock.png'
+					,'assets/ball.png'
+					,'assets/enemy.png'
+					,'assets/wood1.png'
+					,'assets/wood2.png'
+					,'assets/glass1.png'
+					,'assets/glass2.png'
+					,'assets/stone1.png'
+					,'assets/stone2.png'
+					,'assets/stone3.png'
+					,'assets/expo1.png'
+					,'assets/expo2.png'
+					,'assets/expo3.png'
+					,'assets/expo.png'
+					,'assets/fly1.png'
+					,'assets/fly2.png'
+				]
 });

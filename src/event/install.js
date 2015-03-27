@@ -39,33 +39,31 @@ soya2d.module.install('event',{
 soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.prototype */{
     /**
      * 绑定一个或者多个事件，使用同一个回调函数
-     * @param {soya2d.Game} game 绑定的游戏实例
      * @param {string} events 一个或多个用空格分隔的事件类型
      * @param {Function} callback 回调函数
      * @param {int} [order] 触发顺序，值越大越先触发
      * @requires event
      * @return this
      */
-    on:function(game,events,callback,order){
-        game.events.addListener(events,callback,this,order);
+    on:function(events,callback,order){
+        this.game.events.addListener(events,callback,this,order);
         return this;
     },
     /**
      * 绑定一个或者多个事件，使用同一个回调函数。但只触发一次
-     * @param {soya2d.Game} game 绑定的游戏实例
      * @param {string} events 一个或多个用空格分隔的事件类型
      * @param {Function} callback 回调函数
      * @param {int} [order] 触发顺序，值越大越先触发
      * @requires event
      * @return this
      */
-    once:function(game,events,callback,order){
+    once:function(events,callback,order){
         var that = this;
         var cb = function() {
             that.off(events, cb);
             callback.apply(that, arguments)
         }
-        game.events.addListener(events,cb,this,order);
+        this.game.events.addListener(events,cb,this,order);
         return this;
     },
     /**
@@ -76,8 +74,8 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
      * @requires event
      * @return this
      */
-    off:function(game,events,callback){
-        game.events.removeListener(events,callback,this);
+    off:function(events,callback){
+        this.game.events.removeListener(events,callback,this);
         return this;
     }
 });

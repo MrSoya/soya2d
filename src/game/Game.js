@@ -251,7 +251,7 @@ soya2d.Game = function(opts){
 		  this.cutTo(scene);
         }
 
-        soya2d.console.log('game starting...');
+        soya2d.console.info('game starting...');
         if(scene.children.length < 1){
             soya2d.console.warn('empty scene be showing...');
         }
@@ -420,15 +420,21 @@ soya2d.Game = function(opts){
 
     var t1 = 'soya2d Game instance created...';
     var t2 = ms + ' plugins loaded...';
-    soya2d.console.log(t1);
-    soya2d.console.log(t2);
+    soya2d.console.info(t1);
+    soya2d.console.info(t2);
     
+    soya2d.games.push(this);
 };
+/**
+ * 游戏实例列表，保存当前域所有的game实例
+ * @type {Array}
+ */
+soya2d.games = [];
 var t1 = 'soya2d is working...';
 var t2 = '==== thank you for using soya2d, you\'ll love it! ====';
 
-soya2d.console.log(t1);
-soya2d.console.log(t2);
+soya2d.console.info(t1);
+soya2d.console.info(t2);
 
 
 

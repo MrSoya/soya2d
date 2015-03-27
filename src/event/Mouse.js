@@ -114,9 +114,6 @@ soya2d.Mouse = function(){
         setEvent('mouseup',e);
     }
 
-
-
-
     /******************* interface *******************/
 
     /**
