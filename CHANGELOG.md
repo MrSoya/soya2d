@@ -1,5 +1,5 @@
 # Change Log
-## Version 1.3.0 - 2015/3/27
+## Version 1.3.0beta - 2015/3/27
 # ! 注意,该版本不向下兼容
 ### 新增
 * console.level()用于控制输出级别
