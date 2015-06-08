@@ -38,8 +38,9 @@ soya2d.LoaderScene = function(data){
         var allSize = this.textures.length +this.texAtlas.length +this.sounds.length +this.scripts.length +this.fonts.length;
         if(allSize<1){
             soya2d.console.warn('empty resources be loaded...');
-            if(this.nextScene)
-            game.cutTo(this.nextScene);
+            if(this.onEnd)this.onEnd(game,allSize);
+            if(endCbk instanceof Function)endCbk.call(this,game,allSize);
+            if(this.nextScene)game.cutTo(this.nextScene);
             return;
         }
     
@@ -80,24 +81,45 @@ soya2d.LoaderScene = function(data){
             x: game.w/2 - 11,
             y: game.h/2 - 30 - 20
         });
-        var p1 = new soya2d.Rect({
+        var p1 = new soya2d.Shape({
             w:23,h:20,
             skewY:-30,
-            fillStyle:'#69CA14'
+            fillStyle:'#69CA14',
+            onRender:function(g){
+                g.beginPath();
+                g.fillStyle(this.fillStyle);
+                g.rect(0,0,this.w,this.h);
+                g.fill();
+                g.closePath();
+            }
         });
-        var p2 = new soya2d.Rect({
+        var p2 = new soya2d.Shape({
             w:23,h:20,
             skewY:30,
             y:13,
             opacity:.9,
-            fillStyle:'#2A5909'
+            fillStyle:'#2A5909',
+            onRender:function(g){
+                g.beginPath();
+                g.fillStyle(this.fillStyle);
+                g.rect(0,0,this.w,this.h);
+                g.fill();
+                g.closePath();
+            }
         });
-        var p3 = new soya2d.Rect({
+        var p3 = new soya2d.Shape({
             w:23,h:20,
             skewY:-30,
             y:28,
             blendMode:soya2d.BLEND_LIGHTER,
-            fillStyle:'#69CA14'
+            fillStyle:'#69CA14',
+            onRender:function(g){
+                g.beginPath();
+                g.fillStyle(this.fillStyle);
+                g.rect(0,0,this.w,this.h);
+                g.fill();
+                g.closePath();
+            }
         });
         logo.add(p1,p2,p3);
         this.add(logo);

@@ -10,7 +10,8 @@
  *     <li>mouseover</li>
  *     <li>mouseout</li>
  * </ul>
- * 所有事件的唯一回调参数为鼠标事件对象{@link soya2d.MouseEvent}
+ * 所有事件的唯一回调参数为鼠标事件对象{@link soya2d.MouseEvent}<br/>
+ * *该事件支持传播
  * @class 
  * @extends soya2d.EventHandler
  * @author {@link http://weibo.com/soya2d MrSoya}
@@ -39,10 +40,16 @@ soya2d.Mouse = function(){
         mouse.rButton = fireMap[event].rButton = e.button==2;
         mouse.wButton = fireMap[event].wButton = e.button==4||e.which==2;
         fireMap[event].e = e;
+        fireMap[event].__propagate = true;
+        fireMap[event].stopPropagation = stopPropagation;
         fireMap[event].type = event;
         fireMap[event].fire = true;
         if(fireMap[event].__fireList)
         fireMap[event].__fireList.push(target);//over & out
+    }
+
+    function stopPropagation(){
+        this.__propagate = false;
     }
 
     /******************* handler *******************/
@@ -117,7 +124,7 @@ soya2d.Mouse = function(){
     /******************* interface *******************/
 
     /**
-     * 扫描是否需要执行键盘事件，如果需要，执行
+     * 扫描是否需要执行鼠标事件，如果需要，执行
      * @return this
      */
     this.scan = function(){
@@ -146,26 +153,70 @@ soya2d.Mouse = function(){
     function fireEvent(events,ev){
         if(!events)return;
 
-        //排序
-        events.sort(function(a,b){
+        var contextSet = [];
+        var hasGame = false;
+        for(var i=events.length;i--;){
+            var target = events[i].context;
+            if(target == thisGame){
+                hasGame = true;
+                continue;
+            }
+            if(ev.type == 'mouseover' || ev.type == 'mouseout'){
+                if(ev.__fireList.indexOf(target) >= 0){
+                    contextSet.push(target);
+                }
+            }
+            if(contextSet.indexOf(target) < 0 && target.hitTest(mouse.x,mouse.y)){
+                contextSet.push(target);
+            }
+        }
+        
+        contextSet.sort(function(a,b){
+            return b.z - a.z;
+        });
+        if(hasGame){
+            contextSet.push(thisGame);
+        }
+        if(contextSet.length<1)return;
+
+        var target = contextSet[0];
+        
+        var ev = fireListeners(target,events,ev);
+
+        if(!ev.__propagate)return;
+
+        //bubble
+        var p = target.parent;
+        while(p){
+            
+            ev = fireListeners(p,events,ev);
+            
+            if(!ev.__propagate)return;
+
+            p = p.parent;
+        }
+
+        if(hasGame && target != thisGame){
+            fireListeners(thisGame,events,ev);
+        }
+    }
+
+    function fireListeners(target,events,ev){
+        var listeners = [];
+        events.forEach(function(ev){
+            if(ev.context == target){
+                listeners.push(ev);
+            }
+        });
+
+        listeners.sort(function(a,b){
             return a.order - b.order;
         });
 
-        var scene = thisGame.scene;
-
-        for(var i=events.length;i--;){
-            var target = events[i].context;
-            if(target instanceof soya2d.DisplayObject && target != scene){
-                if(ev.type == 'mouseover' || ev.type == 'mouseout'){
-                    if(ev.__fireList.indexOf(target) < 0)continue;
-                }else{
-                    if(!target.hitTest(mouse.x,mouse.y))continue;
-                }
-            }
-
-            events[i].fn.call(target,ev);
-            
+        for(var i=listeners.length;i--;){
+            listeners[i].fn.call(target,ev);
         }
+        return ev;
     }
 
 	/**
@@ -250,6 +301,7 @@ soya2d.EVENT_MOUSEOUT = 'mouseout';
  * 鼠标事件对象
  * @type {Object}
  * @typedef {Object} soya2d.MouseEvent
+ * @property {function} stopPropagation 停止事件传播。冒泡方式
  * @property {int} x - 鼠标当前x坐标
  * @property {int} y - 鼠标当前y坐标
  * @property {boolean} lButton - 是否按下了鼠标左键

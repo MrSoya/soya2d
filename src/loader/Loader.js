@@ -167,7 +167,7 @@ soya2d.Loader = new function(){
      * @param {Array} cfg.urls 声音路径数组,支持跨平台定义。['a.wav',['b.mp3','b.m4a','b.ogg'],'c.ogg']，子数组内为一个声音的不同格式，引擎会自动加载平台支持的第一个
      * @param {Function} cfg.onLoad 单个声音加载成功事件,可选   回调参数[sound,url]
      * @param {Function} cfg.onEnd 全部声音加载完成事件,可选    回调参数[sound数组]
-     * @param {Function} cfg.onError 单个声音加载失败事件,可选 回调参数[url,errorCode]
+     * @param {Function} cfg.onError 单个声音加载失败事件,可选 回调参数[errorCode,url]
 	 * @see soya2d.MEDIA_ERR_ABORTED
      * @see soya2d.Sound
 	 */
@@ -182,13 +182,13 @@ soya2d.Loader = new function(){
         for(var i=cfg.urls.length;i--;){
             var urls = cfg.urls[i];
             var handler = new Howl({
-                urls: urls instanceof Array?urls:[urls],
+                src: urls instanceof Array?urls:[urls],
                 onload:function(){
                     if(onLoad && onLoad.call){
                         var sound = new soya2d.Sound();
                         sound.__handler = this;
                         rs.push(sound);
-                        onLoad(this._src,sound);
+                        onLoad(sound,this._src);
                     }
                     loaded--;
                     if(!loaded && onEnd && onEnd.call){
@@ -201,7 +201,7 @@ soya2d.Loader = new function(){
                         if(error){
                             errorType = error.type;
                         }
-                        onError(this._src,errorType);
+                        onError(errorType,this._src);
                     }
                     loaded--;
                     if(!loaded && onEnd && onEnd.call){
@@ -249,7 +249,7 @@ soya2d.Loader = new function(){
             fontScan(rs,startTime,timeout,originSpan,originWidth,originHeight,onLoad,onEnd,onTimeout,font.family);
         },100);//100ms用于浏览器识别非法字体，然后还原并使用次等匹配字体
     }
-    var fontLoaded=0;//标识字体当前还剩几个没有下载
+    var fontLoaded=0;
     //扫描字体是否加载OK
     function fontScan(rs,startTime,timeout,originSpan,originWidth,originHeight,onLoad,onEnd,onTimeout,family){
         setTimeout(function(){

@@ -8,7 +8,7 @@
  		...
  	]
  	</pre>
- * r:将指定部分资源旋转指定角度后，行程新纹理
+ * r:将指定部分资源旋转指定角度后，形成新纹理
  * @class 
  * @param {soya2d.Texture} tex 大图纹理
  * @param {json} ssheet 纹理集描述

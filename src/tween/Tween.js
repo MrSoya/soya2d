@@ -137,11 +137,11 @@ soya2d.Tween.prototype = {
         this.__calc();
         this.__startTime = Date.now();
 
-        if(this.target.__tween instanceof soya2d.Tween){
-            this.target.__tween.stop();
+        if(this.target.__soya__tween instanceof soya2d.Tween){
+            this.target.__soya__tween.stop();
         }
 
-        this.target.__tween = this;
+        this.target.__soya__tween = this;
 
         soya2d.TweenManager.add(this);
         return this;
@@ -159,6 +159,7 @@ soya2d.Tween.prototype = {
      * 停止补间器
      */
     stop:function(){
+        delete this.target.__soya__tween;
         soya2d.TweenManager.remove(this);
         return this;
     },
@@ -247,6 +248,7 @@ soya2d.Tween.prototype = {
         this.__ratio = null;
         this.attris = null;
         this.easing = null;
+        delete this.target.__soya__tween;
         this.target = null;
         this.onUpdate = null;
         this.onEnd = null;
@@ -296,9 +298,8 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
      * @requires tween
      */
     stopAnimation:function(){
-        if(this.__tween){
-            this.__tween.stop();
-            delete this.__tween;
+        if(this.__soya__tween){
+            this.__soya__tween.stop();
         }
         return this;
     }

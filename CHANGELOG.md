@@ -1,4 +1,24 @@
 # Change Log
+## Version 1.4.0 - 2015/6/8
+### 新增
+* ResourceManager.findAll()查找所有匹配资源
+* 可以通过sp.body.x/sp.body.x/sp.body.rotation来设置坐标和角度，同步物理和显示
+
+### 更新
+* ResourceManager.find()只查找一个匹配资源
+* 鼠标事件现在支持事件冒泡，并可以设置阻止冒泡
+* 触摸事件现在支持事件冒泡，并可以设置阻止冒泡
+* 精灵角度可以被初始化到物理系统
+* RPoly的外半径根据w属性决定
+* 声音处理库更新
+
+### bug修复
+* 键盘事件没有取消
+* Game.loadRes空资源不执行onend
+
+### 移除
+* ResourceManager.findOne()
+
 ## Version 1.3.0 - 2015/3/27
 # ! 注意,该版本不向下兼容
 ### 新增

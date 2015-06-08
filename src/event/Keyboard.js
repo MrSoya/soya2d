@@ -47,7 +47,6 @@ soya2d.Keyboard = function(){
 		var keycode = e.keyCode||e.which;
 		var i = keys.indexOf(keycode);
 		if(i>-1){
-			fireDown = false;
 			keys.splice(i,1);
 		}
 
@@ -60,6 +59,10 @@ soya2d.Keyboard = function(){
 		}
 
 		stopCheck(e,keycode);
+	}
+	function blur(){
+		fireDown = fireUp = firePress = false;
+		keys = [];
 	}
 
 	function stopCheck(e,keycode) {
@@ -91,6 +94,8 @@ soya2d.Keyboard = function(){
 			events = this.__eventMap['keydown'];
 			ev = downEvent;
 			fireEvent(events,ev);
+
+			fireDown = false;
 		}
 		if(firePress){
 			events = this.__eventMap['keypress'];
@@ -126,6 +131,7 @@ soya2d.Keyboard = function(){
 	this.startListen = function(){
 		self.addEventListener('keydown',keydown,false);
 		self.addEventListener('keyup',keyup,false);
+		self.addEventListener('blur',blur,false);
 
 		return this;
 	}
@@ -137,6 +143,7 @@ soya2d.Keyboard = function(){
 	this.stopListen = function(){
 		self.removeEventListener('keydown',keydown,false);
 		self.removeEventListener('keyup',keyup,false);
+		self.removeEventListener('blur',blur,false);
 
 		return this;
 	}

@@ -21,6 +21,8 @@ soya2d.Physics = function(opts){
 	opts = opts || {};
 
 	opts.gravity = opts.gravity || [0,9.8];
+	opts.gravity[0] = opts.gravity[0] || 0;
+    opts.gravity[1] = opts.gravity[1] || 9.8;
 	opts.friction = opts.friction || 1;
 	opts.bounce = opts.bounce || 0.5;
 	opts.stiffness = opts.stiffness || 100000;
@@ -116,11 +118,13 @@ soya2d.Physics = function(opts){
             var target = events[i].context;
             var pairs = null,
             	otherCollider = null;
+            if(type == 'contactstart' ||
+                type == 'contactend'){
+                pairs = type == 'contactstart'?bcs:ecs;
+            }
             if(target instanceof soya2d.DisplayObject && target != scene){
                 if(type == 'contactstart' ||
                 	type == 'contactend'){
-
-                	var pairs = type == 'contactstart'?bcs:ecs;
 
                 	var canfire = false;
                 	for(var j=pairs.length;j--;){
@@ -183,12 +187,14 @@ soya2d.Physics = function(opts){
 		opts.position = [ro.x + offx, ro.y  + offy];
 		opts.angularVelocity = opts.angularVelocity || 0;
 		opts.fixedRotation = opts.fixedRotation || false;
+		opts.angle = ro.rotation;
 		switch(opts.type){
 			case soya2d.PHY_STATIC:
 				opts.type = p2.Body.STATIC;
 				break;
 			case soya2d.PHY_DYNAMIC:
 			default:
+				opts.type = p2.Body.DYNAMIC;
 				if(opts.mass == 0)opts.type = p2.Body.KINEMATIC;
 				break;
 		}
@@ -235,13 +241,42 @@ soya2d.Physics = function(opts){
 			
 			ro.x = body.position[0] - offx;
 			ro.y = body.position[1] - offy;
-			ro.rotation = body.angle * 180 / Math.PI;
+			ro.rotation = body.angle * soya2d.Math.ONEANG;
 		}
 	};
 
 	soya2d.EventHandler.call(this);
 };
 soya2d.inherits(soya2d.Physics,soya2d.EventHandler);
+Object.defineProperties(p2.Body.prototype,{
+    x:{
+        set:function(v){
+            this.position[0] = v + this.ro.w / 2;
+        },
+        get:function(){
+            return this.position[0] - this.ro.w / 2;
+        },
+        enumerable:true
+    },
+    y:{
+        set:function(v){
+            this.position[1] = v + this.ro.h / 2;
+        },
+        get:function(){
+            return this.position[1] - this.ro.h / 2;
+        },
+        enumerable:true
+    },
+    rotation:{
+        set:function(v){
+            this.angle = v;
+        },
+        get:function(){
+            return this.angle * soya2d.Math.ONEANG;
+        },
+        enumerable:true
+    }
+});
 /**
  * 物理响应类型，静态
  * @type {Number}
@@ -270,3 +305,4 @@ soya2d.EVENT_CONTACTEND = 'contactend';
  * @property {Array} collisionPairs - 碰撞对一维数组[{a:xx,b:xx},{a:yy,b:yy}, ...]
  * @property {soya2d.DisplayObject} otherCollider - 与当前对象产生碰撞的显示对象
  */
+

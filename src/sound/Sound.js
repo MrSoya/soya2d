@@ -64,7 +64,7 @@ soya2d.Sound.prototype = {
     loop:function(l){
         if(l != undefined){
             this.__loop = l;
-            this.__handler.loop(l);
+            this.__handler._loop = l;
             return this;
         }
         else{return this.__loop;}
@@ -98,11 +98,40 @@ soya2d.Sound.prototype = {
      * 音量渐变处理
      * @param  {Number}   from     开始音量 (0.0 to 1.0).
      * @param  {Number}   to       目标音量 (0.0 to 1.0).
-     * @param  {Number}   len      渐变时间。毫秒
-     * @param  {Function} end (可选) 结束时触发
+     * @param  {Number}   duration      渐变时间。毫秒
      */
-    fade:function(from, to, len, end){
-        this.__handler.fade(from, to, len, end);
+    fade:function(from, to, duration){
+        this.__handler.fade(from, to, duration);
+        return this;
+    },
+    /**
+     * 监听声音事件
+     * @param  {string} event    事件名，包括load, loaderror, play, end, pause, faded
+     * @param  {function} fn 监听器
+     * @return this
+     */
+    on:function(event,fn){
+        this.__handler.on(event, fn);
+        return this;
+    },
+    /**
+     * 监听声音事件，只有一次
+     * @param  {string} event    事件名，包括load, loaderror, play, end, pause, faded
+     * @param  {function} fn 监听器
+     * @return this
+     */
+    once:function(event,fn){
+        this.__handler.once(event, fn);
+        return this;
+    },
+    /**
+     * 移除监听
+     * @param  {string} event    事件名，包括load, loaderror, play, end, pause, faded
+     * @param  {function} [fn] 监听器。如果此参数为空，移除所有该类型监听
+     * @return this
+     */
+    off:function(event,fn){
+        this.__handler.off(event, fn);
         return this;
     }
 };

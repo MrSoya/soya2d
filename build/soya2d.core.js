@@ -491,7 +491,7 @@ soya2d.ResourceManager.prototype = {
      * @param {boolean} [opts.fuzzy=true] 是否进行url模糊匹配
      * @return {Object | null} 资源对象或者null
      */
-    findOne:function(opts){
+    find:function(opts){
         if(!opts)return null;
         if(typeof opts == "string"){
             var url = opts;
@@ -500,7 +500,7 @@ soya2d.ResourceManager.prototype = {
         }else{
             opts.urls = [opts.url];
         }
-        var rs = this.find(opts);
+        var rs = this.findAll(opts);
         if (rs.length == 0) {
             return null;
         } else {
@@ -514,7 +514,7 @@ soya2d.ResourceManager.prototype = {
      * @param {boolean} [opts.fuzzy=true] 是否进行url模糊匹配
      * @return {Array | null} 资源数组或者null
      */
-    find:function(opts){
+    findAll:function(opts){
         var urls = Object.keys(this.urlMap);
 
         if(typeof opts == "string"){
@@ -2955,7 +2955,7 @@ soya2d.CanvasGraphics = function(ctx){
         if(mw)
             this.ctx.fillText(str, x||0, y||0 ,mw );
         else{
-            this.ctx.fillText(str, x||0, y||0 )
+            this.ctx.fillText(str, x||0, y||0 );
         }
         return this;
     };
@@ -4467,7 +4467,7 @@ soya2d.Texture.prototype = {
  		...
  	]
  	</pre>
- * r:将指定部分资源旋转指定角度后，行程新纹理
+ * r:将指定部分资源旋转指定角度后，形成新纹理
  * @class 
  * @param {soya2d.Texture} tex 大图纹理
  * @param {json} ssheet 纹理集描述
@@ -4590,7 +4590,7 @@ soya2d.AJAXLoader = new function(){
         }
 
         xhr.open(type,url, async===false?false:true);
-        xhr.timeout = t || timeout;
+        if(async)xhr.timeout = t || timeout;
         xhr.ontimeout = ontimeout;
         xhr.onerror = onerror;
         if(xhr.onload === null){
@@ -4621,7 +4621,7 @@ soya2d.AJAXLoader = new function(){
     function uploadRequest(type,url,async,onload,onprogress,ontimeout,onerror,t,data,contentType){
         var xhr = new XMLHttpRequest();
         xhr.open('post',url, async===false?false:true);
-        xhr.timeout = t || timeout;
+        if(async)xhr.timeout = t || timeout;
         xhr.ontimeout = ontimeout;
         if(xhr.upload){
             xhr.upload.addEventListener("progress",function(e){
@@ -4893,7 +4893,7 @@ soya2d.Loader = new function(){
      * @param {Array} cfg.urls 声音路径数组,支持跨平台定义。['a.wav',['b.mp3','b.m4a','b.ogg'],'c.ogg']，子数组内为一个声音的不同格式，引擎会自动加载平台支持的第一个
      * @param {Function} cfg.onLoad 单个声音加载成功事件,可选   回调参数[sound,url]
      * @param {Function} cfg.onEnd 全部声音加载完成事件,可选    回调参数[sound数组]
-     * @param {Function} cfg.onError 单个声音加载失败事件,可选 回调参数[url,errorCode]
+     * @param {Function} cfg.onError 单个声音加载失败事件,可选 回调参数[errorCode,url]
 	 * @see soya2d.MEDIA_ERR_ABORTED
      * @see soya2d.Sound
 	 */
@@ -4908,13 +4908,13 @@ soya2d.Loader = new function(){
         for(var i=cfg.urls.length;i--;){
             var urls = cfg.urls[i];
             var handler = new Howl({
-                urls: urls instanceof Array?urls:[urls],
+                src: urls instanceof Array?urls:[urls],
                 onload:function(){
                     if(onLoad && onLoad.call){
                         var sound = new soya2d.Sound();
                         sound.__handler = this;
                         rs.push(sound);
-                        onLoad(this._src,sound);
+                        onLoad(sound,this._src);
                     }
                     loaded--;
                     if(!loaded && onEnd && onEnd.call){
@@ -4927,7 +4927,7 @@ soya2d.Loader = new function(){
                         if(error){
                             errorType = error.type;
                         }
-                        onError(this._src,errorType);
+                        onError(errorType,this._src);
                     }
                     loaded--;
                     if(!loaded && onEnd && onEnd.call){
@@ -4975,7 +4975,7 @@ soya2d.Loader = new function(){
             fontScan(rs,startTime,timeout,originSpan,originWidth,originHeight,onLoad,onEnd,onTimeout,font.family);
         },100);//100ms用于浏览器识别非法字体，然后还原并使用次等匹配字体
     }
-    var fontLoaded=0;//标识字体当前还剩几个没有下载
+    var fontLoaded=0;
     //扫描字体是否加载OK
     function fontScan(rs,startTime,timeout,originSpan,originWidth,originHeight,onLoad,onEnd,onTimeout,family){
         setTimeout(function(){
@@ -5258,23 +5258,27 @@ soya2d.Game = function(opts){
         var llen = loaders.length;
         //开始加载
         if(llen>0)
-        loaders[0][0](crossOrigin,loader,loaders[0][1],onload,function(){
-            if(llen>1)
-            loaders[1][0](crossOrigin,loader,loaders[1][1],onload,function(){
-            	if(llen>2)
-		            loaders[2][0](crossOrigin,loader,loaders[2][1],onload,function(){
-		                if(llen>3)
-		                    loaders[3][0](crossOrigin,loader,loaders[3][1],onload,function(){
-		                        if(llen>4)
-		                            loaders[4][0](crossOrigin,loader,loaders[4][1],onload,onend);
-		                        else{onend();}
-		                    });
-		                    else{onend();}
-		            });
-		            else{onend();}
+            loaders[0][0](crossOrigin,loader,loaders[0][1],onload,function(){
+                if(llen>1)
+                loaders[1][0](crossOrigin,loader,loaders[1][1],onload,function(){
+                	if(llen>2)
+    		            loaders[2][0](crossOrigin,loader,loaders[2][1],onload,function(){
+    		                if(llen>3)
+    		                    loaders[3][0](crossOrigin,loader,loaders[3][1],onload,function(){
+    		                        if(llen>4)
+    		                            loaders[4][0](crossOrigin,loader,loaders[4][1],onload,onend);
+    		                        else{onend();}
+    		                    });
+    		                    else{onend();}
+    		            });
+    		            else{onend();}
+                });
+                else{onend();}
             });
-            else{onend();}
-        });
+        else{
+            soya2d.console.warn('empty resources be loaded...');
+            onend();
+        }
 	};
 	/*********** 加载资源 ************/
 	function loadTexAtlas(crossOrigin,loader,urls,onload,onEnd){
@@ -5325,11 +5329,11 @@ soya2d.Game = function(opts){
         //加载音频
         loader.loadSounds({
             urls:urls,
-            onLoad:function(src,sound){
+            onLoad:function(sound,src){
                 thisGame.soundManager._add(src,sound);
                 onload(src);
             },
-            onError:function(src,code){
+            onError:function(code,src){
                 onload(src);
             },
             onEnd:function(sounds){
@@ -5583,7 +5587,7 @@ soya2d.Game = function(opts){
  * @type {Array}
  */
 soya2d.games = [];
-var t1 = 'soya2d is working...';
+var t1 = 'soya2d '+soya2d.version.toString()+' is working...';
 var t2 = '==== thank you for using soya2d, you\'ll love it! ====';
 
 soya2d.console.info(t1);
@@ -5646,8 +5650,9 @@ soya2d.LoaderScene = function(data){
         var allSize = this.textures.length +this.texAtlas.length +this.sounds.length +this.scripts.length +this.fonts.length;
         if(allSize<1){
             soya2d.console.warn('empty resources be loaded...');
-            if(this.nextScene)
-            game.cutTo(this.nextScene);
+            if(this.onEnd)this.onEnd(game,allSize);
+            if(endCbk instanceof Function)endCbk.call(this,game,allSize);
+            if(this.nextScene)game.cutTo(this.nextScene);
             return;
         }
     
@@ -5688,24 +5693,45 @@ soya2d.LoaderScene = function(data){
             x: game.w/2 - 11,
             y: game.h/2 - 30 - 20
         });
-        var p1 = new soya2d.Rect({
+        var p1 = new soya2d.Shape({
             w:23,h:20,
             skewY:-30,
-            fillStyle:'#69CA14'
+            fillStyle:'#69CA14',
+            onRender:function(g){
+                g.beginPath();
+                g.fillStyle(this.fillStyle);
+                g.rect(0,0,this.w,this.h);
+                g.fill();
+                g.closePath();
+            }
         });
-        var p2 = new soya2d.Rect({
+        var p2 = new soya2d.Shape({
             w:23,h:20,
             skewY:30,
             y:13,
             opacity:.9,
-            fillStyle:'#2A5909'
+            fillStyle:'#2A5909',
+            onRender:function(g){
+                g.beginPath();
+                g.fillStyle(this.fillStyle);
+                g.rect(0,0,this.w,this.h);
+                g.fill();
+                g.closePath();
+            }
         });
-        var p3 = new soya2d.Rect({
+        var p3 = new soya2d.Shape({
             w:23,h:20,
             skewY:-30,
             y:28,
             blendMode:soya2d.BLEND_LIGHTER,
-            fillStyle:'#69CA14'
+            fillStyle:'#69CA14',
+            onRender:function(g){
+                g.beginPath();
+                g.fillStyle(this.fillStyle);
+                g.rect(0,0,this.w,this.h);
+                g.fill();
+                g.closePath();
+            }
         });
         logo.add(p1,p2,p3);
         this.add(logo);

@@ -29,7 +29,7 @@ soya2d.AJAXLoader = new function(){
         }
 
         xhr.open(type,url, async===false?false:true);
-        xhr.timeout = t || timeout;
+        if(async)xhr.timeout = t || timeout;
         xhr.ontimeout = ontimeout;
         xhr.onerror = onerror;
         if(xhr.onload === null){
@@ -60,7 +60,7 @@ soya2d.AJAXLoader = new function(){
     function uploadRequest(type,url,async,onload,onprogress,ontimeout,onerror,t,data,contentType){
         var xhr = new XMLHttpRequest();
         xhr.open('post',url, async===false?false:true);
-        xhr.timeout = t || timeout;
+        if(async)xhr.timeout = t || timeout;
         xhr.ontimeout = ontimeout;
         if(xhr.upload){
             xhr.upload.addEventListener("progress",function(e){

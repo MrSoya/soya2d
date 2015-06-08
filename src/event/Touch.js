@@ -6,7 +6,8 @@
  *     <li>touchend</li>
  *     <li>touchcancel</li>
  * </ul>
- * 所有事件的唯一回调参数为触摸事件对象{@link soya2d.TouchEvent}
+ * 所有事件的唯一回调参数为触摸事件对象{@link soya2d.TouchEvent}<br/>
+ * *该事件支持传播
  * @class 
  * @extends soya2d.EventHandler
  * @author {@link http://weibo.com/soya2d MrSoya}
@@ -118,8 +119,14 @@ soya2d.Touch = function(){
         
         fireMap[event].touchList = touchList;
         fireMap[event].e = e;
+        fireMap[event].__propagate = true;
+        fireMap[event].stopPropagation = stopPropagation;
         fireMap[event].type = event;
         fireMap[event].fire = true;
+    }
+
+    function stopPropagation(){
+        this.__propagate = false;
     }
 
     /******************* handler *******************/
@@ -165,7 +172,7 @@ soya2d.Touch = function(){
     /******************* interface *******************/
 
     /**
-     * 扫描是否需要执行键盘事件，如果需要，执行
+     * 扫描是否需要执行触摸事件，如果需要，执行
      * @return this
      */
     this.scan = function(){
@@ -192,36 +199,74 @@ soya2d.Touch = function(){
     function fireEvent(events,ev){
         if(!events)return;
 
-        //排序
-        events.sort(function(a,b){
+        var contextSet = [];
+        var hasGame = false;
+        var touchList = touch.touchList;
+        for(var i=events.length;i--;){
+            var target = events[i].context;
+            if(target == thisGame){
+                hasGame = true;
+                continue;
+            }
+            for(var j=0;j<touchList.length;j+=2){
+                x = touchList[j];
+                y = touchList[j+1];
+
+                if(target.hitTest(x,y)){
+                    if(contextSet.indexOf(target) < 0){
+                        contextSet.push(target);
+                    }
+                    break;
+                }
+            }
+        }
+        
+        contextSet.sort(function(a,b){
+            return b.z - a.z;
+        });
+        if(hasGame){
+            contextSet.push(thisGame);
+        }
+        if(contextSet.length<1)return;
+
+        var target = contextSet[0];
+        
+        var ev = fireListeners(target,events,ev);
+
+        if(!ev.__propagate)return;
+
+        //bubble
+        var p = target.parent;
+        while(p){
+            
+            ev = fireListeners(p,events,ev);
+            
+            if(!ev.__propagate)return;
+
+            p = p.parent;
+        }
+
+        if(hasGame && target != thisGame){
+            fireListeners(thisGame,events,ev);
+        }
+    }
+
+    function fireListeners(target,events,ev){
+        var listeners = [];
+        events.forEach(function(ev){
+            if(ev.context == target){
+                listeners.push(ev);
+            }
+        });
+
+        listeners.sort(function(a,b){
             return a.order - b.order;
         });
 
-        var scene = game.scene;
-
-        for(var i=events.length;i--;){
-            var target = events[i].context;
-            if(target instanceof soya2d.DisplayObject && target != scene){
-
-                var touchList = touch.touchList;
-                var hit = false;
-                for(var j=0;j<touchList.length;j+=2){
-                    x = touchList[j];
-                    y = touchList[j+1];
-
-                    if(target.hitTest(x,y)){
-                        hit = true;
-                        break;
-                    }
-                }
-                if(!hit){
-                    continue;
-                }
-            }
-
-            events[i].fn.call(target,ev);
-            
+        for(var i=listeners.length;i--;){
+            listeners[i].fn.call(target,ev);
         }
+        return ev;
     }
 
     /**
@@ -307,6 +352,7 @@ soya2d.EVENT_TOUCHCANCEL = 'touchcancel';
  * 触摸事件对象
  * @type {Object}
  * @typedef {Object} soya2d.TouchEvent
+ * @property {function} stopPropagation 停止事件传播。冒泡方式
  * @property {Array} touchList - 触摸点一维数组[x1,y1, x2,y2, ...]
  * @property {Object} e - HTML事件对象
  */

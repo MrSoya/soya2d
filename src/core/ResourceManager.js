@@ -15,7 +15,7 @@ soya2d.ResourceManager.prototype = {
      * @param {boolean} [opts.fuzzy=true] 是否进行url模糊匹配
      * @return {Object | null} 资源对象或者null
      */
-    findOne:function(opts){
+    find:function(opts){
         if(!opts)return null;
         if(typeof opts == "string"){
             var url = opts;
@@ -24,7 +24,7 @@ soya2d.ResourceManager.prototype = {
         }else{
             opts.urls = [opts.url];
         }
-        var rs = this.find(opts);
+        var rs = this.findAll(opts);
         if (rs.length == 0) {
             return null;
         } else {
@@ -38,7 +38,7 @@ soya2d.ResourceManager.prototype = {
      * @param {boolean} [opts.fuzzy=true] 是否进行url模糊匹配
      * @return {Array | null} 资源数组或者null
      */
-    find:function(opts){
+    findAll:function(opts){
         var urls = Object.keys(this.urlMap);
 
         if(typeof opts == "string"){

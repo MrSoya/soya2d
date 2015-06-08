@@ -22,13 +22,16 @@ soya2d.ext(soya2d.Arc.prototype,{
     onRender:function(g){
         g.beginPath();
 
+        var hw = this.w/2,
+            hh = this.h/2;
+        g.moveTo(hw,hh);
         g.fillStyle(this.fillStyle);
         var sr = (this.startAngle||0)*soya2d.Math.ONERAD,
             er = (this.endAngle||0)*soya2d.Math.ONERAD;
-        g.arc(this.w/2,this.h/2,this.w/2,sr,er);
+        g.arc(hw,hh,this.w/2,sr,er);
         
         if(er-sr != 0 && Math.abs(this.startAngle||0 - this.endAngle||0) != 360){
-            g.lineTo(this.w/2,this.h/2);
+            g.lineTo(hw,hh);
         }
         g.fill();
         g.closePath();

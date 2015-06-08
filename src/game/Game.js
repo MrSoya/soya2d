@@ -105,23 +105,27 @@ soya2d.Game = function(opts){
         var llen = loaders.length;
         //开始加载
         if(llen>0)
-        loaders[0][0](crossOrigin,loader,loaders[0][1],onload,function(){
-            if(llen>1)
-            loaders[1][0](crossOrigin,loader,loaders[1][1],onload,function(){
-            	if(llen>2)
-		            loaders[2][0](crossOrigin,loader,loaders[2][1],onload,function(){
-		                if(llen>3)
-		                    loaders[3][0](crossOrigin,loader,loaders[3][1],onload,function(){
-		                        if(llen>4)
-		                            loaders[4][0](crossOrigin,loader,loaders[4][1],onload,onend);
-		                        else{onend();}
-		                    });
-		                    else{onend();}
-		            });
-		            else{onend();}
+            loaders[0][0](crossOrigin,loader,loaders[0][1],onload,function(){
+                if(llen>1)
+                loaders[1][0](crossOrigin,loader,loaders[1][1],onload,function(){
+                	if(llen>2)
+    		            loaders[2][0](crossOrigin,loader,loaders[2][1],onload,function(){
+    		                if(llen>3)
+    		                    loaders[3][0](crossOrigin,loader,loaders[3][1],onload,function(){
+    		                        if(llen>4)
+    		                            loaders[4][0](crossOrigin,loader,loaders[4][1],onload,onend);
+    		                        else{onend();}
+    		                    });
+    		                    else{onend();}
+    		            });
+    		            else{onend();}
+                });
+                else{onend();}
             });
-            else{onend();}
-        });
+        else{
+            soya2d.console.warn('empty resources be loaded...');
+            onend();
+        }
 	};
 	/*********** 加载资源 ************/
 	function loadTexAtlas(crossOrigin,loader,urls,onload,onEnd){
@@ -172,11 +176,11 @@ soya2d.Game = function(opts){
         //加载音频
         loader.loadSounds({
             urls:urls,
-            onLoad:function(src,sound){
+            onLoad:function(sound,src){
                 thisGame.soundManager._add(src,sound);
                 onload(src);
             },
-            onError:function(src,code){
+            onError:function(code,src){
                 onload(src);
             },
             onEnd:function(sounds){
@@ -430,7 +434,7 @@ soya2d.Game = function(opts){
  * @type {Array}
  */
 soya2d.games = [];
-var t1 = 'soya2d is working...';
+var t1 = 'soya2d '+soya2d.version.toString()+' is working...';
 var t2 = '==== thank you for using soya2d, you\'ll love it! ====';
 
 soya2d.console.info(t1);

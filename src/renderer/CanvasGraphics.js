@@ -525,7 +525,7 @@ soya2d.CanvasGraphics = function(ctx){
         if(mw)
             this.ctx.fillText(str, x||0, y||0 ,mw );
         else{
-            this.ctx.fillText(str, x||0, y||0 )
+            this.ctx.fillText(str, x||0, y||0 );
         }
         return this;
     };
