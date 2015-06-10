@@ -155,10 +155,15 @@ soya2d.Mouse = function(){
 
         var contextSet = [];
         var hasGame = false;
+        var scene = null;
         for(var i=events.length;i--;){
             var target = events[i].context;
             if(target == thisGame){
                 hasGame = true;
+                continue;
+            }
+            if(target instanceof soya2d.Scene){
+                scene = target;
                 continue;
             }
             if(ev.type == 'mouseover' || ev.type == 'mouseout'){
@@ -174,6 +179,9 @@ soya2d.Mouse = function(){
         contextSet.sort(function(a,b){
             return b.z - a.z;
         });
+        if(scene){
+            contextSet.push(scene);
+        }
         if(hasGame){
             contextSet.push(thisGame);
         }

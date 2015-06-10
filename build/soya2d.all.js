@@ -15,8 +15,8 @@ var soya2d = new function(){
      * @property {function} toString 返回版本
      */
 	this.version = {
-        v:[1,3,0],
-        state:'beta',
+        v:[1,4,0],
+        state:'',
         toString:function(){
             return soya2d.version.v.join('.') + ' ' + soya2d.version.state;
         }
@@ -6787,7 +6787,7 @@ soya2d.ext(soya2d.Arc.prototype,{
 
         var hw = this.w/2,
             hh = this.h/2;
-        g.moveTo(hw,hh);
+        
         g.fillStyle(this.fillStyle);
         var sr = (this.startAngle||0)*soya2d.Math.ONERAD,
             er = (this.endAngle||0)*soya2d.Math.ONERAD;
@@ -6804,6 +6804,7 @@ soya2d.ext(soya2d.Arc.prototype,{
             g.strokeStyle(this.strokeStyle);
             g.stroke();
         }
+        g.moveTo(hw,hh);
     }
 });
 
@@ -7982,10 +7983,15 @@ soya2d.Mouse = function(){
 
         var contextSet = [];
         var hasGame = false;
+        var scene = null;
         for(var i=events.length;i--;){
             var target = events[i].context;
             if(target == thisGame){
                 hasGame = true;
+                continue;
+            }
+            if(target instanceof soya2d.Scene){
+                scene = target;
                 continue;
             }
             if(ev.type == 'mouseover' || ev.type == 'mouseout'){
@@ -8001,6 +8007,9 @@ soya2d.Mouse = function(){
         contextSet.sort(function(a,b){
             return b.z - a.z;
         });
+        if(scene){
+            contextSet.push(scene);
+        }
         if(hasGame){
             contextSet.push(thisGame);
         }
@@ -8339,11 +8348,16 @@ soya2d.Touch = function(){
 
         var contextSet = [];
         var hasGame = false;
+        var scene = null;
         var touchList = touch.touchList;
         for(var i=events.length;i--;){
             var target = events[i].context;
             if(target == thisGame){
                 hasGame = true;
+                continue;
+            }
+            if(target instanceof soya2d.Scene){
+                scene = target;
                 continue;
             }
             for(var j=0;j<touchList.length;j+=2){
@@ -8362,6 +8376,9 @@ soya2d.Touch = function(){
         contextSet.sort(function(a,b){
             return b.z - a.z;
         });
+        if(scene){
+            contextSet.push(scene);
+        }
         if(hasGame){
             contextSet.push(thisGame);
         }

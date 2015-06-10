@@ -15,8 +15,8 @@ var soya2d = new function(){
      * @property {function} toString 返回版本
      */
 	this.version = {
-        v:[1,3,0],
-        state:'beta',
+        v:[1,4,0],
+        state:'',
         toString:function(){
             return soya2d.version.v.join('.') + ' ' + soya2d.version.state;
         }

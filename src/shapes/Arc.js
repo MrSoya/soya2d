@@ -24,7 +24,7 @@ soya2d.ext(soya2d.Arc.prototype,{
 
         var hw = this.w/2,
             hh = this.h/2;
-        g.moveTo(hw,hh);
+        
         g.fillStyle(this.fillStyle);
         var sr = (this.startAngle||0)*soya2d.Math.ONERAD,
             er = (this.endAngle||0)*soya2d.Math.ONERAD;
@@ -41,5 +41,6 @@ soya2d.ext(soya2d.Arc.prototype,{
             g.strokeStyle(this.strokeStyle);
             g.stroke();
         }
+        g.moveTo(hw,hh);
     }
 });

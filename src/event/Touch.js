@@ -201,11 +201,16 @@ soya2d.Touch = function(){
 
         var contextSet = [];
         var hasGame = false;
+        var scene = null;
         var touchList = touch.touchList;
         for(var i=events.length;i--;){
             var target = events[i].context;
             if(target == thisGame){
                 hasGame = true;
+                continue;
+            }
+            if(target instanceof soya2d.Scene){
+                scene = target;
                 continue;
             }
             for(var j=0;j<touchList.length;j+=2){
@@ -224,6 +229,9 @@ soya2d.Touch = function(){
         contextSet.sort(function(a,b){
             return b.z - a.z;
         });
+        if(scene){
+            contextSet.push(scene);
+        }
         if(hasGame){
             contextSet.push(thisGame);
         }
