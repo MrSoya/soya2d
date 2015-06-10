@@ -52,7 +52,7 @@ soya2d.ext(Enemy.prototype,{
         	this.parent.remove(this);
         }
 
-		var boomSound = game.soundManager.findOne('expo');
+		var boomSound = game.soundManager.find('expo');
 		if(boomSound)
 		boomSound.play();
 	},
@@ -61,7 +61,7 @@ soya2d.ext(Enemy.prototype,{
 		that.opacity = 1;
 		this.parent.add(this.bomber);
 		that.bomber.boom(that.x,that.y);
-		var showSound = game.soundManager.findOne('appear1');
+		var showSound = game.soundManager.find('appear1');
 		if(showSound)
 		showSound.play();
 	},

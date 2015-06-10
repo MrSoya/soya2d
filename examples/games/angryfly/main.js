@@ -31,12 +31,12 @@ var scene = new soya2d.Scene({
 
 		//bg
 		var bg = new soya2d.TileSprite({
-			sprite:game.textureManager.findOne('bg.png'),
+			sprite:game.textureManager.find('bg.png'),
 			w:bw
 		});
 		view.add(bg);
 		//ground
-		var groundTex = game.textureManager.findOne('sand.png');
+		var groundTex = game.textureManager.find('sand.png');
 		var groundH = groundTex.h - 2;
 		var ground = new soya2d.TileSprite({
 			sprite:groundTex,
@@ -48,7 +48,7 @@ var scene = new soya2d.Scene({
 		phy.bind(ground,{mass:0});
 
 		//rocks
-		var rockTex = game.textureManager.findOne('rock.png');
+		var rockTex = game.textureManager.find('rock.png');
 		var rock = new soya2d.Sprite({
 			textures:rockTex,
 			x:game.w/2,
@@ -57,7 +57,7 @@ var scene = new soya2d.Scene({
 		view.add(rock);
 
 		//rocks
-		var rockTex = game.textureManager.findOne('rock.png');
+		var rockTex = game.textureManager.find('rock.png');
 		var rock = new soya2d.Sprite({
 			textures:rockTex,
 			x:game.w/2,
@@ -66,7 +66,7 @@ var scene = new soya2d.Scene({
 		view.add(rock,rock.clone().moveTo(100,rock.y));
 
 		//cactus
-		var cactusTex = game.textureManager.findOne('cactus.png');
+		var cactusTex = game.textureManager.find('cactus.png');
 		var cactus = new soya2d.Sprite({
 			textures:cactusTex,
 			x:game.w/2+100,
@@ -81,7 +81,7 @@ var scene = new soya2d.Scene({
 	},
 	setItems:function(view,game,groundH,phy){
 		//stones
-		var stoneTex = game.textureManager.findOne('stone1.png');
+		var stoneTex = game.textureManager.find('stone1.png');
 		var s1 = new soya2d.Sprite({
 			textures:stoneTex,
 			x:340,
@@ -110,7 +110,7 @@ var scene = new soya2d.Scene({
 		var stoneH = game.h - stoneTex.h*2-groundH;
 
 		//enemy
-		var enemyTex = game.textureManager.findOne('enemy.png');
+		var enemyTex = game.textureManager.find('enemy.png');
 		var enemy = new soya2d.Sprite({
 			textures:enemyTex,
 			bounds:new soya2d.Circle(0,0,enemyTex.w/2),
@@ -121,8 +121,8 @@ var scene = new soya2d.Scene({
 		phy.bind(enemy,{mass:1});
 
 		//woods
-		var woodTex = game.textureManager.findOne('wood2.png');
-		var wood1Tex = game.textureManager.findOne('wood1.png');
+		var woodTex = game.textureManager.find('wood2.png');
+		var wood1Tex = game.textureManager.find('wood1.png');
 		var w2 = new soya2d.Sprite({
 			textures:woodTex,
 			x:360,
@@ -138,7 +138,7 @@ var scene = new soya2d.Scene({
 		phy.bind(w2,{mass:2});
 
 		//expo
-		var expoTex = game.textureManager.findOne('expo.png');
+		var expoTex = game.textureManager.find('expo.png');
 		var expoW = expoTex.w,
 			expoH = expoTex.h;
 		var expo = new soya2d.Sprite({
@@ -157,7 +157,7 @@ var scene = new soya2d.Scene({
 		});
 
 		//fly
-		var flyTexs = game.textureManager.find('assets/fly');
+		var flyTexs = game.textureManager.findAll('assets/fly');
 		var fly = new soya2d.Sprite({
 			textures:flyTexs,
 			x:400 + 35,
@@ -201,7 +201,7 @@ var scene = new soya2d.Scene({
 			}
 		});
 		view.add(line);
-		var ballTex = game.textureManager.findOne('ball.png');
+		var ballTex = game.textureManager.find('ball.png');
 		var ball = new soya2d.Sprite({
 			textures:ballTex,
 			x:400+10,
@@ -256,7 +256,7 @@ var scene = new soya2d.Scene({
 		var textX = game.w/3+50,
 			textY = game.h/3;
 		//fly
-		var flyTexs = game.textureManager.find('assets/fly');
+		var flyTexs = game.textureManager.findAll('assets/fly');
 		var fly = new soya2d.Sprite({
 			textures:flyTexs,
 			x:game.w/3-100,
@@ -302,7 +302,7 @@ var scene = new soya2d.Scene({
 		this.add(flyTxt1,flyTxt2,flyTxt3);
 
 		//baby
-		var babyTex = game.textureManager.findOne('enemy.png');
+		var babyTex = game.textureManager.find('enemy.png');
 		var baby = new soya2d.Sprite({
 			textures:babyTex,
 			x:game.w/3-100,

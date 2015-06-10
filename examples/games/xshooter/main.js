@@ -44,7 +44,7 @@ var scene = new soya.Scene({
 		this.add(warningLayer);
 		
 		//bg
-		var bgTex = game.textureManager.findOne('assets/image/bg.jpg');
+		var bgTex = game.textureManager.find('assets/image/bg.jpg');
 		var bgTexw = bgTex.w,
 			bgTexh = bgTex.h;
 		var factor = bgTexh / bgTexw;
@@ -58,7 +58,7 @@ var scene = new soya.Scene({
 
 
 		var bg2 = new soya.Sprite({
-			textures:game.textureManager.findOne('assets/image/bg2.png'),
+			textures:game.textureManager.find('assets/image/bg2.png'),
 			x:spacew - 200,
 			y:100,
 			scaleX:1.5,
@@ -66,14 +66,14 @@ var scene = new soya.Scene({
 		});
 		view.add(bg2);
 		this.fog = new soya.TileSprite({
-			sprite:game.textureManager.findOne('assets/image/fog.png'),
+			sprite:game.textureManager.find('assets/image/fog.png'),
 			w:spacew,h:spaceh,
 			speed:1
 		});
 		view.add(this.fog);
 
 		var bg1 = new soya.Sprite({
-			textures:game.textureManager.findOne('assets/image/bg1.png'),
+			textures:game.textureManager.find('assets/image/bg1.png'),
 			x:-100,
 			y:spaceh - 300,
 			scaleX:1.5,
@@ -84,10 +84,10 @@ var scene = new soya.Scene({
 
 		//player
 		var bullet = new Bullet({
-			textures:game.textureManager.findOne('assets/image/bullet1.png')
+			textures:game.textureManager.find('assets/image/bullet1.png')
 		});
 		this.player = new Player({
-			textures:game.textureManager.findOne('assets/image/player.png'),
+			textures:game.textureManager.find('assets/image/player.png'),
 			bulletType:bullet,
 			x:game.w/2,
 			y:game.h/2,
@@ -153,7 +153,7 @@ var scene = new soya.Scene({
 	},
 	//显示游戏场景文字内容
 	initTips:function(game){
-		var atlas = game.texAtlasManager.findOne('imgFont');
+		var atlas = game.texAtlasManager.find('imgFont');
 		this.font = new soya2d.ImageFont(atlas);
 		this.font.size(15);
 
@@ -179,7 +179,7 @@ var scene = new soya.Scene({
 
 		//bomb
 		var bombTip = new soya.Sprite({
-			textures:game.textureManager.findOne('assets/image/bomb.png'),
+			textures:game.textureManager.find('assets/image/bomb.png'),
 			x:game.w/2 - 20,
 			y:game.h - 10 - 15
 		});
@@ -335,7 +335,7 @@ var scene = new soya.Scene({
 		this.score = 0;
 
 		//bgm
-		var music = game.soundManager.findOne('bgm');
+		var music = game.soundManager.find('bgm');
 		if(music)music.loop(true).play().fade(0,.5,4000);
 
 		//启动出怪逻辑
@@ -361,13 +361,13 @@ var scene = new soya.Scene({
 	            		case ENEMY_ARROW:
 	            			sp = new Arrow({
 								player:thisScene.player,
-								textures:game.textureManager.findOne('assets/image/enemy1.png')
+								textures:game.textureManager.find('assets/image/enemy1.png')
 							});
 							break;
 						case ENEMY_SUN:
 	            			sp = new Sun({
 								player:thisScene.player,
-								textures:game.textureManager.findOne('assets/image/enemy2.png')
+								textures:game.textureManager.find('assets/image/enemy2.png')
 							});
 							break;
 	            	}
@@ -405,37 +405,37 @@ var loader = new soya.LoaderScene({
     texAtlas:[
         {
             id:'imgFont',
-            ssheet:'xshooter/assets/image/font.ssheet',
-            image:'xshooter/assets/image/font.png'
+            ssheet:'assets/image/font.ssheet',
+            image:'assets/image/font.png'
         },
     ],
-    textures:['xshooter/assets/image/bg.jpg'
-        ,'xshooter/assets/image/bg1.png'
-        ,'xshooter/assets/image/fog.png'
-        ,'xshooter/assets/image/bg2.png'
-        ,'xshooter/assets/image/player.png'
-        ,'xshooter/assets/image/bullet1.png'
-        ,'xshooter/assets/image/enemy1.png'
-        ,'xshooter/assets/image/enemy2.png'
-        ,'xshooter/assets/image/enemy4.png'
-        ,'xshooter/assets/image/enemy44.png'
-        ,'xshooter/assets/image/pstar.png'
-        ,'xshooter/assets/image/bean1.png'
-        ,'xshooter/assets/image/bean2.png'
-        ,'xshooter/assets/image/bean3.png'
-        ,'xshooter/assets/image/bean4.png'
-        ,'xshooter/assets/image/bomb.png'
+    textures:['assets/image/bg.jpg'
+        ,'assets/image/bg1.png'
+        ,'assets/image/fog.png'
+        ,'assets/image/bg2.png'
+        ,'assets/image/player.png'
+        ,'assets/image/bullet1.png'
+        ,'assets/image/enemy1.png'
+        ,'assets/image/enemy2.png'
+        ,'assets/image/enemy4.png'
+        ,'assets/image/enemy44.png'
+        ,'assets/image/pstar.png'
+        ,'assets/image/bean1.png'
+        ,'assets/image/bean2.png'
+        ,'assets/image/bean3.png'
+        ,'assets/image/bean4.png'
+        ,'assets/image/bomb.png'
     ],
     sounds: [
-        ['xshooter/assets/sound/bgm.mp3']
-        ,['xshooter/assets/sound/bean1.mp3']
-        ,['xshooter/assets/sound/bean2.mp3']
-        ,['xshooter/assets/sound/bean3.mp3']
-        ,['xshooter/assets/sound/bean4.mp3']
-        ,['xshooter/assets/sound/appear1.mp3']
-        ,['xshooter/assets/sound/expo.mp3']
-        ,['xshooter/assets/sound/fire.mp3']
-        ,['xshooter/assets/sound/hurt.mp3']
-        ,['xshooter/assets/sound/gameover.mp3']
+        ['assets/sound/bgm.mp3']
+        ,['assets/sound/bean1.mp3']
+        ,['assets/sound/bean2.mp3']
+        ,['assets/sound/bean3.mp3']
+        ,['assets/sound/bean4.mp3']
+        ,['assets/sound/appear1.mp3']
+        ,['assets/sound/expo.mp3']
+        ,['assets/sound/fire.mp3']
+        ,['assets/sound/hurt.mp3']
+        ,['assets/sound/gameover.mp3']
     ]
 });

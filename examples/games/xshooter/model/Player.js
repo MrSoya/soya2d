@@ -175,7 +175,7 @@ soya2d.ext(Player.prototype,{
 		//shake view
 		this.shake();
 		
-		var boomSound = this.game.soundManager.findOne('gameover');
+		var boomSound = this.game.soundManager.find('gameover');
 		if(boomSound)
 		boomSound.volume(.5).play();
 
@@ -265,7 +265,7 @@ soya2d.ext(GunBarrel.prototype,{
         	this.d = 0;
         }
 
-        var fireSound = game.soundManager.findOne('fire');
+        var fireSound = game.soundManager.find('fire');
 
         var m = soya2d.Math;
         var rotation = this.ship.rotation + this.rotation;

@@ -28,13 +28,13 @@ soya2d.ext(Monster.prototype,{
 				that.hiding = false;
 				
 				//play sound
-				var hit = game.soundManager.findOne('hit');
+				var hit = game.soundManager.find('hit');
 				hit.play();
 			}	
 		});
 
 		//play sound
-		var score = game.soundManager.findOne({url:'score',fuzzy:true});
+		var score = game.soundManager.find({url:'score',fuzzy:true});
 		score.play();
 		
 		//refresh scores
@@ -146,7 +146,7 @@ function Port(monsters,game){
 			});
 			
 			//play sound
-			var sounds = game.soundManager.find({urls:['spawn1','spawn2','spawn3','spawn4','spawn5'],fuzzy:true});
+			var sounds = game.soundManager.findAll({urls:['spawn1','spawn2','spawn3','spawn4','spawn5'],fuzzy:true});
 			var sd = soya2d.Math.randomi(0,sounds.length-1);
 			sounds[sd].play();
 			
@@ -161,7 +161,7 @@ var scene = new soya.Scene({
 	onInit:function(game){
 		var thisScene = this;
 
-		var atlas = game.texAtlasManager.findOne('imgFont');
+		var atlas = game.texAtlasManager.find('imgFont');
 		this.font = new soya2d.ImageFont(atlas);
 		var soyaFont = this.font.clone();
 		soyaFont.size(30);
@@ -212,7 +212,7 @@ var scene = new soya.Scene({
 		
 		//tile
 		var tile = new soya.TileSprite({
-			sprite:game.textureManager.findOne('assets/bg.png'),
+			sprite:game.textureManager.find('assets/bg.png'),
 			autoScroll:true,
 			speed:1
 		});
@@ -221,7 +221,7 @@ var scene = new soya.Scene({
 
 		//show logo
 		this.logo = new soya2d.Sprite({
-			textures:game.textureManager.findOne('assets/logo.png'),
+			textures:game.textureManager.find('assets/logo.png'),
 			x:game.w/2 - 300,
 			y:150,
 			z:1,
@@ -231,7 +231,7 @@ var scene = new soya.Scene({
 		this.add(this.logo);
 		
 		this.over = new soya2d.Sprite({
-			textures:game.textureManager.findOne('assets/gameover.png'),
+			textures:game.textureManager.find('assets/gameover.png'),
 			x:game.w/2 - 225,
 			y:130,
 			z:1,
@@ -243,7 +243,7 @@ var scene = new soya.Scene({
 
 		
 		this.restart = new soya2d.Sprite({
-			textures:game.textureManager.findOne('assets/restart.png'),
+			textures:game.textureManager.find('assets/restart.png'),
 			x:game.w/2 - 115,
 			y:game.h - 300,
 			z:1,
@@ -265,7 +265,7 @@ var scene = new soya.Scene({
 			this.scaleBy(-0.1);
 		});
 		
-		var readyTex = game.textureManager.findOne('assets/ready.png');
+		var readyTex = game.textureManager.find('assets/ready.png');
 		this.ready = new soya2d.Sprite({
 			textures:readyTex,
 			x:-readyTex.w,
@@ -280,23 +280,23 @@ var scene = new soya.Scene({
 		//init monsters
 		this.monsters = [
 			new Monster({
-				textures:game.textureManager.findOne('assets/monster1.png'),
+				textures:game.textureManager.find('assets/monster1.png'),
 				x:-1300
 			}),
 			new Monster({
-				textures:game.textureManager.findOne('assets/monster2.png'),
+				textures:game.textureManager.find('assets/monster2.png'),
 				x:-3100
 			}),
 			new Monster({
-				textures:game.textureManager.findOne('assets/monster3.png'),
+				textures:game.textureManager.find('assets/monster3.png'),
 				x:-1300
 			}),
 			new Monster({
-				textures:game.textureManager.findOne('assets/monster4.png'),
+				textures:game.textureManager.find('assets/monster4.png'),
 				x:-1300
 			}),
 			new Monster({
-				textures:game.textureManager.findOne('assets/monster5.png'),
+				textures:game.textureManager.find('assets/monster5.png'),
 				x:-1300
 			})
 		];
@@ -339,7 +339,7 @@ var scene = new soya.Scene({
 
 		//ground
 		var ground = new soya2d.Sprite({
-			textures:game.textureManager.findOne('assets/fg.png'),
+			textures:game.textureManager.find('assets/fg.png'),
 			y:game.h - 200
 		});
 		this.add(ground);
@@ -369,7 +369,7 @@ var scene = new soya.Scene({
 		}
 
 		//bgm
-		var music = game.soundManager.findOne({url:'music',fuzzy:true});
+		var music = game.soundManager.find({url:'music',fuzzy:true});
 		if(music)music.loop(true).fade(0,0.5,4000).play();
 
 		this.over.visible = false;
@@ -395,7 +395,7 @@ var scene = new soya.Scene({
 		this.ready.opacifyTo(1).animate({x:game.w},3000,{
 			onEnd:function(t){
 				t.opacity = 0;
-				var music = game.soundManager.findOne({url:'music',fuzzy:true});
+				var music = game.soundManager.find({url:'music',fuzzy:true});
 				if(music)music.fade(1,0,500);
 				
 				//
@@ -455,7 +455,7 @@ var scene = new soya.Scene({
 		}});
 				
 		//play sound
-		var miss = game.soundManager.findOne({url:'miss',fuzzy:true});
+		var miss = game.soundManager.find({url:'miss',fuzzy:true});
 		miss.play();
 				
 		//refresh scores
@@ -502,7 +502,7 @@ var loader = new soya.LoaderScene({
 
 /***************** 事件 ******************/
 scene.on(soya2d.Device.mobile?'touchstart':'click',function(e){
-	var music = game.soundManager.findOne({url:'music',fuzzy:true});
+	var music = game.soundManager.find({url:'music',fuzzy:true});
 	if(!music){
 		//加载音频，针对必须由事件触发的环境
 		game.loadRes({
