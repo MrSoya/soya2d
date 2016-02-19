@@ -1,4 +1,8 @@
 # Change Log
+## Version 1.4.1 - 2016/2/19
+### bug修复
+* sp.off()无法取消事件
+
 ## Version 1.4.0 - 2015/6/8
 ### 新增
 * ResourceManager.findAll()查找所有匹配资源

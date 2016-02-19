@@ -28,8 +28,8 @@ soya2d.EventHandler = function(){
 
         var index = -1;
         for(var i=this.__eventMap[ev].length;i--;){
-            if(context == this.__eventMap[ev].context && 
-                (callback?this.__eventMap[ev].fn == callback:true)){
+            if(context == this.__eventMap[ev][i].context && 
+                (callback?this.__eventMap[ev][i].fn == callback:true)){
                 index = i;
                 break;
             }
