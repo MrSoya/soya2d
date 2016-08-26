@@ -1,7 +1,6 @@
 ﻿/**
- * @classdesc 创建一个2*2单位矩阵，该矩阵用来描述2D变换信息
+ * 创建一个2*2单位矩阵，该矩阵用来描述2D变换信息
  * @class 
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Matrix2x2 = function(){
     /**
@@ -27,8 +26,8 @@ soya2d.Matrix2x2.prototype = {
      */
 	set:function(m11,m12,m21,m22){
 		var e = this.e;
-		e[0] = m11||1;e[1] = m12||0;
-		e[2] = m21||0;e[3] = m22||1;
+		e[0] = m11==0?0:m11||1;e[1] = m12||0;
+		e[2] = m21||0;e[3] = m22==0?0:m22||1;
 		return this;
 	},
     /**

@@ -1,7 +1,7 @@
 ﻿
 /**
  * 创建一个用于渲染文本的实例
- * @classdesc 文本类用于显示指定的文本内容，支持多行文本显示。
+ * 文本类用于显示指定的文本内容，支持多行文本显示。
  * 文本渲染效果取决于所指定的font，默认为普通字体soya2d.Font。<br/>
  * 注意，需要显示的指定实例的w属性，来让引擎知道文本是否需要分行显示
  * @class 
@@ -9,53 +9,58 @@
  * @param {Object} data 所有父类参数
  * @see soya2d.Font
  * @see soya2d.ImageFont
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
-soya2d.Text = function(data){
-	data = data||{};
-    soya2d.DisplayObjectContainer.call(this,data);
-    soya2d.ext(this,data);
+soya2d.class("soya2d.Text",{
+    extends:soya2d.DisplayObjectContainer,
+    constructor:function(data) {
+        /**
+         * 文本内容
+         * *注意，直接设置该属性后，需要手动刷新才会更新显示内容。如果不想手动刷新，可以使用setText函数来更新内容
+         * @see soya2d.Text.refresh
+         * @type {String}
+         */
+        this.text = data.text||'';
+        /**
+         * 字符间距
+         * @type {int}
+         * @default 1
+         */
+        this.letterSpacing = data.letterSpacing || 0;
+        /**
+         * 行间距
+         * @type {int}
+         * @default 5
+         */
+        this.lineSpacing = data.lineSpacing||0;
 
-    /**
-     * 文本内容
-     * *注意，直接设置该属性后，需要手动刷新才会更新显示内容。如果不想手动刷新，可以使用setText函数来更新内容
-     * @see soya2d.Text.refresh
-     * @type {String}
-     */
-    this.text = data.text||'';
-    /**
-     * 字符间距
-     * @type {int}
-     * @default 1
-     */
-    this.letterSpacing = data.letterSpacing || 0;
-    /**
-     * 行间距
-     * @type {int}
-     * @default 5
-     */
-    this.lineSpacing = data.lineSpacing||0;
-    /**
-     * 字体对象
-     * @type {String | soya2d.Font | soya2d.ImageFont}
-     * @default soya2d.Font
-     * @see soya2d.Font
-     */
-    this.font = data.font;
-    if(typeof this.font === 'string'){
-        this.font = new soya2d.Font(this.font);
-    }
-    var font = this.font||new soya2d.Font();
-    this.font = font;
+        //data.size 用于图像字体的初始大小
 
-    this.__changed = true;//默认需要修改
-    this.__lines;//分行内容
+        /**
+         * 字体对象
+         * @type {String | soya2d.Font | soya2d.ImageFont | soya2d.Atlas}
+         * @default soya2d.Font
+         * @see soya2d.Font
+         */
+        this.font = data.font;
+        if(typeof this.font === 'string'){
+            this.font = new soya2d.Font(this.font);
+        }else if(this.font instanceof soya2d.Atlas){
+            this.font = new soya2d.ImageFont(this.font,data.size);
+        }
+        var font = this.font||new soya2d.Font();
+        this.font = font;
+        this.font.__game = this.game;
 
-    this.__renderer = this.font.__renderText;//绑定渲染
-};
-soya2d.inherits(soya2d.Text,soya2d.DisplayObjectContainer);
+        this.__changed = true;//默认需要修改
+        this.__lines;//分行内容
 
-soya2d.ext(soya2d.Text.prototype,{
+        this.__renderer = this.font.__renderText;//绑定渲染
+
+        this.fillStyle = data.fillStyle || '#000';
+
+        if(!this.w)this.w = this.font.getBounds(this.text).w;
+        if(!this.h)this.h = this.font.fontSize;
+    },
     onRender:function(g){
         this.__renderer(g);
     },
@@ -78,20 +83,25 @@ soya2d.ext(soya2d.Text.prototype,{
     /**
      * 设置文本内容，并刷新
      * @param {string} txt 文本内容
+     * @param {Boolean} changeW 是否自动改变宽度
      */
-	setText:function(txt){
+	setText:function(txt,changeW){
 		this.text = txt+'';
 		this.refresh();
+        if(changeW){
+            this.w = this.font.getBounds(this.text).w;
+        }
+        return this;
 	},
     _onUpdate:function(game){
         if(!this.__lh){//init basic size
-            var bounds_en = this.font.getBounds("s",game.getRenderer());
-            var bounds_zh = this.font.getBounds("豆",game.getRenderer());
+            var bounds_en = this.font.getBounds("s",game.renderer);
+            var bounds_zh = this.font.getBounds("豆",game.renderer);
             this.__lh = (bounds_en.h+bounds_zh.h)/2>>0;//行高
             this.__uw = (bounds_en.w+bounds_zh.w)/2>>0;//单字宽度
         }
         if(this.__changed){
-            this.__lines = this.__calc(game.getRenderer());
+            this.__lines = this.__calc(game.renderer);
             this.__changed = false;
         }
     },

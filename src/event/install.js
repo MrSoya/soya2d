@@ -1,7 +1,7 @@
 ﻿
 soya2d.module.install('event',{
     onInit:function(game){
-        game.events = new soya2d.Events();
+        this.events = new soya2d.Events();
         var keyboardEvents = ['keyup','keydown','keypress'];
         var mouseEvents = ['click','dblclick','mousedown','mousewheel',
                             'mousemove','mouseup','mouseover','mouseout'];
@@ -9,120 +9,34 @@ soya2d.module.install('event',{
         var mobileEvents = ['hov','tilt','motion'];
 
         if(soya2d.Mouse){
-            game.events.register(mouseEvents,new soya2d.Mouse());
+            this.events.register(mouseEvents,new soya2d.Mouse());
         }
         if(soya2d.Keyboard){
-            game.events.register(keyboardEvents,new soya2d.Keyboard());
+            this.events.register(keyboardEvents,new soya2d.Keyboard());
         }
         if(soya2d.Touch){
-            game.events.register(touchEvents,new soya2d.Touch());
+            this.events.register(touchEvents,new soya2d.Touch());
         }
         if(soya2d.Mobile){
-            game.events.register(mobileEvents,new soya2d.Mobile());
+            this.events.register(mobileEvents,new soya2d.Mobile());
         }
     },
     onStart:function(game){
-        game.events.startListen(game);
+        this.events.startListen(game);
     },
     onStop:function(game){
-        game.events.stopListen(game);
+        this.events.stopListen(game);
     },
     onUpdate:function(game){
-        game.events.scan();
+        this.events.scan();
     }
 });
 
 /**
- * 扩展可渲染对象的事件接口
- * @author {@link http://weibo.com/soya2d MrSoya}
+ * 点击事件类型 - 点下
+ * 该事件会自动判断所在平台，决定是触摸还是鼠标
+ * @type {String}
  */
-soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.prototype */{
-    /**
-     * 绑定一个或者多个事件，使用同一个回调函数
-     * @param {string} events 一个或多个用空格分隔的事件类型
-     * @param {Function} callback 回调函数
-     * @param {int} [order] 触发顺序，值越大越先触发
-     * @requires event
-     * @return this
-     */
-    on:function(events,callback,order){
-        this.game.events.addListener(events,callback,this,order);
-        return this;
-    },
-    /**
-     * 绑定一个或者多个事件，使用同一个回调函数。但只触发一次
-     * @param {string} events 一个或多个用空格分隔的事件类型
-     * @param {Function} callback 回调函数
-     * @param {int} [order] 触发顺序，值越大越先触发
-     * @requires event
-     * @return this
-     */
-    once:function(events,callback,order){
-        var that = this;
-        var cb = function() {
-            that.off(events, cb);
-            callback.apply(that, arguments)
-        }
-        this.game.events.addListener(events,cb,this,order);
-        return this;
-    },
-    /**
-     * 取消一个或者多个已绑定事件
-     * @param {soya2d.Game} game 绑定的游戏实例
-     * @param {string} events 一个或多个用空格分隔的事件类型
-     * @param {Function} callback 回调函数，可选。如果该参数为空。则删除指定类型下所有事件
-     * @requires event
-     * @return this
-     */
-    off:function(events,callback){
-        this.game.events.removeListener(events,callback,this);
-        return this;
-    }
-});
-
-/**
- * 扩展可游戏对象的事件接口
- * @author {@link http://weibo.com/soya2d MrSoya}
- */
-soya2d.ext(soya2d.Game.prototype,/** @lends soya2d.Game.prototype */{
-    /**
-     * 绑定一个或者多个事件，使用同一个回调函数
-     * @param {string} events 一个或多个用空格分隔的事件类型
-     * @param {Function} callback 回调函数
-     * @param {int} [order] 触发顺序，值越大越先触发
-     * @requires event
-     * @return this
-     */
-    on:function(events,callback,order){
-        this.events.addListener(events,callback,this,order);
-        return this;
-    },
-    /**
-     * 绑定一个或者多个事件，使用同一个回调函数。但只触发一次
-     * @param {string} events 一个或多个用空格分隔的事件类型
-     * @param {Function} callback 回调函数
-     * @param {int} [order] 触发顺序，值越大越先触发
-     * @requires event
-     * @return this
-     */
-    once:function(events,callback,order){
-        var that = this;
-        var cb = function() {
-            that.off(events, cb);
-            callback.apply(that, arguments)
-        }
-        this.events.addListener(events,cb,this,order);
-        return this;
-    },
-    /**
-     * 取消一个或者多个已绑定事件
-     * @param {string} events 一个或多个用空格分隔的事件类型
-     * @param {Function} callback 回调函数，可选。如果该参数为空。则删除指定类型下所有事件
-     * @requires event
-     * @return this
-     */
-    off:function(events,callback){
-        this.events.removeListener(events,callback,this);
-        return this;
-    }
-});
+soya2d.EVENT_POINTDOWN = 'pointdown';
+soya2d.EVENT_POINTMOVE = 'pointmove';
+soya2d.EVENT_POINTUP = 'pointup';

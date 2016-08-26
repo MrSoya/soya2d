@@ -4,42 +4,64 @@ var uglify = require('gulp-uglify');
 var jshint = require('gulp-jshint');
 //var jsdoc = require('gulp-jsdoc');
 var rename = require('gulp-rename');
-var rimraf = require('gulp-rimraf');
-var through2 = require('through2');
+var header = require('gulp-header');
+var del = require('del');
 
+var banner = [
+        '/*'
+        ,' * Soya2D is a web interactive animation(game) engine for modern web browsers '
+        ,' *'
+        ,' *'
+        ,' * Copyright 2015-'+ new Date().getFullYear() +' MrSoya and other contributors'
+        ,' * Released under the MIT license'
+        ,' *'
+        ,' * website: http://soya2d.com'
+        ,' * last build: '+new Date().toLocaleDateString()
+        ,' */'
+    ].join('\n') + '\n';
 
 var src_core = [
-    "src/core/soya.js",
+    "src/shellStart.js",
+    "src/core/Soya.js",
+    "src/core/Camera.js",
     "src/core/Math.js",
-    "src/core/ResourceManager.js",
+    "src/core/Assets.js",
+    "src/core/Atlas.js",
+    "src/core/Signal.js",
+    "src/core/SignalHandler.js",
+    "src/core/Loader.js",
+    "src/core/Scene.js",
+    "src/core/SceneManager.js",
+    "src/core/TimerTrigger.js",
+    "src/core/Timer.js",
     "src/geom/Circle.js",
     "src/geom/Polygon.js",
     "src/geom/Rectangle.js",
+    "src/geom/Point.js",
     "src/geom/Matrix2x2.js",
     "src/geom/Vector.js",
+    //physics
+    "src/physics/Body.js",
+    "src/physics/Physics.js",
+    //display
+    "src/display/DisplayObjectFactory.js",
+    "src/display/DisplayObjectFactoryProxy.js",
     "src/display/DisplayObject.js",
     "src/display/DisplayObjectContainer.js",
-    "src/display/Mask.js",
-    "src/display/Scene.js",
-    "src/display/ScrollSprite.js",
+    "src/display/Stage.js",
+    "src/display/World.js",
     "src/display/Shape.js",
+    "src/display/Animation.js",
     "src/display/Sprite.js",
     "src/display/TileSprite.js",
+    //renderer
     "src/renderer/CanvasGraphics.js",
     "src/renderer/CanvasRenderer.js",
     "src/system/Device.js",
-    "src/system/View.js",
     "src/text/Font.js",
     "src/text/ImageFont.js",
     "src/text/Text.js",
-    "src/texture/Texture.js",
-    "src/texture/TextureAtlas.js",
-    "src/texture/TextureAtlasManager.js",
-    "src/texture/TextureManager.js",
-    "src/loader/AJAXLoader.js",
-    "src/loader/Loader.js",
-    "src/game/Game.js",
-    "src/game/LoaderScene.js"
+    "src/core/Game.js"
 ];
 
 var src_ext = [
@@ -58,8 +80,8 @@ var src_ext = [
     "src/shapes/RPoly.js",
     "src/shapes/RRect.js",
     "src/shapes/EArc.js",
+    "src/shapes/install.js",
     //event
-    "src/event/EventHandler.js",
     "src/event/Events.js",
     "src/event/Keyboard.js",
     "src/event/KeyCode.js",
@@ -74,23 +96,22 @@ var src_ext = [
     "src/sound/install.js",
     //particle
     "src/particle/Emitter.js",
-    "src/particle/ParticleManager.js",
-    "src/particle/ParticleWrapper.js",
     "src/particle/install.js",
     //physics
-    "src/physics/p2.min.js",
-    "src/physics/Physics.js",
+    "src/physics/matter.min.js",
     "src/physics/install.js",
-    //task
-    "src/task/Scheduler.js",
-    "src/task/Task.js",
-    "src/task/Trigger.js",
-    "src/task/install.js"
+    //tilemap
+    "src/tilemap/TilemapManager.js",
+    "src/tilemap/TilemapLayer.js",
+    "src/tilemap/Tilemap.js",
+    "src/tilemap/Tileset.js"
 ];
 
+var shellEnd = ["src/shellEnd.js"];
+
 var config = {
-    srcAll:src_core.concat(src_ext),
-    srcCore:src_core,
+    srcAll:src_core.concat(src_ext).concat(shellEnd),
+    srcCore:src_core.concat(shellEnd),
     all: {
         dir: 'build/',
         filename: 'soya2d.all.js'
@@ -106,25 +127,32 @@ var pack = function (type,src) {
     var data = config[type];
     return gulp.src(config[src])
         .pipe(concat(data.filename))
+        .pipe(header(banner))
         .pipe(gulp.dest(data.dir))
         .pipe(uglify())
         .pipe(rename({ suffix: ".min" }))
+        .pipe(header(banner))
         .pipe(gulp.dest(data.dir));
 };
 
-gulp.task('lint', function() {
-    var lintFiles = config.srcAll;
-    return gulp.src(lintFiles)
-        .pipe(jshint('.jshintrc'))
-        .pipe(jshint.reporter('jshint-stylish'));
-});
+// gulp.task('lint', function() {
+//     var lintFiles = config.srcAll;
+//     return gulp.src(lintFiles)
+//         .pipe(jshint('.jshintrc'))
+//         .pipe(jshint.reporter('jshint-stylish'));
+// });
 
-gulp.task('all', ['lint'], function() {
+gulp.task('all', function() {
     return pack('all','srcAll');
 });
 gulp.task('core', function() {
     return pack('core','srcCore');
 });
 
+gulp.task('clean', function(cb) {
+    del(['build'], cb)
+});
+
 gulp.task('build', ['all','core']);
 gulp.task('default', ['build']); 
+

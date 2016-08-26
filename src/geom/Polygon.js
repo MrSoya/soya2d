@@ -1,8 +1,7 @@
 /**
- * @classdesc 几何结构，多边形。
+ * 几何结构，多边形。
  * @class 
  * @param {Array} vtx 1维顶点数组
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Polygon  = function(vtx){
 	this.vtx = vtx;

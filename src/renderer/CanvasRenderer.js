@@ -1,5 +1,5 @@
 ﻿/**
- * @classdesc 渲染器是引擎提供可视化内容展示的底层基础。
+ * 渲染器是引擎提供可视化内容展示的底层基础。
  * 不同的渲染器构建在不同的技术之上比如CSS/WEBGL/CANVAS/SVG等等。<br/>
  * 每个渲染器都和一个soya2d.Game实例绑定，一个应用有且只有一个渲染器。
  * 如果要实现多层渲染，那么你需要创建多个soya2d.Game实例。<br/>
@@ -13,7 +13,6 @@
  * @param {boolean} [data.smoothEnable=true] 是否启用对图像边缘的平滑处理
  * @param {boolean} [data.crispEnable=false] 是否启用图像非平滑渲染
  * @class 
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.CanvasRenderer = function(data){
     data = data||{};
@@ -80,13 +79,9 @@ soya2d.CanvasRenderer = function(data){
 
     /**
      * 渲染方法。每调用一次，只进行一次渲染
-     * @param {soya2d.Scene} scene 需要渲染的场景实例
      */
-    this.render = function(scene){
-        if(!scene instanceof soya2d.Scene)return;
-        //update matrix——>sort(optional)——>onUpdate(matrix)——>onRender(g)
-
-        scene.__updateMatrix();
+    this.render = function(stage,camera){
+        if(!stage instanceof Stage)return;
 
         //render
         ctx.setTransform(1,0,0,1,0,0);
@@ -94,7 +89,9 @@ soya2d.CanvasRenderer = function(data){
             ctx.clearRect(0,0,this.w,this.h);
         }
 
-        render(ctx,scene,g,this.sortEnable,renderStyle);
+        var rect = camera.__view;
+
+        render(rect,ctx,stage,g,this.sortEnable,renderStyle);
     };
 
     var ctxFnMap = {
@@ -145,12 +142,12 @@ soya2d.CanvasRenderer = function(data){
     function renderMask(ctx,mask){
         if(mask.onRender){
             var te = mask.__worldTransform.e;
-            var pe = mask.__worldPosition.e;
-            ctx.setTransform(te[0],te[1],te[2],te[3],pe[0],pe[1]);
+            var wp = mask.worldPosition;
+            ctx.setTransform(te[0],te[1],te[2],te[3],wp.x,wp.y);
 
             //css style
-            var oe = mask.__originPosition.e;
-            ctx.translate(-oe[0], -oe[1]);
+            var ap = mask.anchorPosition;
+            ctx.translate(-ap.x, -ap.y);
             mask.onRender(g);
         }//over onRender
         //渲染子节点
@@ -162,10 +159,12 @@ soya2d.CanvasRenderer = function(data){
             }
         }
     }
-    function render(ctx,ro,g,sortEnable,rs){
+    function render(cameraRect,ctx,ro,g,sortEnable,rs,inWorld){
         if(ro.opacity===0 
         || !ro.visible
         || ro.__masker)return;
+
+        if(!ro.__renderable)return;
 
         if(ro.mask instanceof soya2d.DisplayObject){
             ctx.save();
@@ -176,19 +175,20 @@ soya2d.CanvasRenderer = function(data){
             validCtx(ctx);
             ctx.closePath();
         }
-
-        if(ro instanceof soya2d.ScrollSprite){
-            ctx.save();
-        }
         
         if(ro.onRender){
             var te = ro.__worldTransform.e;
-            var pe = ro.__worldPosition.e;
-            var oe = ro.__originPosition.e;
+            var sp = ro.__screenPosition;
+            var ap = ro.anchorPosition;
             if(ro.__updateCache){
-                ctx.setTransform(1,0,0,1,oe[0]<<1,oe[1]<<1);
+                var x = ap.x,
+                    y = ap.y;
+                ctx.setTransform(1,0,0,1,x,y);
             }else{
-                ctx.setTransform(te[0],te[1],te[2],te[3],pe[0],pe[1]);
+                var x = sp.x,
+                    y = sp.y;
+                
+                ctx.setTransform(te[0],te[1],te[2],te[3],x,y);
             }
 
             //apply alpha
@@ -203,15 +203,18 @@ soya2d.CanvasRenderer = function(data){
             }
 
             //css style
-            ctx.translate(-oe[0], -oe[1]);
+            ctx.translate(-ap.x, -ap.y);
             if(ro.imageCache && !ro.__updateCache){
                 ctx.drawImage(ro.imageCache,0,0);
             }else{
                 ro.onRender(g);
             }
+
         }//over onRender
+        //reset render tag
+        ro.__renderable = false;
         //渲染子节点
-        if(ro.children && ro.children.length>0){
+        if(ro.children && ro.children.length>0 && !ro.__updateCache){
             var children = ro.children;
             //排序
             if(sortEnable)children.sort(function(a,b){
@@ -223,12 +226,9 @@ soya2d.CanvasRenderer = function(data){
             });
 
             for(var i=0;i<children.length;i++){
-                render(ctx,children[i],g,sortEnable,rs);
+                render(cameraRect,ctx,children[i],g,sortEnable,rs,
+                    children[i].__soya_type != 'world' && !(ro instanceof Stage)?true:false);
             }
-        }
-
-        if(ro instanceof soya2d.ScrollSprite){
-            ctx.restore();
         }
 
         //mask
@@ -271,7 +271,6 @@ soya2d.CanvasRenderer = function(data){
     this.smooth = function(enabled){
         if(enabled !== undefined){
             ctx.imageSmoothingEnabled = 
-            ctx.webkitImageSmoothingEnabled = 
             ctx.mozImageSmoothingEnabled = 
             ctx.oImageSmoothingEnabled = 
             ctx.msImageSmoothingEnabled = 
@@ -333,24 +332,6 @@ soya2d.CanvasRenderer = function(data){
     };
 
     /**
-     * 获取一个该渲染器的点击测试器
-     * @param {int} type 测试器类型.默认路径检测
-     * @return {soya2d.HitTester} 测试器
-     */
-    this.getHitTester = function(type){
-        switch(type){
-            case 2:return this.__pixelTester;
-            case 1:default:
-            return this.__pathTester;
-        }
-    }
-    //优化为每个渲染器只对应各类型一个检测器
-    this.__pixelTester = new soya2d.__HitPixelTester(this.w,this.h);
-    this.__pathTester = new soya2d.__HitPathTester(this.w,this.h);
-
-
-
-    /**
      * 创建一个图像绘制模式
      * @param {HTMLImageElement|HTMLCanvasElement|HTMLVideoElement} image 图像
      * @param {string} [repetition=soya2d.REPEAT] 重复类型
@@ -376,12 +357,12 @@ soya2d.CanvasRenderer = function(data){
      * @see soya2d.GRADIENTTYPE_LINEAR
      */
     this.createGradient = function(ratios,colors,len,opt){
-        var angle=0,x=0,y=0,type=soya2d.GRADIENTTYPE_LINEAR,focalRatio=0,focalRadius=0;
+        var angle=0,x=0,y=0,type=soya2d.GRADIENT_LINEAR,focalRatio=0,focalRadius=0;
         if(opt){
             angle = opt.angle||0,
             x=opt.x||0,
             y=opt.y||0,
-            type=opt.type||soya2d.GRADIENTTYPE_LINEAR,
+            type=opt.type||soya2d.GRADIENT_LINEAR,
             focalRatio=opt.focalRatio||0,
             focalRadius=opt.focalRadius||0;
         }
@@ -389,13 +370,13 @@ soya2d.CanvasRenderer = function(data){
         var g,m=soya2d.Math;
         angle = Math.abs((angle||0)>>0);
         switch(type){
-            case soya2d.GRADIENTTYPE_LINEAR:
+            case soya2d.GRADIENT_LINEAR:
                 g = ctx.createLinearGradient(x,y,x+len* m.COSTABLE[angle],y+len* m.SINTABLE[angle]);
                 for(var i=0,l=ratios.length;i<l;i++){
                     g.addColorStop(ratios[i],colors[i]||"RGBA(0,0,0,0)");
                 }
                 break;
-            case soya2d.GRADIENTTYPE_RADIAL:
+            case soya2d.GRADIENT_RADIAL:
                 var fl = len*focalRatio;
                 g = ctx.createRadialGradient(x,y,focalRadius,x+fl* m.COSTABLE[angle],y+fl* m.SINTABLE[angle],len);
                 for(var i=0,l=ratios.length;i<l;i++){
@@ -433,110 +414,4 @@ soya2d.CanvasRenderer.prototype.getImageFrom = function(ro,w,h){
     g = null;
     tc = null;
     return img;
-};
-
-/********************点击测试器***********************/
-
-soya2d.__HitPathTester = function(w,h){
-
-    function invalidCtx(ctx) {
-        ctx.stroke = function() {};
-        ctx.fill = function() {};
-        ctx.fillRect = function(x, y, w, h) {
-            ctx.rect(x, y, w, h);
-        };
-        ctx.strokeRect = function(x, y, w, h) {
-            ctx.rect(x, y, w, h);
-        };
-        ctx.drawImage = function(img,sx,sy,sw,sh,dx,dy,dw,dh){
-        	if(arguments.length===3){
-        		ctx.rect(sx,sy,img.width,img.height);
-        	}else if(arguments.length===5){
-        		ctx.rect(sx,sy,sw,sh);
-        	}else if(arguments.length===9){
-        		ctx.rect(dx,dy,dw,dh);
-        	}
-        		
-        };
-        ctx.fillText = function(){};
-        ctx.strokeText = function(){};
-    }
-
-    //创建path检测层
-    var layer = document.createElement('canvas');
-    layer.width = w;layer.height = h;
-
-    var ctx = layer.getContext('2d');
-    var cg = new soya2d.CanvasGraphics(ctx);
-    invalidCtx(ctx);
-
-    this.test = function(ro,x,y){
-        render(ro,ctx,cg);
-        return ctx.isPointInPath(x,y);
-    }
-
-    function render(ro,ctx,cg){
-        var te = ro.__worldTransform.e;
-        var pe = ro.__worldPosition.e;
-        ctx.setTransform(te[0],te[1],te[2],te[3],pe[0],pe[1]);
-        if (ro.onRender) {
-            ctx.beginPath();
-            var oe = ro.__originPosition.e;
-            ctx.translate(-oe[0], -oe[1]);
-            ro.onRender(cg);
-        }
-    }
-};
-
-soya2d.__HitPixelTester = function(w,h){
-    var w,h;
-    //创建pixel检测层
-    var layer = document.createElement('canvas');
-    layer.width = w;layer.height = h;
-    var ctx = layer.getContext('2d');
-    var cg = new soya2d.CanvasGraphics(ctx);
-
-    this.test = function(ro,x,y){
-        render(ro,ctx,cg);
-
-        var d = ctx.getImageData(0,0,w,h).data;
-        return !!d[((w * y) + x) * 4 + 3];
-    };
-
-    function render(ro,ctx,cg){
-        var te = ro.__worldTransform.e;
-        var pe = ro.__worldPosition.e;
-        ctx.setTransform(te[0],te[1],te[2],te[3],pe[0],pe[1]);
-        if (ro.onRender) {
-            ctx.beginPath();
-            var oe = ro.__originPosition.e;
-            ctx.translate(-oe[0], -oe[1]);
-            ro.onRender(cg);
-        }
-    }
-};
-
-/**
- * @classdesc 点击测试器，可以检测2D点是否在绘制图形中，
- * 只适用于基于canvas的2D图形点击检测<br/>
- * 注意，除非你确定需要使用基于canvas2d的检测API，否则应该使用DisplayObject自带的检测函数。<br/>
- * 注意，该类无法直接实例化，只能通过渲染器获取
- * <p>
- * 渲染器有基于路径和像素两种，基于路径的检测器性能更高，但只能检测由path构成的闭合图元。<br/>
- * 如果需要检测一个RO中绘制的非连续图形，比如点状分布的多边形或者像素，则可以使用像素检测
- * 注意：在像素检测中，透明色会被认为无效点击
- * </p>
- * @class 
- * @author {@link http://weibo.com/soya2d MrSoya}
- */
-soya2d.HitTester = function(){
-    /**
-     * 测试渲染对象<br/>
-     * 注意：不要在onRender事件中调用该方法
-     * @param {soya2d.DisplayObject} ro 渲染对象
-     * @param {int} x 相对于场景的坐标
-     * @param {int} y 相对于场景的坐标
-     * @return {Boolean} 指定2D坐标是否在测试的渲染对象内
-     */
-    soya2d.HitTester.prototype.test = function(ro,x,y){};
 };

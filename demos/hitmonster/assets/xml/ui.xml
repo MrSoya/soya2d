@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<world>
+	<tileSprite sprite="bg" autoScroll="true" speed="1">
+	</tileSprite>
+	<sprite images="ground" id="ground" layout-top="100%" layout-offsetTop="-100%" z="1">
+		<text layout-left="50%" layout-offsetLeft="-50%" layout-top="50%" atlas="imgFont" size="30">
+			MADE BY SOYA2D
+		</text>
+	</sprite>
+	<group id="startTip">
+		<text y="20" layout-left="50%" layout-offsetLeft="-50%" atlas="imgFont" w="370">
+			CLICK TO START
+		</text>
+		<sprite id="logo" y="150" scaleX="0.1" scaleY="0.1" z="1" layout-left="50%" layout-offsetLeft="-50%" images="logo">
+		</sprite>
+	</group>
+	<sprite id="ready" images="ready" layout-offsetLeft="-100%" y="150" opacity="0">
+	</sprite>
+	<text id="time" y="20" w="140" opacity="0"
+		layout-left="50%" layout-offsetLeft="-50%" atlas="imgFont">
+	</text>
+	<text id="score" x="20" y="20" w="100" opacity="0" atlas="imgFont">
+		0
+	</text>
+
+	<sprite id="gameover" images="gameover" scaleX="0.1" scaleY="0.1" 
+		layout-left="50%" layout-offsetLeft="-50%" 
+		y="130" visible="false" z="1">
+	</sprite>
+	<sprite id="restart" images="restart" scaleX="0.1" scaleY="0.1" 
+		layout-left="50%" layout-offsetLeft="-50%" layout-top="100%" layout-offsetTop="-300"
+		visible="false" z="1">
+	</sprite>
+</world>

@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+  <html>
+  	<head>
+			<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+			<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+			<script src="../../build/soya2d.all.js" type="text/javascript" language='javascript'></script>
+			<script src="model.js" type="text/javascript" language='javascript'></script>
+			<style>
+				html,body{
+					margin:0;
+					padding:0;
+					background: #319AD6;
+				}
+
+				#stage{
+					position: absolute;
+					width: 100%;
+					height: 100%;
+				}
+			</style>
+		</head>
+    <body style="font-family: dodger">
+
+      	<div id="stage">
+      		
+      	</div>
+		<script>
+			var preloadScene = {
+				onPreload:function(game){
+					game.stage.alignMode = soya2d.ALIGNMODE_CENTER;
+
+
+					game.load.baseUrl = 'assets/img/';
+				 	game.load.image(['bg.png']);
+				},
+				onInit:function(game){
+					//跳转场景
+					game.scene.start(loaderScene);
+				}
+			}
+
+			var loaderScene = {
+				onPreload:function(game){
+					game.load.baseUrl = 'assets/img/';
+					game.load.image(['cover.png','scene.png','btn_start.png','btn_ok.png','btn_mute.png','btn_unmute.png','icon_exitterminal.png','icon_landing.png','icon_takeoff.png','icon_terminal.png','score.png','btn_exit.png']);
+				   	
+				   	game.load.atlas('pb','plane_big.png',140,92);
+				   	game.load.atlas('pbs','plane_big_shadow.png',140,92);
+				   	game.load.atlas('pm','plane_medium.png',128,80);
+				   	game.load.atlas('pms','plane_medium_shadow.png',128,80);
+				   	game.load.atlas('ps','plane_small.png',56,40);
+				   	game.load.atlas('pss','plane_small_shadow.png',56,40);
+				   	game.load.atlas('bomb','bomb.png',140,170);
+
+				   	game.load.baseUrl = 'assets/sound/';
+				   	game.load.sound({
+				   		bg:'music.ogg',
+				   		btn:'button.ogg',
+				   		airport:'airport.ogg',
+				   		landing:'landing.ogg',
+				   		radio1:'radio1.ogg',
+				   		ding:'ding.ogg',
+				   		launch:'launch.ogg',
+				   		passby:'passby.ogg',
+				   		shutdown:'shutdown.ogg',
+				   		takeoff:'takeoff.ogg',
+				   		seatbelt:'seatbelt.ogg',
+				   		crash:'crash.ogg'
+				   	});
+
+				   	game.load.baseUrl = 'assets/';
+				   	game.load.xml({
+				   		ui:'ui.xml'
+				   	});
+				},
+				onInit:function(game){
+					//舞台背景色
+					game.stage.background('#319AD6');
+					//舞台居中
+					game.stage.alignMode = soya2d.ALIGNMODE_CENTER;
+
+					game.sound.stopAll();
+					game.assets.sound('bg').loop(true).volume(.5).play();
+
+					game.sound.muteAll();
+
+					var bg = game.add.sprite({
+						images:'bg',
+						scaleX:1.5,
+						scaleY:1.5
+					});
+					game.tween.add(bg)
+					.to({scaleX:1,scaleY:1},.8,{easing:soya2d.Tween.Elastic.Out}).play();
+					
+					
+					var play = addButton({
+						images:'btn_start',
+						layout:{
+							left:'50%',
+							offsetLeft:'-50%',
+						},
+						y:game.h * .7,
+						scaleX:1.5,
+						scaleY:1.5
+					},function(){
+						game.scene.start(mainScene,true);
+					});
+					bg.add(play);
+
+
+					var mute = addButton({
+						images:['btn_mute','btn_unmute'],
+						layout:{
+							left:'85%',
+							top:'80%'
+						}
+					},function(){
+						this.nextFrame();
+						if(this.frameIndex == 1){
+							game.sound.muteAll(true);
+						}else{
+							game.sound.muteAll(false);
+						}
+					});
+				}
+			}
+
+			var mainScene = {
+				onInit:function(game){
+
+					this.bomb = game.add.sprite({
+						images:game.assets.atlas('bomb').getAll(),
+						opacity:0,
+						loop:false,
+						z:99
+					});
+
+					game.sound.stopAll();
+					game.assets.sound('airport').loop(true).volume(.5).play();
+
+					//自动应用UI
+					this.setView(game.assets.xml('ui'));
+
+					Tower.init(this.findView('score'));
+					
+
+					var cover = this.findView('cover');
+					var btn_ok = addButton({
+						images:'btn_ok',
+						layout:{
+							left:'50%',
+							top:'70%',
+							offsetLeft:'-50%'
+						}
+					},function(){
+						game.tween.add(cover)
+	.to({scaleX:2,scaleY:2,opacity:0},.8,{easing:soya2d.Tween.Expo.Out}).play();
+						this.visible = false;
+
+						//开始调度
+						Tower.schedule();
+					});
+					
+					//
+					var mute = addButton({
+						images:['btn_mute','btn_unmute'],
+						layout:{
+							left:'85%',
+							top:'80%'
+						}
+					},function(){
+						this.nextFrame();
+						if(this.frameIndex == 1){
+							game.sound.muteAll(true);
+						}else{
+							game.sound.muteAll(false);
+						}
+					});
+
+					var exit = addButton({
+						images:'btn_exit',
+						layout:{
+							left:'5%',
+							top:'80%'
+						}
+					},function(){
+						game.scene.start(loaderScene,true);
+					});
+
+					this.gameoverLayer = this.findView('gameoverLayer');
+					this.overScore = this.findView('overScore');
+
+					game.debug = false;
+					//debug
+                	game.add.shape({
+                		opacity:.7,
+                		onRender:function(g){
+                			if(!game.debug)return;
+
+                			g.lineStyle(3);
+
+	                        g.strokeStyle('blue');
+	                        g.beginPath();
+	                        g.path(Tower.landingPath);
+	                        g.stroke();
+
+	                        g.strokeStyle('#2CCEA8');
+	                        g.beginPath();
+	                        g.path(Tower.terminalPath);
+	                        g.stroke();
+
+	                        g.strokeStyle('#2CCEA8');
+	                        g.beginPath();
+	                        g.path(Tower.t1Path);
+	                        g.stroke();
+
+	                        g.strokeStyle('#2CCEFF');
+	                        g.beginPath();
+	                        g.path(Tower.t2Path);
+	                        g.stroke();
+
+	                        g.strokeStyle('#81D046');
+	                        g.beginPath();
+	                        g.path(Tower.t1TPath);
+	                        g.stroke();
+
+	                        g.strokeStyle('#81D046');
+	                        g.beginPath();
+	                        g.path(Tower.t2TPath);
+	                        g.stroke();
+
+	                        g.strokeStyle('#FFC728');
+	                        g.beginPath();
+	                        g.path(Tower.takeoffPath1);
+	                        g.stroke();
+
+	                        g.strokeStyle('#FFC7FF');
+	                        g.beginPath();
+	                        g.path(Tower.takeoffPath2);
+	                        g.stroke();
+	                    }
+                	});
+
+	                
+				},
+				back:function(){
+					game.scene.start(loaderScene,true);
+				},
+				gameover:function(){
+					game.assets.sound('crash').play();
+
+					Tower.planes.forEach(function(p){
+						game.tween.clearAll(p);
+					});
+
+					game.over = true;
+					game.timer.off('[* * *]');
+
+					this.gameoverLayer.visible = true;
+					Tower.planes = [];
+				},
+				onUpdate:function(){
+					var that = this;
+					Tower.planes.forEach(function(p){
+						if(p.midair)return;
+
+						Tower.planes.forEach(function(op){
+							if(op.midair || p===op)return;
+
+							if(p.intersectWith(op)){
+								that.bomb.moveTo(p.x,p.y);
+								that.bomb.opacity = 1;
+								that.bomb.autoplay = true;
+								
+								that.overScore.setText('Score: '+Tower.score);
+
+								that.gameover();
+							}
+						});
+					});
+				}
+			}
+
+			var game = soya.render('#stage',1024,768,preloadScene);
+			game.objects.register('pilot',Pilot);
+		</script>
+	</body>
+</html>

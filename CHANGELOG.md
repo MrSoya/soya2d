@@ -1,4 +1,8 @@
 # Change Log
+
+## Version 2.0.0 beta - 2016/8/26
+* 2.0 beta
+
 ## Version 1.4.1 - 2016/2/19
 ### bug修复
 * sp.off()无法取消事件

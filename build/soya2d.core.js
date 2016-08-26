@@ -1,9 +1,25 @@
-/**
- * 引擎命名空间
- * @namespace
- * @author {@link http://weibo.com/soya2d MrSoya}
+/*
+ * soya2D is a web interactive animation(game) engine for modern web browsers 
+ *
+ *
+ * Copyright 2015-2016 MrSoya and other contributors
+ * Released under the MIT license
+ *
+ * website: http://soya2d.com
+ * last build: 2016-08-26
  */
-var soya2d = new function(){
+!function (global) {
+	'use strict';
+/**
+ * 核心包定义了soya2d的入口，基础组件以及循环体等
+ *
+ * @module core
+ */
+
+/**
+ * @namespace soya2d
+ */
+global.soya2d = new function(){
 
     //渲染实例编号
     this.__roIndex=0;
@@ -15,8 +31,8 @@ var soya2d = new function(){
      * @property {function} toString 返回版本
      */
 	this.version = {
-        v:[1,4,1],
-        state:'',
+        v:[2,0,0],
+        state:'beta1',
         toString:function(){
             return soya2d.version.v.join('.') + ' ' + soya2d.version.state;
         }
@@ -42,17 +58,53 @@ var soya2d = new function(){
         }
 	};
 
-    /**
-     * 继承
-     * @param {Function} child 子类
-     * @param {Function} parent 父类
-     */
-    this.inherits = function(child,parent){
+    function inherits(child,parent){
     	//采用原型对象创建，可以保证只继承原型上挂着的方法，而构造内定义的方法不会继承
         child.prototype = Object.create(parent.prototype);
         child.prototype.constructor = child;
         child.prototype._super = parent.prototype;
 	}
+
+    /**
+     * define a class
+     * @param {String} namePath full class path with namespace
+     * @param {Object} param    as below
+     * @param {Object} param.extends    extends to
+     * @param {Object} param.constructor   constructor of the class
+     */
+    this.class = function(namePath,param){
+        var constr = param.constructor;        
+        var parent = param.extends;
+        var cls = function(){
+            if(parent)parent.apply(this,arguments);
+            if(constr)constr.apply(this,arguments);
+        };
+        if(parent)inherits(cls,parent);
+        for(var k in param){
+            if(k === 'extends' || k==='constructor')continue;
+            cls.prototype[k] = param[k];
+        }
+
+        if(namePath){
+            var ps = namePath.split('.');
+            var name = ps[ps.length-1];
+            var ns = self;
+            if(ps.length>1){
+                for (var i = 0; i < ps.length; i++) {
+                    if(ps[i] !== name){
+                        ns = ns[ps[i]];
+                        if(!ns){
+                            ns = {};
+                        }
+                    }
+                }
+            }
+            ns[name] = cls;
+            cls.prototype.class = namePath;
+        }
+
+        return cls;
+    }
 
     /**
      * 模块管理
@@ -87,8 +139,27 @@ var soya2d = new function(){
             return map;
         }
     }
+
+    /**
+     * 渲染一个soya2D舞台
+     * @param {String | HTMLElement} container 游戏渲染的容器，可以是一个选择器字符串或者节点对象
+     * @param {int} w 游戏的宽度
+     * @param {int} h 游戏的高度
+     * @param  {Scene} scene  渲染场景
+     * @return {soya2d.Game}
+     */
+    this.render = function(container,w,h,scene){
+        var game = new soya2d.Game({
+            w:w,
+            h:h,
+            container:container
+        });
+        game.start();
+        game.scene.start(scene);
+        return game;
+    }
 };
-var soya = soya2d;
+global.soya = soya2d;
 
 //系统扩展
 self.Int8Array = self.Int8Array || Array;
@@ -304,35 +375,15 @@ soya2d.TEXTDIR_LTR = "ltr";
 soya2d.TEXTDIR_RTL = "rtl";
 
 /**
- * 纹理重复类型——REPEAT
- * @constant
- */
-soya2d.REPEAT = 'repeat';
-/**
- * 纹理重复类型——NOREPEAT
- * @constant
- */
-soya2d.NOREPEAT = 'no-repeat';
-/**
- * 纹理重复类型——REPEAT_X
- * @constant
- */
-soya2d.REPEAT_X = 'repeat-x';
-/**
- * 纹理重复类型——REPEAT_Y
- * @constant
- */
-soya2d.REPEAT_Y = 'repeat-y';
-/**
  * 线性渐变类型
  * @constant
  */
-soya2d.GRADIENTTYPE_LINEAR = 1;
+soya2d.GRADIENT_LINEAR = 1;
 /**
  * 放射渐变类型
  * @constant
  */
-soya2d.GRADIENTTYPE_RADIAL = 2;
+soya2d.GRADIENT_RADIAL = 2;
 
 /**
  * 点击测试类型——路径
@@ -347,9 +398,246 @@ soya2d.HITTEST_PIXEL = 2;
 
 
 /**
+ * 摄像机是游戏世界的视口，game.world里的内容都会呈现在camera的镜头内。
+ * @class Camera
+ */
+function Camera(w,h,game) {
+
+    Object.defineProperties(this,{
+        /**
+         * camera在world中的位置
+         * @type {int}
+         */
+        x : {
+            set:function(v){
+                this.__view.x = v;
+                this.__checkBounds();
+            },
+            get:function(){
+                return this.__view.x;
+            }
+        },
+        /**
+         * camera在world中的位置
+         * @type {int}
+         */
+        y : {
+            set:function(v){
+                this.__view.y = v;
+                this.__checkBounds();
+            },
+            get:function(){
+                return this.__view.y;
+            }
+        },
+        w : {
+            get:function(){
+                return this.__view.w;
+            }
+        },
+        h : {
+            get:function(){
+                return this.__view.h;
+            }
+        }
+    });
+    /**
+     * 镜头内限制目标跟踪范围的矩形区域，跟踪目标时有效。
+     * freezone的x/y/w/h都是相对于camera的
+     * @type {soya2d.Rectangle}
+     */
+    this.freezone = null;
+
+    this.__view = new soya2d.Rectangle(0,0,w,h);
+    this.__game = game;
+}
+Camera.prototype = {
+    /**
+     * 设置camera跟踪一个精灵。<br/>一旦设置有效精灵后，camera将根据freezone设置进行精灵位置跟踪，
+     * 而忽略camera本身的任何移动方法。
+     * @param  {soya2d.DisplayObject} target camera跟踪目标，必须是容器内的精灵
+     */
+    follow:function(target){
+        var tmp = this.__game.world.find(function(ro){
+            if(target.roid === ro.roid)return true;
+        },true);
+        if(tmp.length<0){
+            soya2d.console.error('camera: '+target.toString()+' must be a child node of game.world');
+        }
+        this.target = target;
+    },
+    /**
+     * 取消跟踪
+     */
+    unfollow:function(){
+        this.target = null;
+    },
+    /**
+     * 移动卷轴指定坐标
+     * @param  {number} x x轴坐标
+     * @param  {number} y y轴坐标
+     */
+    moveTo:function(x,y){
+        if(this.target)return;
+        this.__view.x = x;
+        this.__view.y = y;
+        
+        this.__checkBounds();
+    },
+    /**
+     * 移动卷轴指定偏移
+     * @param  {number} offX x轴偏移量
+     * @param  {number} offY y轴偏移量
+     */
+    moveBy:function(offX,offY){
+        if(this.target)return;
+        this.__view.x += offX;
+        this.__view.y += offY;
+        
+        this.__checkBounds();
+    },
+    reset:function(){
+        this.__view.x = this.__view.y = 0;
+    },
+    /**
+     * @private
+     */
+    __checkBounds:function(){
+        var scope = this.__game.world.bounds;
+
+        var left = scope.x,
+            top = scope.y,
+            right = scope.w,
+            bottom = scope.h;
+
+        //l & r
+        var bx = this.__view.x;
+        if(bx < left)this.__view.x = left;
+        if(right>0 && bx + this.__view.w > right)
+            this.__view.x = right - this.__view.w;
+        //t & b
+        var by = this.__view.y;
+        if(by < top)this.__view.y = top;
+        if(bottom>0 && by + this.__view.h > bottom)
+            this.__view.y = bottom - this.__view.h;
+    },
+    /**
+     * 设置camera freezone范围
+     * @param {soya2d.Rectangle} freezone 范围矩形
+     */
+    setFreezone:function(scope){
+        if(!scope)return;
+        this.freezone = scope;
+    },
+    __onUpdate:function(){
+        if(!this.target || !this.target.game)return;
+
+        var tx,ty;
+        var wp = this.target.worldPosition;
+        tx = wp.x,
+        ty = wp.y;
+        var tw = this.target.w,
+            th = this.target.h;
+            
+        var offx = tx - this.__view.x,
+            offy = ty - this.__view.y;
+        if(this.freezone){
+            var fx = this.freezone.x,
+                fy = this.freezone.y,
+                fw = this.freezone.w,
+                fh = this.freezone.h;
+            var left = this.__view.x + fx,
+                top = this.__view.y + fy,
+                right = this.__view.x + fx + fw,
+                bottom = this.__view.y + fy + fh;
+            var halfTw = tw/2,
+                halfTh = th/2;
+            if(tx - halfTw < left){
+                this.__view.x = tx - fx - halfTw;
+            }else if(tx+halfTw > right){
+                this.__view.x = tx - fw - fx + halfTw;
+            }
+
+            if(ty - halfTh < top){
+                this.__view.y = ty - fy - halfTh;
+            }else if(ty+halfTh > bottom){
+                this.__view.y = ty - fh - fy + halfTh;
+            }
+        }else{
+            this.__view.x = tx - this.__view.w/2;
+            this.__view.y = ty - this.__view.h/2;
+        }
+
+        this.__checkBounds();
+    },
+    //裁剪舞台，修改全局坐标
+    __cull:function(stage){
+        var c = stage.children;
+        for(var i=c.length;i--;){
+            cull(c[i],this.__view);
+        }
+    },
+    //转换世界坐标到屏幕坐标
+    __viewport:function(world){
+        var c = world.children;
+        for(var i=c.length;i--;){
+            viewport(c[i],this.__view);
+        }
+    }
+}
+
+function cull(ro,cameraRect){
+    if(ro.__renderable){
+        //don't cull fixed DO
+        if(ro.__fixedToCamera)return;
+
+        if(!cameraRect.intersectWith(ro.getBoundingBox())){
+            ro.__renderable = false;
+            return;
+        }
+
+        if(ro.children)
+            for(var i=ro.children.length;i--;){
+                var c = ro.children[i];
+                if(c.__renderable){
+                    cull(c,cameraRect);
+                }
+            }
+    }
+}
+
+function viewport(ro,cameraRect,toFixed){
+    if(ro.__renderable){
+        var x = null,y = null;
+        if(ro.__fixedToCamera){
+            var x = ro.cameraOffset.x + ro.anchorPosition.x;
+            var y = ro.cameraOffset.y + ro.anchorPosition.y;
+            toFixed = true;
+
+        }else if(toFixed){
+            x = ro.parent.__screenPosition.x - ro.parent.anchorPosition.x + ro.x + ro.anchorPosition.x;
+            y = ro.parent.__screenPosition.y - ro.parent.anchorPosition.y + ro.y + ro.anchorPosition.y;
+        }else{
+            x = ro.worldPosition.x;
+            y = ro.worldPosition.y;
+            x -= cameraRect.x;
+            y -= cameraRect.y;
+        }
+        ro.__screenPosition.set(x,y);
+
+        if(ro.children)
+            for(var i=ro.children.length;i--;){
+                var c = ro.children[i];
+                if(c.__renderable){
+                    viewport(c,cameraRect,toFixed);
+                }
+            }
+    }
+}
+/**
  * 数学接口提供了常用的静态常量以及方法<br/>
- * @namespace soya2d.Math
- * @author {@link http://weibo.com/soya2d MrSoya}
+ * @class soya2d.Math
+ * @static
  */
 soya2d.Math = {
 	/**
@@ -425,7 +713,7 @@ soya2d.Math = {
 	 * @param {Number} p1y 
 	 * @param {Number} p2x 
 	 * @param {Number} p2y 
-	 * @returns 两点距离值
+	 * @return 两点距离值
 	 */
 	len2D:function(p1x,p1y,p2x,p2y){
 		return Math.sqrt((p2y-p1y)*(p2y-p1y) + (p2x-p1x)*(p2x-p1x));
@@ -435,7 +723,7 @@ soya2d.Math = {
 	 * 注意：此方法会产生少量误差，可以用在精度不高，但要求速度的场景中
 	 * @param {Number} dx X轴坐标差值
 	 * @param {Number} dy Y轴坐标差值
-	 * @returns 两点距离值
+	 * @return 两点距离值
 	 */
 	len2Df:function(dx,dy){//D-values
 		dx = Math.abs(dx);
@@ -475,89 +763,1293 @@ soya2d.Math = {
 	})()
 };
 /**
- * @classdesc 资源管理器是具体资源管理器的基类，该类不应被直接实例化。
- * 应使用相关资源的子类。
- * @class 
- * @author {@link http://weibo.com/soya2d MrSoya}
+ * 资源类提供了用于获取指定类型资源的服务。这是一个内部类，无法在外部实例化。
+ * 每个game有且只有一个assets属性，通过该属性可以获取资源。
+ * ```
+ *     game.assets.sound('bgm').play();
+ * ```
+ * @class Assets
+ * 
  */
-soya2d.ResourceManager = function(){
-    this.urlMap = {};//url->obj
+function Assets(){
+    this.__assets = {
+        image:{},
+        sound:{},
+        imageFont:{},
+        atlas:{},
+        text:{},
+        xml:{},
+        json:{}
+    };
 };
-soya2d.ResourceManager.prototype = {
+Assets.prototype = {
     /**
-     * 获取一个资源对象，如果匹配到多个，只返回第一个
-     * @param {string | Object} opts url字符串，或者参数对象，参数如下：
-     * @param {string} opts.url 需要查找的资源url，可以是全路径或部分路径，当fuzzy属性为false时，部分路径无效
-     * @param {boolean} [opts.fuzzy=true] 是否进行url模糊匹配
-     * @return {Object | null} 资源对象或者null
+     * 获取一个图像资源
+     * @method image
+     * @param  {String} key 加载资源时指定的key
+     * @return {HTMLImageElement}  
      */
-    find:function(opts){
-        if(!opts)return null;
-        if(typeof opts == "string"){
-            var url = opts;
-            opts = {};
-            opts.urls = [url];
-        }else{
-            opts.urls = [opts.url];
-        }
-        var rs = this.findAll(opts);
-        if (rs.length == 0) {
-            return null;
-        } else {
-            return rs[0];
-        }
+    image:function(key){
+        return this.__assets.image[key];
     },
     /**
-     * 获取一组资源对象
-     * @param {string | Object} opts url字符串，或者参数对象，参数如下(如果为空返回所有资源)：
-     * @param {Array} opts.urls 需要查找的资源url数组，可以是全路径或部分路径，当fuzzy属性为false时，部分路径无效。支持多标识
-     * @param {boolean} [opts.fuzzy=true] 是否进行url模糊匹配
-     * @return {Array | null} 资源数组或者null
+     * 获取一个声音资源。
+     * 如果没有装载声音模块，该方法永远不会返回有效值
+     * @method sound
+     * @param  {String} key 加载资源时指定的key
+     * @return {soya2d.Sound}  
      */
-    findAll:function(opts){
-        var urls = Object.keys(this.urlMap);
-
-        if(typeof opts == "string"){
-            var url = opts;
-            opts = {};
-            opts.urls = [url];
-
-        }
-        var fuzzy = opts?opts.fuzzy||true:true;
-
-        var tmp = [];
-        if(opts){
-            for(var k=opts.urls.length;k--;){
-                var url = opts.urls[k];
-                if(fuzzy){
-                    for(var i=urls.length;i--;){
-                        if(urls[i].indexOf(url)>-1)tmp.push(urls[i]);
-                    }
-                }else{
-                    for(var i=urls.length;i--;){
-                        if(urls[i] == url)tmp.push(urls[i]);
-                    }
-                }
-            }
-        }else{
-            tmp = urls;
-        }
-
-        var rs = [];
-        for(var i=tmp.length;i--;){
-            rs.push(this.urlMap[tmp[i]]);
-        }
-        return rs;
+    sound:function(key){
+        return this.__assets.sound[key];
+    },
+    /**
+     * 获取一个图像文字资源
+     * @method imageFont
+     * @param  {String} key 加载资源时指定的key
+     * @return {soya2d.ImageFont}  
+     */
+    imageFont:function(key){
+        return this.__assets.imageFont[key];
+    },
+    /**
+     * 获取一个图像集资源
+     * @method atlas
+     * @param  {String} key 加载资源时指定的key
+     * @return {soya2d.Atlas}  
+     */
+    atlas:function(key){
+        return this.__assets.atlas[key];
+    },
+    /**
+     * 获取一个文本资源
+     * @method text
+     * @param  {String} key 加载资源时指定的key
+     * @return {String}  
+     */
+    text:function(key){
+        return this.__assets.text[key];
+    },
+    /**
+     * 获取一个xml资源
+     * @method xml
+     * @param  {String} key 加载资源时指定的key
+     * @return {Document}  
+     */
+    xml:function(key){
+        return this.__assets.xml[key];
+    },
+    /**
+     * 获取一个json资源
+     * @method json
+     * @param  {String} key 加载资源时指定的key
+     * @return {Object}  
+     */
+    json:function(key){
+        return this.__assets.json[key];
     }
 }
 
 /**
- * @classdesc 几何结构，圆形。用于保存圆形结构数据
+ * 图像集是一个将许多小的图像整合到一张大图中，可以从图像集中快速的读取指定部分的图像，从而加速动画的渲染。
+ * ssheet格式为<br/>
+ * <pre>
+ * [
+ 		{n:'hero_001.png',x:0,y:0,w:50,h:50,r:90},//ssheet unit
+ 		{n:'hero_002.png',x:50,y:50,w:50,h:50,r:180},
+ 		...
+ 	]
+ 	</pre>
+ * r:将指定部分资源旋转指定角度后，形成新纹理
+ * @class soya2d.Atlas
+ * @constructor
+ * @param {Image} image 大图纹理
+ * @param {Object} ssheet 图像集描述
+ */
+soya2d.Atlas = function(image,ssheet){
+	this.texs = {};//纹理集
+	ssheet.forEach(function(desc){
+		var data = document.createElement('canvas');
+		data.width = desc.w;
+		data.height = desc.h;
+		var ctx = data.getContext('2d');
+		ctx.translate(desc.w/2,desc.h/2);
+		ctx.rotate((desc.r||0)*Math.PI/180);
+
+		var descW = desc.w>>0,
+			descH = desc.h>>0;
+		if(descW===0 || descH===0){
+			soya2d.console.error('soya2d.Atlas: invalid ssheet unit，w/h must be a positive;[w:'+descW+',h:'+descH+'] ');
+			return;
+		}
+		ctx.drawImage(image,
+						desc.x>>0,desc.y>>0,descW,descH,
+						-descW/2>>0,-descH/2>>0,descW,descH);
+		this.texs[desc.n] = data;
+	},this);
+};
+
+soya2d.Atlas.prototype = {
+	/**
+	 * 返回由一个指定的字符串开始按字母排序的所有纹理
+	 * @param  {[type]} prefix [description]
+	 * @return {[type]}        [description]
+	 */
+	getAll:function(prefix){
+		var rs = [];
+		for(var i in this.texs){
+			if(!prefix || prefix==='*' || (prefix && i.indexOf(prefix)===0))
+				rs.push(this.texs[i]);
+		}
+		
+		return rs;
+	},
+	getByIndex:function(s,e){
+		var rs = [];
+		var ks = Object.keys(this.texs);
+		for(var i=s;i<=e;i++){
+			var t = this.texs[ks[i]];
+			rs.push(t);
+		}
+		return rs;
+	},
+	get:function(name){
+		return this.texs[name];
+	},
+	/**
+	 * 释放图像集数据
+	 */
+	destroy:function(){
+		this.texs = null;
+	}
+};
+
+
+
+
+/**
+ * 信号类用来实现soya2D内部的消息系统
+ * @class 
+ */
+function Signal(){
+    this.__signalHandler;
+};
+Signal.prototype = {
+    /**
+     * 监听一个信号
+     * @param {String} type 信号类型，多个类型使用空格分割
+     * @param {Function} cbk 回调函数
+     * @param {int} order 触发序号，越大的值越先触发
+     * @return this
+     */
+    on:function(type,cbk,order){
+        if(this instanceof soya2d.DisplayObject){
+            switch(type){
+                case 'pointdown':
+                    type = soya2d.Device.mobile?'touchstart':'mousedown';
+                    break;
+                case 'pointmove':
+                    type = soya2d.Device.mobile?'touchmove':'mousemove';
+                    break;
+                case 'pointup':
+                    type = soya2d.Device.mobile?'touchend':'mouseup';
+                    break;
+            }
+        }
+        this.__signalHandler.on(type,cbk,order,this);
+        return this;
+    },
+    /**
+     * 监听一个信号一次
+     * @param {String} type 信号类型，多个类型使用空格分割
+     * @param {Function} cbk 回调函数
+     * @param {int} order 触发序号，越大的值越先触发
+     * @return this
+     */
+    once:function(type,cbk,order){
+        this.__signalHandler.once(type,cbk,order,this);
+        return this;
+    },
+    /**
+     * 取消监听
+     * @param {String} [type] 信号类型，多个类型使用空格分割。如果为空，删除所有信号监听
+     * @param {Function} [cbk] 监听时的函数引用。如果为空，删除该类型下所有监听
+     */
+    off:function(type,cbk){
+        this.__signalHandler.off(type,cbk,this);
+    },
+    /**
+     * 发射指定类型信号
+     * @param {String} type 信号类型
+     * @param {...} params 不定类型和数量的参数
+     */
+    emit:function(){
+        var params = [arguments[0],this];
+        for(var i=1;i<arguments.length;i++){
+            params.push(arguments[i]);
+        }
+        this.__signalHandler.emit.apply(this.__signalHandler,params);
+        return this;
+    }
+}
+
+function SignalHandler(){
+    this.map = {};
+}
+SignalHandler.prototype = {
+    on:function(type,cbk,order,context){
+        var ts = type.replace(/\s+/mg,' ').split(' ');
+        for(var i=ts.length;i--;){
+            var listeners = this.map[ts[i]];
+            if(!listeners)listeners = this.map[ts[i]] = [];
+            listeners.push([cbk,context,order]);
+        }
+    },
+    once:function(type,cbk,order,context){
+        var ts = type.replace(/\s+/mg,' ').split(' ');
+        for(var i=ts.length;i--;){
+            var listeners = this.map[ts[i]];
+            if(!listeners)listeners = this.map[ts[i]] = [];
+            listeners.push([cbk,context,order,true]);
+        }
+    },
+    off:function(type,cbk,context){
+        var types = null;
+        if(!type){
+            types = Object.keys(this.map);
+        }else{
+            types = type.replace(/\s+/mg,' ').split(' ');
+        }
+
+        for(var i=types.length;i--;){
+            var listeners = this.map[types[i]];
+            if(listeners){
+                var toDel = [];
+                for(var j=listeners.length;j--;){
+                    if(context === listeners[j][1] && 
+                        (cbk?listeners[j][0] === cbk:true)){
+                        toDel.push(listeners[j]);
+                    }
+                }
+                toDel.forEach(function(listener){
+                    var index = listeners.indexOf(listener);
+                    listeners.splice(index,1);
+                });
+            }
+        }
+    },
+    //type,src
+    emit:function(){
+        var listeners = this.map[arguments[0]];
+        if(!listeners)return;
+        
+        var target = arguments[1];
+        var params = [target];
+        for(var i=2;i<arguments.length;i++){
+            params.push(arguments[i]);
+        }
+
+        listeners.sort(function(a,b){
+            return b[2] - a[2];
+        });
+
+        listeners.filter(function(item){
+            if(item[1] === target)
+                item[0].apply(item[1],params);
+        });
+        var last = listeners.filter(function(item){
+            if(!item[3])return true;
+        });
+
+        this.map[arguments[0]] = last;
+    }
+}
+/**
+ *  资源加载类<br/>
+ *  除脚本支持不同加载方式外，其他资源都是并行加载。
+ *  调用者应该注意，在并行请求过多时，可能导致请求失败，需要控制请求并发数
+ *  @class Loader
+ */
+var Loader = soya2d.class("",{
+    extends:Signal,
+    timeout:5000,
+    constructor:function(game){
+        this.__signalHandler = new SignalHandler();
+        this.__assetsQueue = [];
+
+        this.game = game;
+        this.__assets = game.assets.__assets;
+
+        this.baseUrl = '';
+
+        var show = true;
+        Object.defineProperties(this,{
+            /**
+             * 是否显示默认的进度条
+             * @type {int}
+             */
+            show : {
+                set:function(v){
+                    show = v;
+                },
+                get:function(){
+                    return show;
+                }
+            },
+            fillStyle:{
+                set:function(v){
+                    this.__tip.fillStyle = v;
+                },
+                get:function(){
+                    return this.__tip.fillStyle;
+                }
+            }
+        });
+
+        this.__logo = new soya2d.Shape({
+            game:game,
+            opacity:0,
+            x: game.w/2 - 11,
+            y: game.h/2 - 30 - 20,
+            z:9999
+        });
+        var p1 = new soya2d.Shape({
+            w:23,h:20,
+            skewY:-30,
+            game:game,
+            fillStyle:'#69CA14',
+            onRender:function(g){
+                g.beginPath();
+                g.fillStyle(this.fillStyle);
+                g.rect(0,0,this.w,this.h);
+                g.fill();
+                g.closePath();
+            }
+        });
+        var p2 = new soya2d.Shape({
+            game:game,
+            w:23,h:20,
+            skewY:30,
+            y:13,
+            opacity:.9,
+            fillStyle:'#2A5909',
+            onRender:function(g){
+                g.beginPath();
+                g.fillStyle(this.fillStyle);
+                g.rect(0,0,this.w,this.h);
+                g.fill();
+                g.closePath();
+            }
+        });
+        var p3 = new soya2d.Shape({
+            game:game,
+            w:23,h:20,
+            skewY:-30,
+            y:28,
+            blendMode:soya2d.BLEND_LIGHTER,
+            fillStyle:'#69CA14',
+            onRender:function(g){
+                g.beginPath();
+                g.fillStyle(this.fillStyle);
+                g.rect(0,0,this.w,this.h);
+                g.fill();
+                g.closePath();
+            }
+        });
+        
+        var font = new soya2d.Font('normal 400 23px/normal Arial,Helvetica,sans-serif');
+        this.__tip = new soya2d.Text({
+            game:game,
+            x: -70,
+            y: 60 + 10,
+            font:font,
+            text:'Loading... 0/0',
+            w:200,
+            fillStyle: '#000'
+        });
+        this.__logo.add(p1,p2,p3,this.__tip);
+        game.world.add(this.__logo);
+    },
+    __addToAssets:function(type,data){
+        for(var k in data){
+            this.__assetsQueue.push({type:type,k:k,data:data[k],baseUrl:this.baseUrl});
+        }
+    },
+    /**
+     * 加载图像
+     * @param  {Object | Array} data 图像的key和url对象，如{btn:'button.png',bullet:'x01.png'}。
+     * 或者图像url数组，key为不包含后缀的图像名，如果重复会覆盖
+     */
+    image:function(data){
+        var map = data;
+        if(data instanceof Array){
+            map = {};
+            data.forEach(function(url){
+                var sPos = url.lastIndexOf('/')+1;
+                var ePos = url.lastIndexOf('.');
+                var k = url.substring(sPos,ePos);
+                map[k] = url;
+            });
+        }
+        this.__addToAssets('image',map);
+    },
+    /**
+     * 加载声音
+     * @param  {Object} data 声音的key和url。url可以是数组或者字符串。当url是数组类型时，
+     * 系统会自动判断当前环境支持的声音格式，并加载。{bird:'bird.ogg',boom:['b1.mp3','b1.ogg']}
+     */
+    sound:function(data){
+        this.__addToAssets('sound',data);
+    },
+    /**
+     * 加载声音
+     * @param  {Object} data 字体的key和url。key就是字体的family。{serif:'serif.woff'}
+     */
+    font:function(data){
+        this.__addToAssets('font',data);
+    },
+    /**
+     * 加载图像文字
+     * @param  {Object} data 图像文字的key和url。url是一个包含了图像地址和精灵表地址的数组。
+     * {title:['title.png','title_ss.json'|{{n:'xx',x:0,y:0,w:100,h:100}}]}
+     */
+    imageFont:function(data){
+        this.__addToAssets('imageFont',data);
+    },
+    /**
+     * 加载图像集
+     * @param  {Object} data 图像集的key和url。url是一个包含了图像地址和精灵表地址的数组。
+     * {birds:['birds.png','birds_ss.json']}
+     *
+     * @param {String} key 图像集的key
+     * @param {String} url 图像的url
+     * @param {int} width 单个图像的宽度
+     * @param {int} height 单个图像的高度
+     */
+    atlas:function(data){
+        var map = data;
+        if(arguments.length === 4){
+            map = {};
+            var k = arguments[0];
+            var url = arguments[1];
+            var w = arguments[2];
+            var h = arguments[3];
+            map[k] = [url,w,h];
+        }
+        this.__addToAssets('atlas',map);
+    },
+    /**
+     * 加载文本
+     * @param  {Object} data 文本的key和url
+     */
+    text:function(data){
+        this.__addToAssets('text',data);
+    },
+    /**
+     * 加载XML
+     * @param  {Object} data xml的key和url
+     */
+    xml:function(data){
+        this.__addToAssets('xml',data);
+    },
+    /**
+     * 加载json
+     * @param  {Object} data json的key和url
+     */
+    json:function(data){
+        this.__addToAssets('json',data);
+    },
+    __loadImage:function(baseUrl,url,onload){
+        var img = new Image();
+        if(this.crossOrigin !== undefined)img.crossOrigin = this.crossOrigin;
+        img.path = url;
+        var loader = this;
+        img.onload=function(){
+            onload('load',this);
+
+            this.onerror = null;
+            this.onload = null;
+        }
+        img.onerror=function(){
+            onload('error',this.path);
+
+            this.onerror = null;
+            this.onload = null;
+        }
+        img.src = baseUrl + url;
+        if(img.complete){
+            onload('load',img);
+
+            img.onerror = null;
+            img.onload = null;
+        }
+    },
+    __loadSound:function(baseUrl,url,onload){
+        var loader = this;
+        var urls = url instanceof Array?url:[url];
+        for(var i=urls.length;i--;){
+            urls[i] = baseUrl + urls[i];
+        }
+        new Howl({
+            src: urls,
+            onload:function(){
+                var sound = new soya2d.Sound();
+                sound.__handler = this;
+
+                onload('load',sound);
+            },
+            onloaderror:function(error){
+                var errorType = soya2d.MEDIA_ERR_DECODE;
+                if(error){
+                    errorType = error.type;
+                }
+                onload('error',this._src,errorType);
+            }
+        });
+    },
+    __loadFont:function(baseUrl,family,url,onload){
+        var originFamily = ['serif','sans-serif'];
+        var originCSS = "border:none;position:absolute;top:-999px;left:-999px;" +
+                        "font-size:100px;width:auto;height:auto;line-height:normal;margin:0;" +
+                        "padding:0;font-variant:normal;white-space:nowrap;font-family:";
+        var originWidth = {};
+        var originHeight = {};
+        var originSpan = {};
+        for(var i=originFamily.length;i--;){
+            var span = document.createElement('div');
+            span.style.cssText = originCSS+"'"+originFamily[i]+"'";
+            span.innerHTML = family;
+            document.body.appendChild(span);
+            originSpan[originFamily[i]] = span;
+            //获取原始size
+            originWidth[originFamily[i]] = span.offsetWidth;
+            originHeight[originFamily[i]] = span.offsetHeight;
+        }
+        //开始加载样式
+        var style = document.createElement('style');
+        style.id = 'FontLoader_'+new Date().getTime();
+        style.innerHTML =  "@font-face {" +
+                        "font-family: '" + family + "';" +
+                        "src: url(" + baseUrl+url + ")" +
+                        "}";
+        document.head.appendChild(style);
+        for(var i in originSpan){
+            originSpan[i].style.fontFamily = family+','+originSpan[i].style.fontFamily;
+        }
+        //监控器启动扫描
+        var startTime = new Date().getTime();
+        var that = this;
+        setTimeout(function(){
+            scanFont(startTime,that.timeout,originSpan,originWidth,originHeight,function(family){
+                onload('timeout',family);
+            },function(family){
+                onload('load',family);
+            },family);
+        },100);//100ms用于浏览器识别非法字体，然后还原并使用次等匹配字体
+    },
+    __loadAtlas:function(baseUrl,key,data,onload){
+        var loader = this;
+        this.__loadImage(baseUrl,data[0],function(type,img){
+            if(type === 'load'){
+                if(typeof(data[1]) === 'string' && data.length===2)
+                    loader.__getXhr(baseUrl,data[1],function(type,xhr){
+                        var atlas = xhr;
+                        if(type === 'load'){
+                            var json;
+                            try{
+                                json = new Function('return '+xhr.responseText)();
+                            }catch(e){
+                                json = e;
+                            }
+                            //创建图像集
+                            atlas = new soya2d.Atlas(img,json);
+                        }
+                        
+                        onload(type,atlas);
+                    });
+                else{
+                    var json = data[1];
+                    if(data.length > 2){
+                        json = [];
+                        var imgW = img.width;
+                        var imgH = img.height;
+                        var w = data[1];
+                        var h = data[2];
+                        var index = 1;
+                        for(var j=h;j<=imgH;j+=h){
+                            for(var i=w;i<=imgW;i+=w){
+                                json.push({
+                                    n:key+'_'+index,
+                                    x:i-w,y:j-h,
+                                    w:w,h:h});
+                                index++;
+                            }
+                        }
+                    }
+                    var atlas = new soya2d.Atlas(img,json);
+                    onload(type,atlas);
+                }
+            }else{
+                onload(type,img);
+            }
+        });
+    },
+    __getXhr:function(baseUrl,url,onload){
+        var loader = this;
+        xhrLoad(baseUrl+url,this.timeout,function(){
+            onload('timeout',url);
+        },function(){
+            onload('error',url);
+        },function(xhr){
+            onload('load',xhr);
+        });
+    },
+    __loadAssets:function(){
+        var loader = this;
+        this.__assetsQueue.forEach(function(asset){
+            switch(asset.type){
+                case 'image':
+                    loader.__loadImage(asset.baseUrl,asset.data,function(type,img){
+                        if(type==='load')
+                            loader.__assets.image[asset.k] = img;
+                        loader.__onLoad(type,img);
+                    });
+                    break;
+                case 'sound':
+                    if(!soya2d.Sound){
+                        soya2d.console.warn("can't load sounds, module [sound] needs to be loaded");
+                        return;
+                    }
+                    loader.__loadSound(asset.baseUrl,asset.data,function(type,sound){
+                        if(type==='load')
+                            loader.__assets.sound[asset.k] = sound;
+                        loader.__onLoad(type,sound,arguments[2]);
+                    });
+                    break;
+                case 'atlas':
+                    loader.__loadAtlas(asset.baseUrl,asset.k,asset.data,function(type,atlas){
+                        if(type==='load')
+                            loader.__assets.atlas[asset.k] = atlas;
+                        loader.__onLoad(type,atlas);
+                    });
+                    break;
+                case 'font':
+                    loader.__loadFont(asset.baseUrl,asset.k,asset.data,function(type,family){
+                        var font = family;
+                        if(type==='load'){
+                            font = new soya2d.Font().family(family);
+                            loader.__assets.imageFont[asset.k] = font;
+                        }
+                        loader.__onLoad(type,font);
+                    });
+                    break;
+                case 'imageFont':
+                    loader.__loadAtlas(asset.baseUrl,asset.k,asset.data,function(type,atlas){
+                        var font = atlas;
+                        if(type==='load'){
+                            font = new soya2d.ImageFont(atlas);
+                            loader.__assets.imageFont[asset.k] = font;
+                        }
+                        loader.__onLoad(type,font);
+                    });
+                    break;
+                case 'text':
+                    loader.__getXhr(asset.baseUrl,asset.data,function(type,xhr){
+                        var text = xhr;
+                        if(type==='load'){
+                            loader.__assets.text[asset.k] = xhr.responseText;
+                            text = xhr.responseText
+                        }
+                        loader.__onLoad(type,text);
+                    });
+                    break;
+                case 'xml':
+                    loader.__getXhr(asset.baseUrl,asset.data,function(type,xhr){
+                        var doc = xhr;
+                        if(type==='load'){
+                            doc = loader.__assets.xml[asset.k] = xhr.responseXML;
+                        }
+                        loader.__onLoad(type,doc);
+                    });
+                    break;
+                case 'json':
+                    loader.__getXhr(asset.baseUrl,asset.data,function(type,xhr){
+                        var json = xhr;
+                        if(type==='load'){
+                            try{
+                                json = new Function('return '+xhr.responseText)();
+                            }catch(e){
+                                json = e;
+                            }
+                            loader.__assets.json[asset.k] = json;
+                        }
+                        loader.__onLoad(type,json);
+                    });
+                    break;
+            }
+        });
+    },
+    __onLoad:function(type,rs){
+        this.__tip.setText('Loading... '+ (++this.__index) +'/'+this.__assetsQueue.length);
+        if(type === 'load'){
+            this.emit(type,rs,this.__index,this.__assetsQueue.length);
+        }else{
+            this.emit(type,rs,arguments[2]);   
+        }
+        if(this.__index == this.__assetsQueue.length){
+            this.__assetsQueue = [];
+            this.emit('end');
+            this.__logo.parent.remove(this.__logo);
+            this.__logo.opacity = 0;
+        }
+    },
+    /**
+     * 启动加载器。在preload中，引擎会自动调用
+     */
+    start:function(){
+        this.__index = 0;
+        if(this.show){
+            if(!this.__logo.parent){
+                this.game.world.add(this.__logo);
+            }
+            this.__logo.opacity = 1;
+        }
+
+        this.__loadAssets();
+    }
+});
+function xhrLoad(url,timeout,ontimeout,onerror,onload){
+    var xhr = new XMLHttpRequest();
+    xhr.open('get',url,true);
+    xhr.timeout = timeout;
+    xhr.ontimeout = ontimeout;
+    xhr.onerror = onerror;
+    if(xhr.onload === null){
+        xhr.onload = function(){
+            if(xhr.status===0 || //native
+                (xhr.status >= 200 && xhr.status <300) || xhr.status === 304){
+                onload(xhr);
+            }
+        }
+    }else{
+        xhr.onreadystatechange = function () {
+            if(xhr.status===0 || //native
+                ((xhr.status >= 200 && xhr.status <300) || xhr.status === 304) && xhr.readyState === 4){
+                onload(xhr);
+            }
+        };
+    }
+    xhr.send(null);
+}
+function scanFont(startTime,timeout,originSpan,originWidth,originHeight,onTimeout,onLoad,family){
+    setTimeout(function(){
+        if(new Date().getTime() - startTime > timeout){
+            onTimeout(family);
+            return;
+        }
+        //检查originSpan的宽度是否发生了变化
+        for(var i in originSpan){
+            originSpan[i].style.left = '-1000px';
+            var w = originSpan[i].offsetWidth;
+            var h = originSpan[i].offsetHeight;
+            if(w !== originWidth[i] || h !== originHeight[i]){//发生了改变
+                //document.body.removeChild(originSpan[i]);
+                
+                    onLoad(family);
+                
+                return;
+            }
+        }
+        //没有改变，继续扫描
+        scanFont(startTime,timeout,originSpan,originWidth,originHeight,onTimeout,onLoad,family);
+    },20);
+}
+
+/**
+ * 媒体加载错误类型——MEDIA_ERR_UNCERTAIN<br/>
+ * 未知错误
+ * @constant
+ */
+soya2d.MEDIA_ERR_UNCERTAIN = -1;
+/**
+ * 媒体加载错误类型——MEDIA_ERR_ABORTED<br/>
+ * 加载被中断
+ * @constant
+ */
+soya2d.MEDIA_ERR_ABORTED = 1;
+/**
+ * 媒体加载错误类型——MEDIA_ERR_NETWORK<br/>
+ * 网络异常
+ * @constant
+ */
+soya2d.MEDIA_ERR_NETWORK = 2;
+/**
+ * 媒体加载错误类型——MEDIA_ERR_DECODE<br/>
+ * 无法解码
+ * @constant
+ */
+soya2d.MEDIA_ERR_DECODE = 3;
+/**
+ * 媒体加载错误类型——MEDIA_ERR_SRC_NOT_SUPPORTED<br/>
+ * 类型不支持
+ * @constant
+ */
+soya2d.MEDIA_ERR_SRC_NOT_SUPPORTED = 4;
+/**
+ * 媒体加载错误类型——MEDIA_ERR_SRC_NOT_FORTHCOMING<br/>
+ * 无法获取资源数据
+ * @constant
+ */
+soya2d.MEDIA_ERR_SRC_NOT_FORTHCOMING = 101;
+/**
+ *  场景用来管理场景内的所有注册对象，如UI元素
+ *  @class Scene
+ */
+function Scene(data,game) {
+    soya2d.ext(this,data);
+
+    this.map = {};
+    this.game = game;
+}
+
+Scene.prototype = {
+    //
+    setView:function(doc){
+        var world = doc.children[0];
+        build(this,world,this.game.world,this.game);
+    },
+    findView:function(id){
+        return this.map[id];
+    }
+}
+
+function build(scene,node,parent,game){
+    for(var i=0;i<node.children.length;i++){
+        var n = node.children[i];
+        var type = n.tagName;
+        var id = n.attributes['id'] ? n.attributes['id'].value : null;
+        var data = parseData(n.attributes,parent);
+        var atlas = data['atlas'];
+        if(type === 'sprite' && atlas){
+            var prefix = data['atlas-prefix'];
+            data.images = game.assets.atlas(atlas).getAll(prefix);
+        }
+        if(type === 'text'){
+            var atlas = data['atlas'];
+            var txt = '';
+            for(var k=0;k<n.childNodes.length;k++){
+                if(n.childNodes[k].nodeType === 3){
+                    txt += n.childNodes[k].nodeValue;
+                }
+            }
+            data.text = txt.replace(/(^\s+)|(\s+$)/mg,'');
+            if(atlas)
+            data.font = game.assets.atlas(atlas);
+            data.size = parseInt(data['size']);
+        }
+        var ins = newInstance(type,data,game);
+
+        bindEvent(n.attributes,ins,scene);
+        if(id){
+            scene.map[id] = ins;
+        }
+        parent.add(ins);
+
+        if(n.children.length>0){
+            build(scene,n,ins,game);
+        }
+    }
+}
+
+function parseData(attrs,parent){
+    var rs = {};
+    var ks = Object.keys(attrs);
+    for(var i=ks.length;i--;){
+        var k = ks[i];
+        var kName = attrs[k].name;
+        if(kName.indexOf('layout-')===0){
+            if(!rs['layout'])rs['layout'] = {};
+            
+            rs['layout'][kName.split('-')[1]] = filter(kName,attrs[k].value,parent);
+        }else{
+            rs[kName] = filter(kName,attrs[k].value,parent);
+        }
+    }
+    return rs;
+}
+
+function bindEvent(attrs,ins,scene){
+    var ks = Object.keys(attrs);
+    for(var i=ks.length;i--;){
+        var k = ks[i];
+        var kName = attrs[k].name;
+        var val = attrs[k].value;
+        if(kName.indexOf('on-') !== 0)continue;
+        var evType = kName.substr(3);
+        var evFn = scene[val];
+        if(evFn instanceof Function){
+            ins.on(evType,evFn);
+        }else{
+            soya2d.console.warn('invalid callback "'+val+'" of '+kName);
+        }
+    }
+}
+
+
+function filter(type,val,parent){
+    switch(type){
+        case 'x':case 'w':
+        case 'y':case 'h':
+        case 'z':case 'angle':case 'scaleX':
+        case 'scaleY':case 'skewX':case 'skewY':
+        case 'scrollAngle':case 'speed':case 'frameRate':
+        case 'frameIndex':
+        case 'letterSpacing':case 'lineSpacing':
+            return parseFloat(val);
+        case 'visible':case 'autoScroll':
+        case 'loop':case 'autoplay':case 'fixedToCamera':
+            return new Function('return '+val)();
+        default:
+            return val;
+    }
+}
+
+function newInstance(type,data,game){
+    var instance = new game.objects.map[type](data);
+    return instance;
+}
+
+/**
+ *  场景管理器，提供场景注册和切换等
+ *  @class SceneManager
+ */
+function SceneManager(game) {
+    this.map = {};
+    this.game = game;
+}
+
+SceneManager.prototype = {
+    /**
+     * 启动场景
+     * @param  {String | Object} scene   场景对象，或者注册名称
+     * @param  {Boolean} clearWorld 是否清空world
+     */
+    start:function(scene,clearWorld){
+        var that = this;
+        var game = this.game;
+
+        if(typeof(scene) === 'string'){
+            scene = this.map[scene];
+        }else{
+            scene = new Scene(scene,game);
+        }
+        
+        game.currentScene = scene;
+        if(clearWorld){
+            //clear world
+            game.world.clear(true);
+            game.world.off();
+            game.camera.reset();
+        }
+        if(scene.onPreload){
+            scene.onPreload(game);
+            
+            game.load.once('end',function(){
+                //初始化场景
+                if(game.currentScene.onInit){
+                    setTimeout(function(){
+                        game.currentScene.onInit(game);
+                    },0)
+                    
+                }
+            });
+            game.load.start();
+        }else 
+        //初始化场景
+        if(scene.onInit){
+            scene.onInit(game);
+        }
+
+        var modules = soya2d.module._getAll();
+        for(var k in modules){
+            if(modules[k].onSceneChange)modules[k].onSceneChange(that,scene);
+        }
+        
+
+        return this;
+    },
+    add:function(key,scene){
+        this.map[key] = new Scene(scene,game);
+        return this.map[key];
+    }
+}
+/**
+ * 构造一个用于任务调度的触发器。
+ * 触发器是调度器进行任务调度时，触发任务的依据。根据触发器提供的表达式，进行触发。一个触发器只能绑定一个任务。
+ * @class TimerTrigger
+ * @param {string} exp 触发器表达式，根据触发类型而定
+ */
+function TimerTrigger(exp){
+    /**
+     * 触发表达式
+     * @type {String}
+     */
+    this.exp = exp;
+    /**
+     * 触发次数
+     * @type {Number}
+     */
+    this.times = 0;
+    /**
+     * 优先级
+     * @type {Number}
+     */
+    this.priority = 0;
+    /**
+     * 从调度开始，到最近一次触发的毫秒数
+     * @type {Number}
+     */
+    this.milliseconds = 0;
+    //上次触发毫秒数，相差不足1000，就不触发
+    this._lastTriggerMilliseconds = -1000;
+    //时间模式下，当前时间s,m,h
+    this._t = [];
+    //重置触发器
+    this._reset = function(){
+        this.times = 0;
+        this.milliseconds = 0;
+        this._lastTriggerMilliseconds = -1000;
+        this._t = [];
+        delete this._frameInfo;
+        delete this._timeInfo;
+    }
+
+    //是否可以卸载
+    this._canUnload = function(){
+        var h = this._timeInfo.hour;
+        if(h[2] === 1){//单次
+            if(this._t[2]>h[0])return true;
+        }else if(h[2] > 1){//多次
+            if(this._t[2]>h[3][h[3].length-1])return true;
+        }
+    }
+    /**
+     * 是否可以触发
+     */
+    this.canTrigger = function(){
+        return checkTimeTriggerable(this);
+    }
+
+    /************ build trigger ************/
+    if(!/^(\*|(?:[0-9]+(?:,[0-9]+)*)|(?:[0-9]+-[0-9]+)|(?:(?:(?:[0-9]+(?:-[0-9]+)?)|\*)\/[0-9]+)) (\*|(?:[0-9]+(?:,[0-9]+)*)|(?:[0-9]+-[0-9]+)|(?:(?:(?:[0-9]+(?:-[0-9]+)?)|\*)\/[0-9]+)) (\*|(?:[0-9]+(?:,[0-9]+)*)|(?:[0-9]+-[0-9]+)|(?:(?:(?:[0-9]+(?:-[0-9]+)?)|\*)\/[0-9]+))$/.test(exp)){
+        soya2d.console.error('invalid timer expression -- '+exp);
+    }
+    //解析时间信息
+    var secInfo = parseExp(RegExp.$1);
+    var minInfo = parseExp(RegExp.$2);
+    var hourInfo = parseExp(RegExp.$3);
+    this._timeInfo = {
+        sec:secInfo,
+        min:minInfo,
+        hour:hourInfo
+    }
+    
+}
+//触发器调用，解析表达式,并返回
+// [
+// interval,//间隔模式的间隔时长,以及单值模式的值
+// startOff,//间隔模式的启动偏移
+// triggerTimes,//总触发次数,-1为无限
+// values //多值模式，或者区间模式下存储所有合法值
+// ]
+function parseExp(exp){
+    var i,so,tt,values;
+    var tmp;
+    if(exp == '*'){
+        i = -1;//无间隔
+        so = 0;
+        tt = -1;
+    }else if((so = parseInt(exp)) == exp){//匹配整数
+        tt = 1;
+        i = 0;
+    }else if((tmp=exp.split('/')).length===2){//匹配间隔符&区间间隔
+        i = parseInt(tmp[1]);
+        var tmp2;
+        if((tmp2=tmp[0].split('-')).length===2){//存在区间
+            values = [];
+            for(var s=tmp2[0]>>0,e=tmp2[1]>>0;s<=e;s++){
+                values.push(s);
+            }
+            values.sort(function(a,b){
+                return a-b;
+            });
+            tt = values.length;
+        }else{
+            if(!(so = parseInt(tmp[0]))){
+                so = 0;
+            }
+            tt = -1;
+        }
+    }else if((tmp=exp.split(',')).length>1){//匹配多值符
+        values = [];
+        for(var i=tmp.length;i--;){
+            values.push(tmp[i]>>0);
+        }
+        values.sort(function(a,b){
+            return a-b;
+        });
+        tt = tmp.length;
+    }else if((tmp=exp.split('-')).length===2){//匹配区间符
+        values = [];
+        for(var s=tmp[0]>>0,e=tmp[1]>>0;s<=e;s++){
+            values.push(s);
+        }
+        values.sort(function(a,b){
+            return a-b;
+        });
+        tt = values.length;
+    }
+    return [i,so,tt,values];
+}
+//检测时间触发器是否可以触发
+function checkTimeTriggerable(trigger){
+    //换算时间
+    var tmp = trigger.milliseconds/1000;
+    var s = trigger._t[0] = tmp%60>>0;
+    var m = trigger._t[1] = tmp/60%60>>0;
+    var h = trigger._t[2] = tmp/60/60>>0;
+    /////////////////// 计算每个段 ///////////////////
+    if(!checkTimePart(trigger._timeInfo.hour,h))return false;
+    if(!checkTimePart(trigger._timeInfo.min,m))return false;
+    if(!checkTimePart(trigger._timeInfo.sec,s))return false;
+    return true;
+}
+//检测时间每个部分是否OK
+function checkTimePart(part,v){
+    if(part[2]===1){//只触发一次,计算值是否相同
+        if(part[1]!==v)return false;
+    }else if(part[2]===-1 && part[0]===-1){//无限
+    }else if(part[3] && !part[0]){//多值
+        if(part[3].indexOf(v)<0)return false;
+    }else if((part[2]===-1 && part[0]>0) ||
+            (part[0]>0 && part[3])){//间隔
+        if(part[3] && part[3].indexOf(v)<0)return false;//间隔内的区间
+        var actValue = v-part[1];
+        if(actValue <= 0 && part[1]!=0)return false;//防止0除数触发
+        if(actValue % part[0])return false;
+    }
+    return true;
+}
+/**
+ * 定时器
+ * 
+ * @class Timer
+ */
+var Timer = soya2d.class('',{
+    extends:Signal,
+    constructor:function(){
+        this.__signalHandler = new SignalHandler();
+        this.triggerList = [];
+        this.expMap = {};
+        this.threshold = 1000;
+    },
+    on:function(exp,cbk,order){
+        var that = this;
+        exp = exp.replace(/\[(.*?)\]/mg,function(all,ex){
+            if(!that.expMap[ex]){
+                var t = new TimerTrigger(ex);
+                that.triggerList.push(t);
+                that.expMap[ex] = t;
+            }
+            return ex.replace(/\s+/mg,'_');
+        });
+        
+        return this._super.on.call(this,exp,cbk,order);
+    },
+    once:function(exp,cbk,order){
+        var that = this;
+        exp = exp.replace(/\[(.*?)\]/mg,function(all,ex){
+            if(!that.expMap[ex]){
+                var t = new TimerTrigger(ex);
+                that.triggerList.push(t);
+                that.expMap[ex] = t;
+            }
+            return ex.replace(/\s+/mg,'_');
+        });
+        return this._super.once.call(this,exp,cbk,order);
+    },
+    off:function(exp,cbk){
+        var exArray = [];
+        exp = exp.replace(/\[(.*?)\]/mg,function(all,ex){
+            exArray.push(ex);
+            return ex.replace(/\s+/mg,'_');
+        });
+        this._super.off.call(this,exp,cbk);
+        exArray.forEach(function(ex){
+            var cbks = this.__signalHandler.map[ex.replace(/\s+/mg,'_')];
+            if(Object.keys(cbks).length<1){
+                this.expMap[ex] = null;
+                this.__removeTrigger(ex);
+            }
+        },this);
+    },
+    /**
+     * 内部调用，检查所有触发器是否有可以触发的
+     * @private
+     */
+    __scan : function(d){
+        //扫描所有触发器
+        var deleteTriggerList = [];
+        var deleteExp = [];
+        for(var i=this.triggerList.length;i--;){
+            var trigger = this.triggerList[i];
+            var tasks = this.__signalHandler.map[trigger.exp.replace(/\s+/mg,'_')];
+            var canTrigger = false;
+            trigger.milliseconds += d;//毫秒数增加
+            var delta = trigger.milliseconds - trigger._lastTriggerMilliseconds;
+            //是否可触发
+            if(trigger.canTrigger() && delta>=this.threshold){
+                canTrigger = true;
+                //重置触发时间
+                trigger._lastTriggerMilliseconds = trigger.milliseconds;
+            }
+            if(trigger._canUnload())deleteTriggerList.push(trigger.exp);
+
+            if(canTrigger){
+                trigger.times++;//触发次数加1
+                tasks.forEach(function(task,ti){
+                    if(task[3]){
+                        deleteExp.push([trigger.exp,task[0]]);
+                    }
+                    task[0].call(this,trigger.milliseconds,trigger.times,trigger._t);
+                },this);
+            }
+        }
+        //删除可以卸载的任务
+        for(var i=deleteTriggerList.length;i--;){
+            this.__removeTrigger(deleteTriggerList[i]);
+        }
+
+        for(var i=deleteExp.length;i--;){
+            this.off(deleteExp[i][0],deleteExp[i][1]);
+        }
+    },
+    __removeTrigger:function(exp){
+        for(var i=this.triggerList.length;i--;){
+            var trigger = this.triggerList[i];
+            if(trigger.exp === exp){
+                break;
+            }
+        }
+        this.triggerList.splice(i,1);
+    }
+});
+
+/**
+ * 几何结构，圆形。用于保存圆形结构数据
  * @class 
  * @param {Number} x
  * @param {Number} y
  * @param {Number} r
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Circle  = function(x,y,r){
 	this.x = x || 0;
@@ -570,14 +2062,34 @@ soya2d.Circle.prototype = {
     },
     clone:function(){
         return new soya2d.Circle(this.x,this.y,this.r);
+    },
+    intersectWith:function(geom){
+        if(geom instanceof soya2d.Circle && geom.r>0){
+            if(soya2d.Math.len2Df(geom.x - this.x,geom.y - this.y) <= this.r+geom.r)return false;
+        }else if(geom instanceof soya2d.Rectangle && geom.w>0 && geom.h>0){
+        	var w2 = geom.w/2,
+        		h2 = geom.h/2;
+        	var cx = this.x - (geom.x + w2);
+        	var cy = this.y - (geom.y + h2);
+
+        	if(cx > w2+this.r || cy > h2+this.r)return false;
+
+        	var dx = Math.min(cx,w2);
+        	var dx1 = Math.max(dx,-w2);
+        	var dy = Math.min(cy,h2);
+        	var dy1 = Math.max(dy,-h2);
+
+        	return (dx1 - cx) * (dx1 - cx) + (dy1 - cy) * (dy1 - cy)  <= this.r*this.r;
+        }
+
+        return true;
     }
 };
 
 /**
- * @classdesc 几何结构，多边形。
+ * 几何结构，多边形。
  * @class 
  * @param {Array} vtx 1维顶点数组
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Polygon  = function(vtx){
 	this.vtx = vtx;
@@ -592,15 +2104,14 @@ soya2d.Polygon.prototype = {
 };
 
 /**
- * @classdesc 几何结构，矩形。用于保存矩形结构数据
+ * 几何结构，矩形。用于保存矩形结构数据
  * @class 
  * @param {Number} x
  * @param {Number} y
  * @param {Number} w
  * @param {Number} h
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
-soya2d.Rectangle  = function(x,y,w,h){
+soya2d.Rectangle = function(x,y,w,h){
 	this.x = x || 0;
     this.y = y || 0;
     this.w = w || 0;
@@ -623,13 +2134,46 @@ soya2d.Rectangle.prototype = {
         if(x < this.x || x > this.x+this.w)return false;
         if(y < this.y || y > this.y+this.h)return false;
         return true;
+    },
+    intersectWith:function(geom){
+        if(geom instanceof soya2d.Rectangle && geom.w>0 && geom.h>0){
+            if(this.x > geom.x+geom.w || this.y > geom.y+geom.h)return false;
+            if(this.x+this.w < geom.x || this.y+this.h < geom.y)return false;
+        }else if(geom instanceof soya2d.Circle && geom.r>0){
+            return geom.intersectWith(this);
+        }
+
+        return true;
     }
 };
 
 /**
- * @classdesc 创建一个2*2单位矩阵，该矩阵用来描述2D变换信息
+ * 几何结构，点
  * @class 
- * @author {@link http://weibo.com/soya2d MrSoya}
+ * @param {Number} x
+ * @param {Number} y
+ */
+soya2d.Point = function(x,y){
+	this.x = x || 0;
+    this.y = y || 0;
+};
+soya2d.Point.prototype = {
+    toString:function(){
+        return "{x:"+this.x+",y:"+this.y+"}";
+    },
+    clone:function(){
+        return new soya2d.Point(this.x,this.y);
+    },
+    set:function(x,y){
+        this.x = x;
+        this.y = y;
+        return this;
+    }
+};
+
+/**
+ * 创建一个2*2单位矩阵，该矩阵用来描述2D变换信息
+ * @class 
  */
 soya2d.Matrix2x2 = function(){
     /**
@@ -655,8 +2199,8 @@ soya2d.Matrix2x2.prototype = {
      */
 	set:function(m11,m12,m21,m22){
 		var e = this.e;
-		e[0] = m11||1;e[1] = m12||0;
-		e[2] = m21||0;e[3] = m22||1;
+		e[0] = m11==0?0:m11||1;e[1] = m12||0;
+		e[2] = m21||0;e[3] = m22==0?0:m22||1;
 		return this;
 	},
     /**
@@ -763,11 +2307,10 @@ soya2d.Matrix2x2.prototype = {
 };
 
 /**
- * @classdesc 2D向量。提供向量相关计算。<br/>参数为0时，将构造一个0向量
+ * 2D向量。提供向量相关计算。<br/>参数为0时，将构造一个0向量
  * @class 
  * @param {Number} x
  * @param {Number} y
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Vector = function(x,y){
     /**
@@ -921,429 +2464,706 @@ soya2d.Vector.prototype = {
 };
  
 /**
- * @classdesc 显示对象类是引擎中的所有可见组件类的基类。
- * <br/>该类中包含的属性用来控制一个可见对象的显示效果以及渲染方式。<br/>
- 注意，该类不应直接实例化,应使用该类的子类或继承该类
- * @class 
- * @param {Object} data 定义参数,见类参数定义
- * @author {@link http://weibo.com/soya2d MrSoya}
+ *  物理刚体接口，所有物理引擎需要实现body接口
  */
-soya2d.DisplayObject = function(data){
-    data = data||{};
-		
-	this.__seq = soya2d.__roIndex++;
-    /**
-     * 对父类的引用
-     * @var {soya2d.DisplayObject} soya2d.DisplayObject#_super
-     */
-    
-    /**
-     * 渲染对象id，只读
-     * @type {string}
-     */
-    this.roid = 'roid_' + this.__seq;
-    /**
-     * 名称
-     * @type {string}
-     */
-    this.name = data.name||this.roid;
-    /**
-     * 是否可见<br/>
-     * true:可见
-     * false:不可见
-     * @type boolean
-     * @default true
-     */
-    this.visible = data.visible===false?false:data.visible||true;
-    
-    this.__opacity = data.opacity===0?0:data.opacity||1;
-    this.__x = data.x||0;
-    this.__y = data.y||0;
-    this.__w = data.w||0;
-    this.__h = data.h||0;
-    this.__originX = data.originX === 0?0:(data.originX||'50%');
-    this.__originY = data.originY === 0?0:(data.originY||'50%');
-    this.__rotation = data.rotation||0;
-    this.__scaleX = data.scaleX||1;
-    this.__scaleY = data.scaleY||1;
-    this.__skewX = data.skewX||0;
-    this.__skewY = data.skewY||0;
-    Object.defineProperties(this,{
-        /**
-         * 可见度0-1
-         * 1:不透明
-         * 0:全透明
-         * @type Number
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 1
-         */
-        opacity:{
-            set:function(v){
-                if(v == 0)v = 0;
-                else{
-                    v = parseFloat(v)||1;
-                }
-                this.__opacity = v<0?0:v>1?1:v;
-            },
-            get:function(){
-                return this.__opacity;
-            },
-            enumerable:true
-        },
-        /**
-         * x坐标。使用top-left坐标系
-         * @type Number
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 0
-         */
-        x:{
-            set:function(v){
-                this.__x = v || 0;
-                this.__localChange = true;
-            },
-            get:function(){
-                return this.__x;
-            },
-            enumerable:true
-        },
-        /**
-         * y坐标。使用top-left坐标系
-         * @type Number
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 0
-         */
-        y:{
-            set:function(v){
-                this.__y = v || 0;
-                this.__localChange = true;
-            },
-            get:function(){
-                return this.__y;
-            },
-            enumerable:true
-        },
-        /**
-         * 宽度。和高度一起，标识对象的碰撞区、以及事件触发区<br/>
-         * *originX属性也依赖该属性
-         * @type Number
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 0
-         */
-        w:{
-            set:function(v){
-                this.__w = v;
-                this.__originChange = true;
-            },
-            get:function(){
-                return this.__w;
-            },
-            enumerable:true
-        },
-        /**
-         * 高度。和宽度一起，标识对象的碰撞区、以及事件触发区<br/>
-         * *originY属性也依赖该属性
-         * @type Number
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 0
-         */
-        h:{
-            set:function(v){
-                this.__h = v;
-                this.__originChange = true;
-            },
-            get:function(){
-                return this.__h;
-            },
-            enumerable:true
-        },
-        /**
-         * x轴参考点，对象变形时的原点,可以设置百分比字符串或者数字。
-         * @type {String|Number}
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 50%
-         */
-        originX:{
-            set:function(v){
-                this.__originX = v;
-                this.__originChange = true;
-            },
-            get:function(){
-                return this.__originX;
-            },
-            enumerable:true
-        },
-        /**
-         * y轴参考点，对象变形时的原点,可以设置百分比字符串或者数字。
-         * @type {String|Number}
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 50%
-         */
-        originY:{
-            set:function(v){
-                this.__originY = v;
-                this.__originChange = true;
-            },
-            get:function(){
-                return this.__originY;
-            },
-            enumerable:true
-        },
-        /**
-         * 当前旋转角度
-         * @type {Number}
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 0
-         */
-        rotation:{
-            set:function(v){
-                this.__rotation = v;
-                this.__localChange = true;
-            },
-            get:function(){
-                return this.__rotation;
-            },
-            enumerable:true
-        },
-        /**
-         * x轴缩放比<br/>
-         * 如果大于1，则会把对象横向拉伸<br/>
-         * 如果等于1，不改变<br/>
-         * 如果小于1，则会把对象横向缩短
-         * @type Number
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 1
-         */
-        scaleX:{
-            set:function(v){
-                this.__scaleX = v;
-                this.__localChange = true;
-            },
-            get:function(){
-                return this.__scaleX;
-            },
-            enumerable:true
-        },
-        /**
-         * y轴缩放比<br/>
-         * 如果大于1，则会把对象纵向拉伸<br/>
-         * 如果等于1，不改变<br/>
-         * 如果小于1，则会把对象纵向缩短
-         * @type Number
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 1
-         */
-        scaleY:{
-            set:function(v){
-                this.__scaleY = v;
-                this.__localChange = true;
-            },
-            get:function(){
-                return this.__scaleY;
-            },
-            enumerable:true
-        },
-        /**
-         * x轴偏移角。单位：角度
-         * @type Number
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 0
-         */
-        skewX:{
-            set:function(v){
-                this.__skewX = v;
-                this.__localChange = true;
-            },
-            get:function(){
-                return this.__skewX;
-            },
-            enumerable:true
-        },
-        /**
-         * y轴偏移角。单位：角度
-         * @type Number
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 0
-         */
-        skewY:{
-            set:function(v){
-                this.__skewY = v;
-                this.__localChange = true;
-            },
-            get:function(){
-                return this.__skewY;
-            },
-            enumerable:true
-        }
-    });
-   
-    /**
-     * z坐标。标识对象所属图层，并且引擎会按照z值的大小进行渲染
-     * @type Number
-     * @default 0
-     */
-    this.z = data.z||0;
-    /**
-     * 是否需要本地变换
-     * @type {Boolean}
-     * @private
-     */
-    this.__localChange = true;
-    /**
-     * 是否需要参考点变换
-     * @type {Boolean}
-     * @private
-     */
-    this.__originChange = true;
-    /**
-     * 本地变形
-     * @type {soya2d.Matrix2x2}
-     * @private
-     */
-    this.__localTransform = new soya2d.Matrix2x2();
-    /**
-     * 世界变形，用于渲染
-     * @type {soya2d.Matrix2x2}
-     * @private
-     */
-    this.__worldTransform = new soya2d.Matrix2x2();
-    this.__worldPosition = new soya2d.Vector();
-    this.__originPosition = new soya2d.Vector();
-    /**
-     * 混合方式
-     * @type String
-     * @default soya2d.BLEND_NORMAL
-     * @see soya2d.BLEND_NORMAL
-     */
-    this.blendMode = data.blendMode || 'source-over';
+var Body = soya2d.class("",{
+    extends:Signal,
+    constructor:function(displayObject){
+        this.__signalHandler = new SignalHandler();
+        this.sprite = displayObject;
+        this.rigid = null;//物理刚体
+    },
+    sensor:function(tof) {
+        this.__cbk && this.__cbk.sensor(this.rigid,tof);
+        return this;
+    },
+    moveTo:function(x,y){
+        this.__cbk && this.__cbk.moveTo(this.rigid,x,y);
+        return this;
+    },
+    moveBy:function(x,y){
+        this.__cbk && this.__cbk.moveBy(this.rigid,x,y);
+        return this;
+    },
+    static:function(tof){
+        this.__cbk && this.__cbk.static(this.rigid,tof);
+        return this;
+    },
+    mass:function(v){
+        this.__cbk && this.__cbk.mass(this.rigid,v);
+        return this;
+    },
+    rotateBy:function(v){
+        this.__cbk && this.__cbk.rotateBy(this.rigid,v);
+        return this;
+    },
+    rotateTo:function(v){
+        this.__cbk && this.__cbk.rotateTo(this.rigid,v);
+        return this;
+    },
+    friction:function(v){
+        this.__cbk && this.__cbk.friction(this.rigid,v);
+        return this;
+    },
+    restitution:function(v){
+        this.__cbk && this.__cbk.restitution(this.rigid,v);
+        return this;
+    },
+    velocity:function(x,y){
+        this.__cbk && this.__cbk.velocity(this.rigid,x||0,y||0);
+        return this;
+    },
+    inertia:function(v){
+        this.__cbk && this.__cbk.inertia(this.rigid,v||0);
+        return this;
+    }
+});
 
-    this.__mask = data.mask || null;
-    Object.defineProperties(this,{
-        /**
-         * 遮罩。可以是一个绘制的简单图形比如圆，也可以是包含了多个形状子节点的复合形状。
-         * 被用于遮罩的对象只能同时存在一个需要遮罩的对象上，多次设置只会保留最后一次，
-         * 并且被用于遮罩的对象不会出现在画面上<br/>
-         * *如果需要动态控制遮罩对象，需要把遮罩对象添加到场景中
-         * @type {soya2d.DisplayObject}
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default null; 
-         */
-        mask:{
-            set:function(m){
-                if(m){
-                    if(m.__masker){
-                        m.__masker.__mask = null;
-                    }
-                    this.__mask = m;
-                    m.__masker = this;
-                }
-            },
-            get:function(){
-                return this.__mask;
-            },
-            enumerable:true
-        }
-    });
+/**
+ * 该类是soya中应用物理系统的统一接口
+ */
+var Physics = soya2d.class("",{
+    extends:Signal,
+    constructor:function(game){
+        this.__signalHandler = new SignalHandler();
+        this.running = false;
+    },
     /**
-     * 使用当前对象作为遮罩的对象，如果该属性有值，则不会被渲染
-     * @private
+     * 建立一个物理引擎，并实现相关接口
+     * @param  {Object} opts 
+     * @param {Function} opts.onStart 引擎启动
+     * @param {Function} opts.onUpdate 引擎更新
+     * @param {Function} opts.onBind 引擎启动
      */
-    this.__masker = null;
+    setup:function(opts){
+    	this.__cbk = opts || {};
+    },
     /**
-     * 对象范围，用于拾取测试和物理碰撞
-     * @type {soya2d.Rectangle | soya2d.Circle | soya2d.Polygon}
-     * @default soya2d.Rectangle实例
+     * 启动物理系统,可以传递参数
+     * @param  {[type]} opts [description]
+     * @return {[type]}      [description]
      */
-    this.bounds = data.bounds || new soya2d.Rectangle(0,0,this.__w,this.__h);
-    /**
-     * 存储boundingbox
-     * @private
-     */
-    this.__boundRect = new soya2d.Rectangle(0,0,1,1);
-    /**
-     * 对象在物理世界中的实体
-     * @type {Object}
-     */
-    this.body = null;
-    /**
-     * 对象所属的游戏实例。当对象被添加到一个game上时，该值为game实例的引用。
-     * 当对象被创建或从game实例上删除时，该值为null<br/>
-     * 必须先创建game实例(这样引擎会自动引用该实例)或者显式指定game参数，否则会引起异常
-     * @default null
-     * @readOnly
-     * @type {soya2d.Game}
-     */
-    this.game = data.game || soya2d.games[0];
-    /**
-     * 对象缓存的的内部图形。删除该属性可以取消缓存
-     * @type {HTMLCanvasElement}
-     * @default null 
-     */
-    this.imageCache = null;
-    this.__updateCache = false;
+    start:function(opts){
+    	opts = opts || {};
+    	opts.gravity = opts.gravity || [0,1];
+		opts.gravity[0] = opts.gravity[0] || 0;
+	    opts.gravity[1] = opts.gravity[1] || 1;
+	    opts.enableSleeping = opts.enableSleeping || false;
 
-    //check valid
-    if(!this.game){
-        throw new Error('soya2d.DisplayObject: invalid param [game]; '+this.game);
+		this.__cbk.onStart && this.__cbk.onStart(opts); 
+
+		this.running = true;
+    },
+    stop:function(){
+    	this.__cbk.onStop && this.__cbk.onStop();
+    	this.running = false;
+    },
+    update:function(){
+    	this.__cbk.onUpdate && this.__cbk.onUpdate(); 
+    },
+    bind:function(obj){
+    	var shape;
+    	if(this.__cbk.onBind){
+    		shape = this.__cbk.onBind(obj); 
+    	}
+    	obj.body.rigid = shape;
+    	obj.body.__cbk = this.__cbk.body;
+		shape.__sprite = obj;
+    },
+    unbind:function(obj){
+        var shape = obj.body.rigid;
+        if(!shape)return;
+
+        obj.body.__cbk = null;
+        if(this.__cbk.onUnbind){
+            shape.__sprite = null;
+            this.__cbk.onUnbind(shape);
+        }
+        obj.body = {};
+    },
+    enable:function(objs){
+    	var rs = objs;
+    	if(objs instanceof Array || arguments.length>1){
+    		if(arguments.length>1)rs = arguments;
+    		for(var i=rs.length;i--;){
+    			this.bind(rs[i]);
+    		}
+    	}else {
+    		this.bind(rs);
+    	}
+    }
+});
+
+/**
+ * 事件类型 - 碰撞开始
+ * @type {String}
+ */
+soya2d.EVENT_CONTACTSTART = 'contactstart';
+/**
+ * 事件类型 - 碰撞结束
+ * @type {String}
+ */
+soya2d.EVENT_CONTACTEND = 'contactend';
+/**
+ * 物理事件对象
+ * @type {Object}
+ * @typedef {Object} soya2d.PhysicsEvent
+ * @property {Array} collisionPairs - 碰撞对一维数组[{a:xx,b:xx},{a:yy,b:yy}, ...]
+ * @property {soya2d.DisplayObject} otherCollider - 与当前对象产生碰撞的显示对象
+ */
+
+
+/**
+ * 显示对象工厂提供了一种代理服务，简化了创建soya2d中所有可显示对象的工作，并且会自动加入game.world中.
+ * 同时，该类提供了用于注册自定义显示对象到快捷列表中的方法，这样可以在使用XML构建UI时，使用自定义标签
+ * ```
+ *     game.objects.register('rect',soya2d.Rect);
+ * ```
+ * <rect></rect>
+ * 
+ * @class DisplayObjectFactory
+ */
+function DisplayObjectFactory(game){
+    this.map = {};
+    this.game = game;
+}
+
+DisplayObjectFactory.prototype = {
+    register:function(type,constructor){
+        this.map[type] = constructor;
+        this.game.add[type] = function(data){
+            return this.__newInstance(type,data);
+        }
     }
 };
 /**
- * @name soya2d.DisplayObject#onRender
- * @desc 渲染事件，每帧触法。在该回调中使用绘图对象g进行图像绘制
- * @event
- * @param {soya2d.CanvasGraphics} g 绘图对象，根据渲染器类型不同而不同
+ * 显示对象工厂代理提供用于从显示对象工厂中获取指定类型实例，并自动插入world中
+ * @class 
  */
+function DisplayObjectFactoryProxy(game){
+    this.game = game;
+
+    this.__newInstance = function(type,data){
+    	data.game = this.game;
+    	var instance = new this.game.objects.map[type](data);
+    	// instance.game = this.game;
+    	this.game.world.add(instance);
+    	return instance;
+    }
+}
 /**
- * @name soya2d.DisplayObject#onUpdate
- * @desc 更新事件，每帧触法。在该回调中可以编写更新逻辑
- * @event
- * @param {soya2d.Game} game 当前精灵所在的游戏实例
+ * 显示对象是引擎中的所有可见对象的基类,该类中包含的属性用来控制一个可见对象的显示效果以及渲染方式。<br/>
+ 该类不能被实例化
+ * @class soya2d.DisplayObject
+ * @param {Object} data 定义参数,见类参数定义
+ * @module display
  */
- 
-//扩展方法包装
-soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.prototype */{
+soya2d.class("soya2d.DisplayObject",{
+    extends:Signal,
+    __signalHandler : new SignalHandler(),
+    constructor: function(data){
+        data = data||{};
+        	
+        this.__seq = soya2d.__roIndex++;
+        /**
+         * 对父类的引用
+         * @var {soya2d.DisplayObject} soya2d.DisplayObject#_super
+         */
+
+        /**
+         * 渲染对象id，只读
+         * @type {string}
+         */
+        this.roid = 'roid_' + this.__seq;
+        /**
+         * 名称
+         * @type {string}
+         */
+        this.name = data.name||this.roid;
+        /**
+         * 是否可见<br/>
+         * true:可见
+         * false:不可见
+         * @type boolean
+         * @default true
+         */
+        this.visible = data.visible===false?false:data.visible||true;
+        /**
+         * 布局对象，属性列表如下：
+         * left 当值是百分比时，相对父类的宽度
+         * top  当值是百分比时，相对父类的高度
+         * offsetLeft 当值是百分比时，相对自身的宽度
+         * offsetTop 当值是百分比时，相对自身的高度
+         * 都支持数值和百分比
+         * @type {Object}
+         */
+        this.layout = data.layout;
+
+        this.__opacity = data.opacity===0?0:data.opacity||1;
+        this.__x = data.x||0;
+        this.__y = data.y||0;
+        this.__w = data.w||0;
+        this.__h = data.h||0;
+        this.__anchorX = data.anchorX === 0?0:(data.anchorX||'50%');
+        this.__anchorY = data.anchorY === 0?0:(data.anchorY||'50%');
+        this.__angle = data.angle||0;
+        this.__scaleX = data.scaleX==0?0:data.scaleX||1;
+        this.__scaleY = data.scaleY==0?0:data.scaleY||1;
+        this.__skewX = data.skewX||0;
+        this.__skewY = data.skewY||0;
+
+        Object.defineProperties(this,{
+            /**
+             * 可见度0-1
+             * 1:不透明
+             * 0:全透明
+             * @type Number
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 1
+             */
+            opacity:{
+                set:function(v){
+                    if(v == 0)v = 0;
+                    else{
+                        v = parseFloat(v)||1;
+                    }
+                    this.__opacity = v<0?0:v>1?1:v;
+                },
+                get:function(){
+                    return this.__opacity;
+                },
+                enumerable:true
+            },
+            /**
+             * x坐标。使用top-left坐标系
+             * @type Number
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 0
+             */
+            x:{
+                set:function(v){
+                    this.__x = v || 0;
+                    this.__localChange = true;
+
+                    if(this.game.physics.running){
+                        this.body.moveTo(this.__x,this.__y);
+                    }
+                },
+                get:function(){
+                    return this.__x;
+                },
+                enumerable:true
+            },
+            /**
+             * y坐标。使用top-left坐标系
+             * @type Number
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 0
+             */
+            y:{
+                set:function(v){
+                    this.__y = v || 0;
+                    this.__localChange = true;
+
+                    if(this.game.physics.running){
+                        this.body.moveTo(this.__x,this.__y);
+                    }
+                },
+                get:function(){
+                    return this.__y;
+                },
+                enumerable:true
+            },
+            /**
+             * 宽度。和高度一起，标识对象的碰撞区、以及事件触发区<br/>
+             * *anchorX属性也依赖该属性
+             * @type Number
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 0
+             */
+            w:{
+                set:function(v){
+                    this.__w = v;
+                    this.__anchorChange = true;
+                },
+                get:function(){
+                    return this.__w;
+                },
+                enumerable:true
+            },
+            /**
+             * 高度。和宽度一起，标识对象的碰撞区、以及事件触发区<br/>
+             * *anchorY属性也依赖该属性
+             * @type Number
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 0
+             */
+            h:{
+                set:function(v){
+                    this.__h = v;
+                    this.__anchorChange = true;
+                },
+                get:function(){
+                    return this.__h;
+                },
+                enumerable:true
+            },
+            /**
+             * x轴参考点，对象变形时的原点,可以设置百分比字符串或者数字。
+             * @type {String|Number}
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 0
+             */
+            anchorX:{
+                set:function(v){
+                    this.__anchorX = v;
+                    this.__anchorChange = true;
+                },
+                get:function(){
+                    return this.__anchorX;
+                },
+                enumerable:true
+            },
+            /**
+             * y轴参考点，对象变形时的原点,可以设置百分比字符串或者数字。
+             * @type {String|Number}
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 0
+             */
+            anchorY:{
+                set:function(v){
+                    this.__anchorY = v;
+                    this.__anchorChange = true;
+                },
+                get:function(){
+                    return this.__anchorY;
+                },
+                enumerable:true
+            },
+            /**
+             * 当前旋转角度
+             * @type {Number}
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 0
+             */
+            angle:{
+                set:function(v){
+                    this.__angle = v;
+                    this.__localChange = true;
+
+                    if(this.game.physics.running){
+                        this.body.rotateTo(this.__angle);
+                    }
+                },
+                get:function(){
+                    return this.__angle;
+                },
+                enumerable:true
+            },
+            /**
+             * x轴缩放比<br/>
+             * 如果大于1，则会把对象横向拉伸<br/>
+             * 如果等于1，不改变<br/>
+             * 如果小于1，则会把对象横向缩短
+             * @type Number
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 1
+             */
+            scaleX:{
+                set:function(v){
+                    this.__scaleX = v;
+                    this.__localChange = true;
+                },
+                get:function(){
+                    return this.__scaleX;
+                },
+                enumerable:true
+            },
+            /**
+             * y轴缩放比<br/>
+             * 如果大于1，则会把对象纵向拉伸<br/>
+             * 如果等于1，不改变<br/>
+             * 如果小于1，则会把对象纵向缩短
+             * @type Number
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 1
+             */
+            scaleY:{
+                set:function(v){
+                    this.__scaleY = v;
+                    this.__localChange = true;
+                },
+                get:function(){
+                    return this.__scaleY;
+                },
+                enumerable:true
+            },
+            /**
+             * x轴偏移角。单位：角度
+             * @type Number
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 0
+             */
+            skewX:{
+                set:function(v){
+                    this.__skewX = v;
+                    this.__localChange = true;
+                },
+                get:function(){
+                    return this.__skewX;
+                },
+                enumerable:true
+            },
+            /**
+             * y轴偏移角。单位：角度
+             * @type Number
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 0
+             */
+            skewY:{
+                set:function(v){
+                    this.__skewY = v;
+                    this.__localChange = true;
+                },
+                get:function(){
+                    return this.__skewY;
+                },
+                enumerable:true
+            }
+        });
+
+        /**
+         * z坐标。标识对象所属图层，并且引擎会按照z值的大小进行渲染
+         * @type Number
+         * @default 0
+         */
+        this.z = data.z||0;
+        /**
+         * 是否需要本地变换
+         * @type {Boolean}
+         * @private
+         */
+        this.__localChange = true;
+        /**
+         * 是否需要参考点变换
+         * @type {Boolean}
+         * @private
+         */
+        this.__anchorChange = true;
+        /**
+         * 本地变形
+         * @type {soya2d.Matrix2x2}
+         * @private
+         */
+        this.__localTransform = new soya2d.Matrix2x2();
+        /**
+         * 世界变形，用于渲染
+         * @type {soya2d.Matrix2x2}
+         * @private
+         */
+        this.__worldTransform = new soya2d.Matrix2x2();
+        /**
+         * 世界坐标
+         * @readOnly
+         * @type {soya2d.Point}
+         */
+        this.worldPosition = new soya2d.Point();
+        /**
+         * 锚点坐标
+         * @readOnly
+         * @type {soya2d.Point}
+         */
+        this.anchorPosition = new soya2d.Point();
+        /**
+         * 屏幕坐标
+         * @type {soya2d}
+         */
+        this.__screenPosition = new soya2d.Point();
+        /**
+         * 混合方式
+         * @type String
+         * @default soya2d.BLEND_NORMAL
+         * @see soya2d.BLEND_NORMAL
+         */
+        this.blendMode = data.blendMode || 'source-over';
+
+        this.__mask = data.mask || null;
+        this.__fixedToCamera = data.fixedToCamera || false;
+        Object.defineProperties(this,{
+            /**
+             * 遮罩。可以是一个绘制的简单图形比如圆，也可以是包含了多个形状子节点的复合形状。
+             * 被用于遮罩的对象只能同时存在一个需要遮罩的对象上，多次设置只会保留最后一次，
+             * 并且被用于遮罩的对象不会出现在画面上<br/>
+             * *如果需要动态控制遮罩对象，需要把遮罩对象添加到场景中
+             * @type {soya2d.DisplayObject}
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default null; 
+             */
+            mask:{
+                set:function(m){
+                    if(m){
+                        if(m.__masker){
+                            m.__masker.__mask = null;
+                        }
+                        this.__mask = m;
+                        m.__masker = this;
+                    }
+                },
+                get:function(){
+                    return this.__mask;
+                },
+                enumerable:true
+            },
+            /**
+             * 是否固定到摄像机。如果该属性为true，当摄像机移动时，精灵会固定在摄像机的指定位置
+             * @type {Boolean}
+             */
+            fixedToCamera:{
+                set:function(v){
+                    this.__fixedToCamera = v;
+                    if(v)
+                        this.cameraOffset.set(this.x,this.y);
+                },
+                get:function(){
+                    return this.__fixedToCamera;
+                },
+                enumerable:true
+            }
+        });
+        /**
+         * 使用当前对象作为遮罩的对象，如果该属性有值，则不会被渲染
+         * @private
+         */
+        this.__masker = null;
+        /**
+         * 对象范围，用于拾取测试和物理碰撞
+         * @type {soya2d.Rectangle | soya2d.Circle | soya2d.Polygon}
+         * @default soya2d.Rectangle实例
+         */
+        this.bounds = data.bounds || new soya2d.Rectangle(0,0,this.__w,this.__h);
+        /**
+         * 存储boundingbox
+         * @private
+         */
+        this.__boundRect = new soya2d.Rectangle(0,0,1,1);
+        /**
+         * 对象在物理世界中的实体
+         * @type {Body}
+         */
+        this.body = new Body(this);
+        /**
+         * 对象所属的游戏实例。当对象被添加到一个game上时，该值为game实例的引用。
+         * 当对象被创建或从game实例上删除时，该值为null<br/>
+         * 必须先创建game实例(这样引擎会自动引用该实例)或者显式指定game参数，否则会引起异常
+         * @default null
+         * @readOnly
+         * @type {soya2d.Game}
+         */
+        this.game = data.game || soya2d.games[0];
+        /**
+         * 对象缓存的的内部图形。删除该属性可以取消缓存
+         * @type {HTMLCanvasElement}
+         * @default null 
+         */
+        this.imageCache = null;
+        this.__updateCache = false;
+
+        /**
+         * 相对镜头左上角的偏移对象，默认{x:0,y:0}
+         * @type {Object}
+         */
+        this.cameraOffset = new soya2d.Point();
+
+        //check valid
+        if(!this.game){
+            throw new Error('soya2d.DisplayObject: invalid param [game]; '+this.game);
+        }
+
+        soya2d.ext(this, data);
+
+        this.fixedToCamera = this.__fixedToCamera;
+    },
+    __onAdded:function(){
+        this.centerX = this.w/2;
+        this.centerY = this.h/2;
+        this.setLayout(this.layout);
+
+        //calc camera offset
+        if(this.fixedToCamera && this.layout){
+            this.cameraOffset.set(this.x,this.y);
+        }
+
+        if(this.onAdded)this.onAdded();
+    },
+    setLayout:function(layout){
+        if(!layout)return this;
+        
+        var l = layout.left || 0;
+        var t = layout.top || 0;
+        var w = layout.width;
+        var h = layout.height;
+        var ol = layout.offsetLeft;
+        var ot = layout.offsetTop;
+
+        if(w)
+        this.__w = getXW(w,this.parent)||0;
+        if(h)
+        this.__h = getYH(h,this.parent)||0;
+
+        var offL = 0;
+        var offT = 0;
+        if(ol)offL = getOff(ol,this.__w);
+        if(ot)offT = getOff(ot,this.__h);
+
+        if(l || ol)
+        this.__x = getXW(l,this.parent) + offL;
+        if(t || ot)
+        this.__y = getYH(t,this.parent) + offT;
+
+        return this;
+    },
     toString:function(){
         return '{roid:"'+this.roid+'";name:"'+this.name+'"}';
     },
     /**
-     * 更新本地和世界变形
+     * 更新本地和世界变换
      */
-    updateTransform:function(){
+    transform:function(){
         var x = this.__x,
             y = this.__y;
         if(this.__localChange){
             this.__localTransform.identity();
             this.__localTransform
             .scale(this.__scaleX,this.__scaleY)
-            .rotate(this.__rotation).skew(this.__skewX,this.__skewY);
+            .rotate(this.__angle).skew(this.__skewX,this.__skewY);
         }
 
         var lt = this.__localTransform;
         var wt = this.__worldTransform;
-        var op = this.__originPosition;
+        var ap = this.anchorPosition;
         var le = lt.e;
-        var oe = op.e;
 
-        var ox=oe[0],oy=oe[1];
-        if(this.__originChange){
-            ox = this.__originX,
-            oy = this.__originY;
+        var ox=ap.x,oy=ap.y;
+        if(this.__anchorChange){
+            ox = this.__anchorX,
+            oy = this.__anchorY;
             ox = typeof ox==='number'?ox:parseFloat(ox)/100* this.__w,
             oy = typeof oy==='number'?oy:parseFloat(oy)/100* this.__h;
 
-            op.set(ox,oy);
+            ap.set(ox,oy);
         }
         //css style
         x += ox,
@@ -1354,24 +3174,46 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
         if(this.parent){
             var pt = this.parent.__worldTransform;
             var pte = pt.e;
-            var ppe = this.parent.__worldPosition.e;
-            var poe = this.parent.__originPosition.e;
-            var popx = poe[0]*pte[0]+poe[1]*pte[2],
-                popy = poe[0]*pte[1]+poe[1]*pte[3];
+            var pwp = this.parent.worldPosition;
+            var pap = this.parent.anchorPosition;
+            var popx = pap.x*pte[0]+pap.y*pte[2],
+                popy = pap.x*pte[1]+pap.y*pte[3];
             
 
             var wx = x*pte[0]+y*pte[2],
                 wy = x*pte[1]+y*pte[3];
 
-            x = wx + ppe[0] - popx,
-            y = wy + ppe[1] - popy;
+            x = wx + pwp.x - popx,
+            y = wy + pwp.y - popy;
 
             wt.mul(pt);
         }
-        this.__worldPosition.set(x,y);
+
+
+
+        // if(this.__fixedToCamera){
+        //     var camera = this.game.camera;
+        //     x = camera.x + this.cameraOffset.x;
+        //     y = camera.y + this.cameraOffset.y;
+
+        //     this.__fixedDO = true;
+        // }else if(this.parent && this.parent.__fixedDO){
+        //     this.__fixedDO = true;
+
+        //     x += this.parent.anchorPosition.x;
+        //     y += this.parent.anchorPosition.y;
+        // }
+
+        //physics
+        if(this.body.rigid){
+            x -= ap.x;
+            y -= ap.y;
+        }
+
+        this.worldPosition.set(x,y);
 
         //重置变换标识
-        this.__localChange = this.__originChange = false;
+        this.__localChange = this.__anchorChange = false;
     },
     /**
      * 返回当前对象是否被渲染了
@@ -1382,6 +3224,7 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
         var p = this.parent;
         while(p){
             if(!p.visible || p.opacity===0)return false;
+            if(!p.parent && !(p instanceof Stage))return false;
             p = p.parent;
         }
         return true;
@@ -1402,8 +3245,9 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
             || i==='roid' 
 			|| i==='__localTransform'
             || i==='__worldTransform'
-            || i==='__worldPosition'
-            || i==='__originPosition'
+            || i==='worldPosition'
+            || i==='anchorPosition'
+            || i==='__screenPosition'
 
             )continue;
             if(!isRecur && i==='children')continue;      
@@ -1569,12 +3413,12 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
      * @param {String|Number} y 相对精灵左上角的y坐标偏移,可以设置百分比字符串或者数字
      * @return this
      */
-    originBy:function(x,y){
+    anchorBy:function(x,y){
         var a1 = arguments[0] || 0;
         var a2 = arguments[1]===0?0:arguments[1]|| a1;
 
-        this.originX += a1;
-        this.originY += a2;
+        this.anchorX += a1;
+        this.anchorY += a2;
         return this;
     },
     /**
@@ -1583,17 +3427,17 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
      * @param {String|Number} y 相对精灵左上角的y坐标偏移,可以设置百分比字符串或者数字
      * @return this
      */
-    originTo:function(x,y){
+    anchorTo:function(x,y){
         var a1 = arguments[0] || 0;
         var a2 = arguments[1]===0?0:arguments[1]|| a1;
 
-        this.originX = a1;
-        this.originY = a2;
+        this.anchorX = a1;
+        this.anchorY = a2;
         return this;
     },
     /**
      * 返回该对象当前变形状态的4个顶点<br/>
-     * *该方法依赖对象的[x、y、w、h、originX、originY]6个属性
+     * *该方法依赖对象的[x、y、w、h、anchorX、anchorY]6个属性
      * @return {Array} [ topLeftX,topLeftY,
      *                  topRightX,topRightY,
      *                  bottomRightX,bottomRightY,
@@ -1602,12 +3446,12 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
     getBoundingPoints:function(){
         //加载矩阵
         var e = this.__worldTransform.e;
-        var p = this.__worldPosition.e;
-        var op = this.__originPosition.e;
-        var bx = p[0],by = p[1];
+        var wp = this.worldPosition;
+        var ap = this.anchorPosition;
+        var bx = wp.x,by = wp.y;
         var m11 = e[0],m12 = e[1],
             m21 = e[2],m22 = e[3];
-        var ox = op[0],oy = op[1];
+        var ox = ap.x,oy = ap.y;
 
         //计算原始顶点
         var tl_x = -ox,tl_y = -oy;
@@ -1615,7 +3459,6 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
         var bl_x = -ox,bl_y = this.h-oy;
         var br_x = this.w-ox,br_y = this.h-oy;
         
-
         //计算顶点[x,y,1] * m
         return [tl_x*m11+tl_y*m21+bx,tl_x*m12+tl_y*m22+by,
             tr_x*m11+tr_y*m21+bx,tr_x*m12+tr_y*m22+by,
@@ -1625,7 +3468,7 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
     },
     /**
      * 返回该对象当前变形状态的包围矩形<br/>
-     * *该方法依赖对象的[x、y、w、h、originX、originY]6个属性
+     * *该方法依赖对象的[x、y、w、h、anchorX、anchorY]6个属性
      * @return {soya2d.Rectangle} 矩形几何对象
      */
     getBoundingBox:function(){
@@ -1641,9 +3484,10 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
                 if(xys[i]<minY)minY=xys[i];
             }
         }
-        sx = minX,sy = minY;
-        sw = maxX - minX;
-        sh = maxY - minY;
+        var sx = minX,
+            sy = minY,
+            sw = maxX - minX,
+            sh = maxY - minY;
 
         this.__boundRect.x = sx;
         this.__boundRect.y = sy;
@@ -1660,20 +3504,20 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
      * @see soya2d.DisplayObject#bounds
      */
     hitTest:function(x,y){
-        var p = this.__worldPosition.e;
+        var wp = this.worldPosition;
         if(this.bounds instanceof soya2d.Circle){
-            var dis = Math.abs(soya2d.Math.len2D(p[0],p[1],x,y));
+            var dis = Math.abs(soya2d.Math.len2D(wp.x,wp.y,x,y));
             if(dis <= this.bounds.r)return true;
         }else if(this.bounds instanceof soya2d.Rectangle ||
             this.bounds instanceof soya2d.Polygon){
             var vtx;
             if(this.bounds.vtx){
                 var e = this.__worldTransform.e;
-                var op = this.__originPosition.e;
-                var bx = p[0],by = p[1];
+                var ap = this.anchorPosition;
+                var bx = wp.x,by = wp.y;
                 var m11 = e[0],m12 = e[1],
                     m21 = e[2],m22 = e[3];
-                var ox = op[0],oy = op[1];
+                var ox = ap.x,oy = ap.y;
 
                 //计算原始顶点
                 var tl_x = -ox,tl_y = -oy;
@@ -1715,22 +3559,33 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
 
         return false;
     },
+    /**
+     * 检测两个对象是否相交
+     * @param  {DisplayObject} obj
+     * @return {Boolean}
+     */
+    intersectWith:function(obj) {
+        var sb = this.getBoundingBox();
+        var db = obj.getBoundingBox();
+
+        return sb.intersectWith(db);
+    },
     getAnchorPosition:function(){
         //加载矩阵
         var e = this.__worldTransform.e;
-        var p = this.__worldPosition.e;
-        var op = this.__originPosition.e;
-        var bx = p[0],by = p[1];
+        var wp = this.worldPosition;
+        var ap = this.anchorPosition;
+        var bx = wp.x,by = wp.y;
         var m11 = e[0],m12 = e[1],
             m21 = e[2],m22 = e[3];
-        var ox = op[0],oy = op[1];
+        var ox = ap.x,oy = ap.y;
 
         //计算原始顶点
         var tl_x = -ox,tl_y = -oy;
         
         //计算原始锚点
-        var anchorX = this.w * parseInt(this.originX)/100,
-            anchorY = this.h * parseInt(this.originY)/100;
+        var anchorX = this.w * parseInt(this.anchorX)/100,
+            anchorY = this.h * parseInt(this.anchorY)/100;
         //求出0°时的半径
         var r = Math.sqrt(anchorY*anchorY + anchorX*anchorX);
         //计算出锚点和左上角的夹角
@@ -1756,63 +3611,159 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
         this.imageCache.width = this.__w;
         this.imageCache.height = this.__h;
         //redraw
-        this.updateTransform();
+        this.transform();
         this.__updateCache = true;
         var ctx = this.imageCache.getContext('2d');
         var g = new soya2d.CanvasGraphics(ctx);
-        this.game.getRenderer().renderDO(ctx,this,g,true);
+        this.game.renderer.renderDO(this.game.camera.__view,ctx,this,g,true);
         this.__updateCache = false;
+    },
+    /**
+     * 销毁当前对象，以及所有子对象
+     * @return {[type]} [description]
+     */
+    destroy:function(){
+        game.physics.unbind(this);
+        this.off();//remove all signals
+        if(!this.__seq)return;
+        if(this.children.length>0){
+            this.children.forEach(function(child){
+                child.destroy();
+            });
+        }
+        var ks = Object.keys(this);
+        for(var i=ks.length;i--;){
+            if(ks[i].indexOf('__') < 0)continue;
+            this[ks[i]] = null;
+        }
+        if(this.parent)
+            this.parent.remove(this);
+
+        this.onRender = 
+        this.onUpdate = 
+        this.parent = 
+        this.children = 
+        this.imageCache =
+        this.fillStyle = 
+        this.game = 
+        this.body = null;
     }
 });
+
+function getXW(val,parent){
+    if(/^(-?\d+)%$/.test(val)){
+        var per = parseFloat(RegExp.$1) / 100;
+        return getW(parent,per);
+    }else{
+        return val;
+    }
+}
+function getYH(val,parent){
+    if(/^(-?\d+)%$/.test(val)){
+        var per = parseFloat(RegExp.$1) / 100;
+        return getH(parent,per);
+    }else{
+        return val;
+    }
+}
+
+function getOff(offset,typeVal){
+    if(!isNaN(offset))return parseFloat(offset);
+
+    var off = typeVal;
+    var per = 0;
+    if(/^(-?\d+)%$/.test(offset)){
+        per = parseFloat(RegExp.$1) / 100;
+    }
+    return off*per;
+}
+
+function getW(parent,rate){
+    var pw = parent.w;
+    if(pw === 0 && parent.parent){
+        return getW(parent.parent,rate);
+    }
+    return pw * rate;
+}
+function getH(parent,rate){
+    var ph = parent.h;
+    if(ph === 0 && parent.parent){
+        return getH(parent.parent,rate);
+    }
+    return ph * rate;
+}
+
 /**
- * @class 
- * @extends soya2d.DisplayObject
- * @classdesc 显示对象容器继承自显示对象，是所有显示容器的基类。<br/>
- * 该类用于管理包含子节点的容器相关的方法。<br/>
- 注意，该类不应直接实例化,应使用该类的子类或继承该类
- * @param {Object} data 同父类定义参数
- * @author {@link http://weibo.com/soya2d MrSoya} 
+ * @name soya2d.DisplayObject#onRender
+ * @desc 渲染事件，每帧触法。在该回调中使用绘图对象g进行图像绘制
+ * @event
+ * @param {soya2d.CanvasGraphics} g 绘图对象，根据渲染器类型不同而不同
  */
-soya2d.DisplayObjectContainer = function(data){
-    data = data||{};
-    soya2d.DisplayObject.call(this,data);
-    /**
-     * 子节点数组
-     * @type {Array}
-     * @default []
-     */
-    this.children = [];
-    /**
-     * 父节点引用
-     * @type {soya2d.DisplayObject}
-     * @default null
-     */
-    this.parent = null;
-};
-soya2d.inherits(soya2d.DisplayObjectContainer,soya2d.DisplayObject);
-soya2d.ext(soya2d.DisplayObjectContainer.prototype,/** @lends soya2d.DisplayObjectContainer.prototype */{
+/**
+ * @name soya2d.DisplayObject#onUpdate
+ * @desc 更新事件，每帧触法。在该回调中可以编写更新逻辑
+ * @event
+ * @param {soya2d.Game} game 当前精灵所在的游戏实例
+ */
+
+
+// soya2d.ALIGN_LEFT = 'left';
+// soya2d.ALIGN_CENTER = 'center';
+// soya2d.ALIGN_RIGHT = 'right';
+// soya2d.ALIGN_TOP = 'top';
+// soya2d.ALIGN_MIDDLE = 'middle';
+// soya2d.ALIGN_BOTTOM = 'bottom';
+/**
+ * 显示对象容器继承自显示对象，是所有显示容器的基类。该类提供了用于管理包含子节点的容器相关的方法。<br/>
+ 该类不能被实例化
+ * 
+ * @class soya2d.DisplayObjectContainer
+ * @extends soya2d.DisplayObject
+ * @param {Object} data 同父类定义参数
+ */
+soya2d.class("soya2d.DisplayObjectContainer",{
+    extends:soya2d.DisplayObject,
+    constructor:function(data){
+        /**
+         * 子节点数组
+         * @type {Array}
+         * @default []
+         */
+        this.children = [];
+        /**
+         * 父节点引用
+         * @type {soya2d.DisplayObject}
+         * @default null
+         */
+        this.parent = null;
+    },
     /**
      * 增加子节点
      * @param {...soya2d.DisplayObject} children 一个或者多个可渲染对象，使用逗号分割
      * @return this
      */
-	add:function(){
+    add:function(){
         for(var i=0;i<arguments.length;i++){
             var child = arguments[i];
-            if(child.parent)continue;
 
+            if(child.parent){
+                child.parent.remove(child);
+            }
             this.children.push(child);
             child.parent = this;
+
+            //触发onAdded事件
+            child.__onAdded();
         }
 
         return this;
-	},
+    },
     /**
      * 删除子节点
      * @param {...soya2d.DisplayObject} children 一个或者多个可渲染对象，使用逗号分割
      * @return this
      */
-	remove:function(){
+    remove:function(){
         for(var i=0;i<arguments.length;i++){
             var child = arguments[i];
             var index = this.children.indexOf(child);
@@ -1821,19 +3772,24 @@ soya2d.ext(soya2d.DisplayObjectContainer.prototype,/** @lends soya2d.DisplayObje
             this.children.splice(index,1);
             child.parent = null;
         }
- 		
+        
         return this;
-	},
+    },
     /**
      * 清除所有子节点
      * @return {Array} 子节点
      */
-    clear:function(){
+    clear:function(destroy){
         for(var i=this.children.length;i--;){
             this.children[i].parent = null;
         }
         var rs = this.children;
         this.children = [];
+        if(destroy){
+            for(var i=rs.length;i--;){
+                rs[i].destroy();
+            }
+        }
         return rs;
     },
     /**
@@ -1848,405 +3804,746 @@ soya2d.ext(soya2d.DisplayObjectContainer.prototype,/** @lends soya2d.DisplayObje
         var rs;
         if(isRecur){
             rs = [];
-            //创建递归函数
-            !function(parent){
-                for(var i=parent.children.length;i--;){
-                    var c = parent.children[i];
-                    if(filter(c)){
-                        rs.push(c);
-                    }
-                    if(c.children && c.children.length>0){
-                        arguments.callee(c);
-                    }
-                }
-            }(this);
+            recur(this,filter,rs);
         }else{
             rs = this.children.filter(filter);
         }
         return rs;
     }
 });
+
+function recur(parent,filter,rs){
+    for(var i=parent.children.length;i--;){
+        var c = parent.children[i];
+        if(filter(c)){
+            rs.push(c);
+        }
+        if(c.children && c.children.length>0){
+            recur(c,filter,rs);
+        }
+    }
+}
 /**
- * @classdesc 场景用于组织所有需要在该范围内显示的可渲染单位。<br/>
- * 场景是渲染器接收的参数，其他渲染对象无法直接进行渲染
- * @class 
+ * 舞台对象表现为一个soya2D的渲染窗口，每个game实例都只包含唯一的一个stage。
+ * stage也是渲染树中的顶级对象，stage的大小和渲染窗口一致。
+ * stage是渲染树的顶级节点
+ * stage对象可以用于设置窗口视图规则，包括分辨率适应、窗口事件回调等
+ * @class Stage
  * @extends soya2d.DisplayObjectContainer
  * @param {Object} data 所有父类参数
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
-soya2d.Scene = function(data){
-    data = data||{};
-    soya2d.DisplayObjectContainer.call(this,data);
-    soya2d.ext(this,data);
+var Stage = soya2d.class("",{
+    extends:soya2d.DisplayObjectContainer,
+    constructor:function(data){
+        this.game = data.game;
+        this.__anchorX = this.__anchorY = 0;
+        /**
+         * 缩放最小宽度
+         * @type {Number}
+         * @default 0
+         */
+        this.minWidth = 0;
+        /**
+         * 缩放最小高度
+         * @type {Number}
+         * @default 0
+         */
+        this.minHeight = 0;
+        /**
+         * 缩放最大宽度
+         * @type {Number}
+         * @default 0
+         */
+        this.maxWidth = 0;
+        /**
+         * 缩放最大高度
+         * @type {Number}
+         * @default 0
+         */
+        this.maxHeight = 0;
+        /**
+         * 是否在横竖屏切换、resize窗口时，都进行缩放
+         * @type {boolean}
+         * @default true
+         */
+        this.autoScale = true;
 
-    //更新矩阵
-    function updateMx(ro,queue){
-        ro.updateTransform();
-        //生成renderQueue
-        if(ro.children)
-            for(var i=ro.children.length;i--;){
-                var c = ro.children[i];
-                if(c.opacity>0 && c.visible){
-                    queue.push(c);
-                    updateMx(c,queue);
+        /********************* 行为定义 *********************/
+
+        /**
+         * 视图方向。portrait或者landscape
+         * @type {string}
+         * @default portrait
+         */
+        this.orientation = getOrientation();
+        var that = this;
+        var timer;
+        window.addEventListener("orientationchange", function(e){
+            clearTimeout(timer);
+            timer = setTimeout(function() {
+                that.orientation = getOrientation();
+            }, 500);
+            if(that.autoScale){
+                that.__scan();
+            }
+        }, false);
+        window.addEventListener("resize", function(e){
+            that.orientation = getOrientation();
+            if(that.autoScale){
+                that.__scan();
+            }
+        }, false);
+
+        this.__bg = null;
+        this.__rotat = soya2d.ROTATEMODE_0;
+        var align = soya2d.ALIGNMODE_CENTER;
+        var scaleMode = soya2d.SCALEMODE_SHOWALL;
+        Object.defineProperties(this,{
+            ////////////////////////////舞台相关
+            /**
+             * 缩放类型
+             * @type {int}
+             * @default soya2d.SCALEMODE_SHOWALL
+             */
+            scaleMode : {
+                set:function(){
+                    this.__scan();
+                },
+                get:function(){
+                    return scaleMode;
+                }
+            },
+            /**
+             * 设置或者获取该视图对齐模式。SHOWALL模式下有效
+             * @type  {int} alignMode 对齐模式
+             */
+            alignMode : {
+                set:function(alignMode){
+                    if(alignMode && this.scaleMode === soya2d.SCALEMODE_SHOWALL){
+                        var canvas = this.game.renderer.getCanvas();
+                        align = alignMode;
+                        switch(alignMode){
+                            case soya2d.ALIGNMODE_LEFT:
+                                canvas.style.left = 0;
+                                canvas.style.right = 'auto';
+                                break;
+                            case soya2d.ALIGNMODE_RIGHT:
+                                canvas.style.left = 'auto';
+                                canvas.style.right = 0;
+                                break;
+                            case soya2d.ALIGNMODE_CENTER:
+                            default:
+                                canvas.style.left = 0;
+                                canvas.style.right = 0;
+                                align = soya2d.ALIGNMODE_CENTER;//覆盖错误参数
+                                break;
+                        }
+                        canvas.style.margin = 'auto';
+                    }
+                },
+                get:function(){
+                    return align;
+                }
+            },
+            /**
+             * 设置或者获取该视图旋转模式
+             * @type  {int} rotateMode 旋转模式
+             */
+            rotateMode:{
+                set:function(rotateMode){
+                    this.__rotat = rotateMode;
+                    this.__scan();
+                },
+                get:function(){
+                    return this.__rotat;
                 }
             }
-    }
-
+        });
+    },
     /**
      * 更新矩阵树，并记录可渲染的RO。场景自身不处理
      * @private
      */
-    this.__updateMatrix = function(){
-        this.__renderQueue = [];
-        updateMx(this,this.__renderQueue);
-    };
-
+    __updateMatrix : function(){
+        updateMx(this);
+    },
     /**
      * 更新整个场景
      * @private
      */
-    this.__update = function(game){
+    __update : function(game,d){
         if(this.children)
-            update(this.children,game);
-    }
-
-    function update(list,game){
-        for(var i=list.length;i--;){
-            var c = list[i];
-            if(c._onUpdate){
-                c._onUpdate(game);
-            }
-            if(c.onUpdate){
-                c.onUpdate(game);
-            }
-            if(c.children){
-                update(c.children,game);
-            }
+            update(this.children,game,d);
+    },
+    onRender:function(g){
+        if(this.__bg){
+            g.fillStyle(this.__bg);
+            g.fillRect(0,0,this.w,this.h);
         }
-    }
-
-    /**
-     * 查找当前场景中符合条件的对象
-     * *只在可显示对象(opacity>0 && visible)中查询
-     * @param {Function} filter 过滤函数，接收ro为参数，返回true表示该对象返回
-     * @return {Array} 符合过滤条件的节点数组，如果没有，返回空数组
-     */
-    this.findVisible = function(filter){
-        if(!this.__renderQueue)return [];
-        return this.__renderQueue.filter(filter);
-    }
-};
-soya2d.inherits(soya2d.Scene,soya2d.DisplayObjectContainer);
-
-/**
- * @name soya2d.Scene#onInit
- * @desc 当游戏启动或切换场景时触发
- * @event
- * @param {soya2d.Game} game 游戏实例对象，可以获取当前游戏的尺寸等信息
- */
-/**
- * @classdesc 卷轴精灵，用于实现卷轴效果，允许对内部精灵进行移动，精灵定位等<br/>
- * @class 
- * @extends soya2d.DisplayObjectContainer
- * @param {Object} data 所有父类参数，以及新增参数，如下：
- * @param {soya2d.GeoRect} data.scope 卷轴范围
- * @param {soya2d.GeoRect} data.freezone 自由区范围，相对于卷轴视口。当跟踪目标在自由区内移动时，
- * 视口不会跟随目标进行移动
- * @author {@link http://weibo.com/soya2d MrSoya}
- */
-soya2d.ScrollSprite = function(data) {
-    data = data || {};
-    soya2d.DisplayObjectContainer.call(this, data);
-    soya2d.ext(this, data);
-    
-    /**
-     * 卷轴范围
-     * @type {soya2d.GeoRect}
-     */
-    this.scope = data.scope;
-
-    /**
-     * 视口内限制目标跟踪范围的矩形区域，跟踪目标时有效
-     * @type {soya2d.GeoRect}
-     */
-    this.freezone = data.freezone;
-
-    this.__boundContainer = new soya2d.DisplayObjectContainer();
-
-    this.children.push(this.__boundContainer);
-};
-soya2d.inherits(soya2d.ScrollSprite, soya2d.DisplayObjectContainer);
-soya2d.ext(soya2d.ScrollSprite.prototype, /** @lends soya2d.ScrollSprite.prototype */{
-   /**
-    * @override
-    */
-    add:function(){
-        this.__boundContainer.add.apply(this.__boundContainer,arguments);
-        return this;
     },
     /**
-    * @override
-    */
-    remove:function(){
-        this.__boundContainer.remove.apply(this.__boundContainer,arguments);
-        return this;
-    },
-    /**
-    * @override
-    */
-    clear:function(){
-        return this.__boundContainer.clear();
-    },
-    /**
-    * @override
-    */
-    find:function(filter,isRecur){
-        return this.__boundContainer.find(filter,isRecur);
-    },
-    /**
-     * 设置卷轴视口跟踪一个内部精灵。<br/>一旦设置有效精灵后，视窗将根据freezone设置进行精灵位置跟踪，
-     * 而忽略视窗本身的任何移动方法。
-     * @param  {soya2d.DisplayObject} target 视口跟踪目标，必须是容器内的精灵
-     * @return {soya2d.ScrollSprite} this
+     * 设置背景
+     * @param  {Object} color 根据类型不同，会解析为不同的背景设置<br/>
+     * String 颜色字符串，支持HEX或者RGB
+     * Image  背景图，支持第二个参数设置repeat
+     * Int    渐变方式，支持GRADIENT_LINEAR / GRADIENT_RADIAL，后面参数依次为ratio数组，颜色数组，渐变长度
+     * 
      */
-    follow:function(target){
-        var tmp = this.__boundContainer.find(function(ro){
-            if(target.roid === ro.roid)return true;
-        },true);
-        if(tmp.length<0){
-            soya2d.console.error('soya2d.ScrollSprite: '+target.toString()+' must be a child node of soya2d.ScrollSprite');
+    background:function(color){
+        if(typeof(color) === 'string'){
+            this.__bg = color;
+        }else if(color instanceof self.Image){
+            this.__bg = this.game.renderer.createPattern(color,arguments[1]);
+        }else if(!isNaN(color)){
+            var opt = {};
+            if(arguments[4])
+                soya2d.ext(opt,arguments[4]);
+            opt.type = color;
+            var gradient = this.game.renderer.createGradient(arguments[1],arguments[2],arguments[3]||1,opt);
+            this.__bg = gradient;
         }
-        this.target = target;
-
-        this._onUpdate();
-        return this;
     },
     /**
-     * 取消跟踪
-     */
-    unfollow:function(){
-        this.target = null;
-    },
-	/**
-     * 移动卷轴指定坐标
-     * @param  {number} x x轴坐标
-     * @param  {number} y y轴坐标
-     */
-    scrollTo:function(x,y){
-        if(this.target)return;
-        this.__boundContainer.x = x;
-        this.__boundContainer.y = y;
-        
-        this.__checkBounds();
-    },
-    /**
-     * 移动卷轴指定偏移
-     * @param  {number} offX x轴偏移量
-     * @param  {number} offY y轴偏移量
-     */
-    scrollBy:function(offX,offY){
-        if(this.target)return;
-        this.__boundContainer.x += offX;
-        this.__boundContainer.y += offY;
-        
-        this.__checkBounds();
-    },
-    /**
+     * 扫描是否需要缩放，如果需要，则根据缩放参数进行缩放
      * @private
      */
-    __checkBounds:function(){
-        if(!this.scope)return;
-
-        var left = this.scope.x,
-            top = this.scope.y,
-            right = this.scope.w,
-            bottom = this.scope.h;
-
-        //l & r
-        var bx = this.__boundContainer.x;
-        if(bx > left)this.__boundContainer.x = left;
-        if(right>0 && bx < this.w - right)
-            this.__boundContainer.x = this.w - right;
-        //t & b
-        var by = this.__boundContainer.y;
-        if(by > top)this.__boundContainer.y = top;
-        if(bottom>0 && by < this.h - bottom)
-            this.__boundContainer.y = this.h - bottom;
-    },
-    /**
-     * 设置卷轴范围
-     * @param {soya2d.Rectangle} scope 范围矩形
-     */
-    setScope:function(scope){
-        if(!scope)return;
-        this.scope = scope;
-
-        //容器
-        this.__boundContainer.w = scope.w;
-        this.__boundContainer.h = scope.h;
-    },
-    _onUpdate:function(){
-        if(!this.target)return;
-
-        var tgx,tgy;
-        this.target.updateTransform();
-        var wpe = this.target.__worldPosition.e;
-        tgx = wpe[0],
-        tgy = wpe[1];
-        var tw = this.target.w,
-            th = this.target.h;
-
-        var xys = this.__boundContainer.getBoundingPoints();
-        var cgx = xys[0],
-            cgy = xys[1];
-            
-        var offx = tgx - cgx,
-            offy = tgy - cgy;
-        var vx,vy;
-
-        if(this.freezone){
-            var vox = this.__boundContainer.x * -1,
-                voy = this.__boundContainer.y * -1;
-            var disx = offx - vox,
-                disy = offy - voy;
-            var halfTw = tw/2,
-                halfTh = th/2;
-            var fx = this.freezone.x,
-                fy = this.freezone.y,
-                fw = this.freezone.w,
-                fh = this.freezone.h;
-            if(disx - halfTw < fx){
-                vx = offx - halfTw - fx;
-            }else if(disx + halfTw > fx + fw){
-                vx = offx + halfTw - fx - fw;
-            }
-            if(disy - halfTh < fy){
-                vy = offy - halfTh - fy;
-            }else if(disy + halfTh > fy + fh){
-                vy = offy + halfTh - fy - fh;
-            }
-            if(!vx && !vy)return;
-        }else{
-            vx = offx - this.w/2,
-            vy = offy - this.h/2;
+    __scan : function(){
+        var designWidth = this.game.w;
+        var designHeight = this.game.h;
+        
+        //选择缩放器
+        var scaler;
+        switch(this.scaleMode){
+            case soya2d.SCALEMODE_NOSCALE:break;
+            case soya2d.SCALEMODE_NOBORDER:scaler = NOBORDER;break;
+            case soya2d.SCALEMODE_EXACTFIT:scaler = EXACTFIT;break;
+            case soya2d.SCALEMODE_SHOWALL:
+            default:
+            scaler = SHOWALL;
         }
-        if(vx)
-        this.__boundContainer.x = -vx;
-        if(vy)
-        this.__boundContainer.y = -vy;
+        if(!scaler)return;
+        var renderer = this.game.renderer;
+        var container = renderer.getCanvas().parentNode;
+        //判断设计size是否超过了容器size
+        var cw = container.clientWidth;
+        var ch = container.clientHeight;
+        if(container.tagName === 'BODY'){
+            ch = window.innerHeight;
+        }
+        var wh = scaler(designWidth,designHeight,cw,ch,this.minWidth,this.minHeight,this.maxWidth,this.maxHeight);
+        renderer.resize(wh[0],wh[1]);
 
-        this.__checkBounds();
-    },
-    onRender: function(g) {
-        g.beginPath();
-        g.rect(0, 0, this.w, this.h);
-        g.clip();
+        //rotate
+        rotate(this.scaleMode,this.__rotat,renderer.getCanvas(),renderer,this);
     }
 });
+//更新矩阵
+function updateMx(ro){
+    ro.transform();
+    ro.__renderable = true;
+    if(ro.children)
+        for(var i=ro.children.length;i--;){
+            var c = ro.children[i];
+            if(c.visible){
+                updateMx(c);
+            }
+        }
+}
+
+function update(list,game,delta){
+    for(var i=list.length;i--;){
+        var c = list[i];
+        if(c._onUpdate){
+            c._onUpdate(game,delta);
+        }
+        if(c.onUpdate){
+            c.onUpdate(game,delta);
+        }
+        if(c.children && c.children.length>0){
+            update(c.children,game,delta);
+        }
+    }
+}
+function rotate(scaleMode,rotateMode,canvas,renderer,stage){
+    var rs;
+    switch(rotateMode){
+        case soya2d.ROTATEMODE_90:
+            rs = 'rotate('+90+'deg)';
+            break;
+        case soya2d.ROTATEMODE_180:
+            rs = 'rotate('+180+'deg)';
+            break;
+        case soya2d.ROTATEMODE_270:
+            rs = 'rotate('+270+'deg)';
+            break;
+        case soya2d.ROTATEMODE_0:
+        default:
+            rs = 'rotate('+0+'deg)';
+            stage.__rotat = soya2d.ROTATEMODE_0;
+            break;
+    }
+
+    canvas.style.transform = 
+    canvas.style.webkitTransform = 
+    canvas.style.mozTransform = 
+    canvas.style.msTransform = 
+    canvas.style.oTransform = rs;
+
+    canvas.style.left = canvas.style.top = 0;
+
+    //reset bounds
+    if(rotateMode === soya2d.ROTATEMODE_90 || rotateMode === soya2d.ROTATEMODE_270){
+        var h = canvas.offsetWidth;
+        var w = canvas.offsetHeight;
+
+        if(scaleMode === soya2d.SCALEMODE_NOBORDER){
+            var designWidth = this.game.w;
+            var designHeight = this.game.h;
+            h = h>designHeight?designHeight:h;
+            w = w>designWidth?designWidth:w;
+        }
+        renderer.resize(w,h);
+
+        if(scaleMode === soya2d.SCALEMODE_EXACTFIT){
+            var offLeft = (h - w)/2;
+            offLeft = w%2===0?offLeft:Math.floor(offLeft);
+            var offTop = (w - h)/2;
+            offTop = h%2===0?offTop:Math.floor(offTop);
+            
+            canvas.style.left = offLeft +'px';
+            canvas.style.top = offTop +'px';
+        }
+    }
+}
+function getOrientation(){
+    var w = window.innerWidth;
+    var h = window.innerHeight;
+    var rs;
+    if(w > h){
+        rs = 'landscape';
+    }else{
+        rs = 'portrait';
+    }
+    return rs;
+}
 /**
- * @classdesc 空绘图类，需要实现onRender回调
- * @class
+ * 视图缩放类型，不缩放。游戏默认值
+ */
+soya2d.SCALEMODE_NOSCALE = 0;
+/**
+ * 视图缩放类型，等比缩放，总是显示全部
+ */
+soya2d.SCALEMODE_SHOWALL = 1;
+/**
+ * 视图缩放类型，等比缩放，不一定显示全部
+ */
+soya2d.SCALEMODE_NOBORDER = 2;
+/**
+ * 视图缩放类型，非等比缩放。完全适配容器
+ */
+soya2d.SCALEMODE_EXACTFIT = 3;
+
+/**
+ * 视图对齐类型
+ */
+soya2d.ALIGNMODE_LEFT = 1;
+/**
+ * 视图对齐类型
+ */
+soya2d.ALIGNMODE_CENTER = 2;
+/**
+ * 视图对齐类型
+ */
+soya2d.ALIGNMODE_RIGHT = 3;
+
+/**
+ * 视图旋转类型
+ */
+soya2d.ROTATEMODE_0 = 1;
+/**
+ * 视图旋转类型
+ */
+soya2d.ROTATEMODE_90 = 2;
+/**
+ * 视图旋转类型
+ */
+soya2d.ROTATEMODE_180 = 3;
+/**
+ * 视图旋转类型
+ */
+soya2d.ROTATEMODE_270 = 4;
+
+/********************* 规则定义 *********************/
+function NOBORDER(dw,dh,cw,ch,mw,mh,mxw,mxh){
+    cw = mxw && cw > mxw?mxw:cw;
+    ch = mxh && ch > mxh?mxh:ch;
+
+    var r = Math.max(cw/dw,ch/dh);
+    var w = dw*r,
+        h = dh*r;
+    return [w,h];
+}
+function SHOWALL(dw,dh,cw,ch,mw,mh,mxw,mxh){
+    cw = mxw && cw > mxw?mxw:cw;
+    ch = mxh && ch > mxh?mxh:ch;
+
+    var r = 1;
+    if(dw > cw || dh > ch)
+        r = Math.min(cw/dw,ch/dh);
+
+    var w = dw*r,
+        h = dh*r;
+    return [w,h];
+}
+function EXACTFIT(dw,dh,cw,ch,mw,mh,mxw,mxh){
+    var w,h;
+    if(mw && cw < mw){
+        w = mw;
+    }else if(mxw && cw > mxw){
+        w = mxw;
+    }else{
+        w = cw;
+    }
+    if(mh && ch < mh){
+        h = mh;
+    }else if(mxh && ch > mxh){
+        h = mxh;
+    }else{
+        h = ch;
+    }
+    return [w,h];
+}
+
+/**
+ * 纹理重复类型——REPEAT
+ * @constant
+ */
+soya2d.BG_REPEAT = 'repeat';
+/**
+ * 纹理重复类型——NOREPEAT
+ * @constant
+ */
+soya2d.BG_NOREPEAT = 'no-repeat';
+/**
+ * 纹理重复类型——REPEAT_X
+ * @constant
+ */
+soya2d.BG_REPEAT_X = 'repeat-x';
+/**
+ * 纹理重复类型——REPEAT_Y
+ * @constant
+ */
+soya2d.BG_REPEAT_Y = 'repeat-y';
+/**
+ * World保存了当前所有的活动对象，同时也为这些对象提供物理环境。
+ * 每个game实例只有唯一的world对象
+ * 
+ * @class World
  * @extends soya2d.DisplayObjectContainer
  * @param {Object} data 所有父类参数
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
-soya2d.Shape = function(data){
-    data = data||{};
-    soya2d.DisplayObjectContainer.call(this,data);
-    soya2d.ext(this,data);
-};
-soya2d.inherits(soya2d.Shape,soya2d.DisplayObjectContainer);
+var World = soya2d.class("",{
+    extends:soya2d.DisplayObjectContainer,
+    constructor:function() {
+    	this.__soya_type = 'world';
+    },
+    setBounds:function(w,h){
+    	this.bounds.w = w;
+    	this.bounds.h = h;
+    	this.w = w;
+    	this.h = h;
+    }
+});
+
 /**
- * @classdesc 精灵类。具有绘图功能的容器类<br/>
- * 支持子对象渲染,以及矩阵变换
- * @class
+ * 空绘图类，需要实现onRender回调
+ * @class soya2d.Shape
  * @extends soya2d.DisplayObjectContainer
- * @param {Object} data 所有父类参数，以及新增参数，参数如下：
- * @param {soya2d.Texture | HTMLImageElement | Array} data.textures 纹理对象或者纹理数组
- * @param {int} [data.w] 精灵的宽度,默认纹理宽度
- * @param {int} [data.h] 精灵的高度,默认纹理高度
- * @author {@link http://weibo.com/soya2d MrSoya}
+ * @param {Object} data 所有父类参数
  */
-soya2d.Sprite = function(data){
-    data = data||{};
-    soya2d.DisplayObjectContainer.call(this,data);
-    soya2d.ext(this,data);
-
-    var textures = data.textures;
-
-    this.setTextures(textures);
-    
-    this.w = data.w || this.textures[0].w;
-    this.h = data.h || this.textures[0].h;
-
-    /**
-     * 是否多帧
-     * @type {boolean}
-     */
-    this.multiFrame = this.textures.length>1?true:false;
-    /**
-     * 当前帧序号
-     * @type {Number}
-     * @default 0
-     */
-    this.frameIndex = 0;//当前帧号
-    this.__currTex;//当前使用纹理
-    this.__lastUpdateTime = 0;//上次更新纹理时间
-    /**
+soya2d.class("soya2d.Shape",{
+	extends:soya2d.DisplayObjectContainer
+});
+/**
+ * 动画类。用于保存一个自定义精灵帧序列。并按照指定的间隔和循环标识进行播放。
+ * 通常使用多组动画来表示一个精灵的不同状态
+ */
+function Animation(frames,frameRate,loop) {
+	this.frames = frames;
+	this.index = 0;
+	this.lastUpdateTime = 0;
+	/**
 	 * 纹理切换帧率。单位：帧<br/>
 	 * @type int
 	 * @default 1
 	 */
-    this.frameRate = data.frameRate||10;    
-    /**
+	this.frameRate = frameRate || 10;
+	/**
 	 * 动画是否循环
 	 * @type boolean
 	 * @default true
 	 */
-    this.loop = data.loop===false?false:data.loop||true;
-    /**
-	 * 动画是否自动播放
-	 * @type boolean
-	 * @default false
-	 */
-    this.autoplay = data.autoplay||false;
+	this.loop = loop===false?false:loop||true;
+}
+Animation.prototype.reset = function(){
+	this.index = 0;
+	this.lastUpdateTime = 0;
+}
 
-};
-soya2d.inherits(soya2d.Sprite,soya2d.DisplayObjectContainer);
-soya2d.ext(soya2d.Sprite.prototype,/** @lends soya2d.Sprite.prototype */{
-	clone:function(isRecur){//覆盖超类
+
+var AnimationManager = soya2d.class("",{
+    extends:Signal,
+    __signalHandler : new SignalHandler(),
+    constructor: function(sp,size){
+    	this.map = {};
+    	var frames = [];
+    	for(var i=0;i<size;i++){
+    		frames.push(i);
+    	}
+		this.defaultAnimation = new Animation(frames);
+		this.animation = null;
+		this.playingK = null;
+    },
+    destroy:function(){
+    	this.defaultAnimation = null;
+    	this.animation = null;
+    	this.playingK = null;
+    	this.__signalHandler = null;
+    },
+    add:function(key,frameQ,frameRate,loop){
+		this.map[key] = new Animation(frameQ,frameRate,loop);
+
+		return this;
+	},
+	/**
+	 * 播放指定动画组
+	 * @return this
+	 */
+	play:function(key){
+		if(this.playingK === key)return this;
+
+		this.animation = key?this.map[key]:this.defaultAnimation;
+		this.playingK = key || true;
+
+		return this;
+	},
+	stop:function(key){
+		this.playingK = null;
+		if(this.animation)
+			this.animation.reset();
+		this.animation = null;
+
+		return this;
+	}
+});
+/**
+ * 精灵类。具有绘图功能的容器类<br/>
+ * 支持子对象渲染,以及矩阵变换
+ * 
+ * @class soya2d.Sprite
+ * @extends soya2d.DisplayObjectContainer
+ * @constructor
+ * @param {Object} data 所有父类参数，以及新增参数，参数如下：
+ * @param {String | HTMLImageElement | Array<String> | Array<HTMLImageElement>} images 图像加载时的key/key数组/图形对象/图形对象数组
+ * @param {int} [data.w] 精灵的宽度,默认纹理宽度
+ * @param {int} [data.h] 精灵的高度,默认纹理高度
+ */
+soya2d.class("soya2d.Sprite",{
+	extends:soya2d.DisplayObjectContainer,
+	constructor:function(data){
+
+	    var images = data.images;
+	    if(!images)return;
+
+	     /**
+	     * 动画管理器
+	     * @type {AnimationManager}
+	     */
+	    this.animations = null;
+
+	    this.setImages(images);
+	    
+	    this.w = data.w || this.images[0].width;
+	    this.h = data.h || this.images[0].height;
+
+	    /**
+	     * 当前帧序号
+	     * @type {Number}
+	     * @default 0
+	     */
+	    this.frameIndex = data.frameIndex || 0;//当前帧号
+	    /**
+	     * 对图片进行九宫格缩放
+	     * @type {soya2d.Rectangle}
+	     */
+	    this.__scale9grid = data.scale9grid;
+	    if(this.__scale9grid && (this.__w != this.images[0].width || this.__h != this.images[0].height)){
+	    	this.__parseScale9();
+	    }
+	    Object.defineProperties(this,{
+	    	scale9grid:{
+	    		set:function(v){
+	    			if(!(v instanceof soya2d.Rectangle))return;
+	    			this.__scale9grid = v;
+	    			this.__anchorChange = true;
+	    			this.__parseScale9();
+	    		},
+	    		get:function(){
+                    return this.__scale9grid;
+                },
+                enumerable:true
+	    	}
+	    });
+	},
+	clone:function(isRecur){
 		var copy = new this.constructor({
-			textures:this.textures.concat()
+			images:this.images.concat()
 		});
 		return soya2d.DisplayObject.prototype.clone.call(this,isRecur,copy);
 	},
-    onRender:function(g){
-    	if(this.multiFrame){
-    		if(!this.__lastUpdateTime)this.__lastUpdateTime = new Date().getTime();
-	  	    if(this.autoplay){//自动播放
-	            var now = new Date().getTime();
-	            var delta = now - this.__lastUpdateTime;
-	            //处理跳帧情况
-	            var deltaFrames = delta/(this.frameRate*16.7/*这里转化为ms*/)>>0;
-	            //差值大于帧率，切换帧
-	            if(deltaFrames>0){
-	                this.frameIndex+=deltaFrames;
-	                if(this.frameIndex >= this.textures.length){
-	                    if(this.loop){
-	                        this.frameIndex = 0;
-	                    }else{
-	                        this.frameIndex = this.textures.length-1;
-	                    }
-	                }
+	_onUpdate:function(){
+		if(this.__anchorChange && 
+			this.__scale9grid instanceof soya2d.Rectangle && 
+			(this.__w != this.images[0].width || this.__h != this.images[0].height)){
+			this.cache();
+		}
+	},
+	__parseScale9:function(){
+		var imgW = this.images[0].width;
+		var imgH = this.images[0].height;
+		var by = this.__scale9grid.y + this.__scale9grid.h;
+		var bh = imgH - by;
+		var rx = this.__scale9grid.x + this.__scale9grid.w;
+		var rw = imgW - rx;
 
-	                this.__lastUpdateTime = now;
-	            }
-	        }
-	  	    this.__currTex = this.textures[this.frameIndex];
-			g.map(this.__currTex,0,0,this.w,this.h);
+		var dmw = this.__w - this.__scale9grid.x - rw;
+		var dmh = this.__h - this.__scale9grid.y - bh;
+		var dmx = dmw + this.__scale9grid.x;
+		var dmy = dmh + this.__scale9grid.y;
+
+		var x = this.__scale9grid.x,
+			y = this.__scale9grid.y,
+			w = this.__scale9grid.w,
+			h = this.__scale9grid.h;
+		this.__scale9Data = {
+			t1:{
+				x:0,
+				y:0,
+				w:x,
+				h:y
+			},
+			t2:{
+				x:x,
+				y:0,
+				w:w,
+				h:y,
+				dw:dmw
+			},
+			t3:{
+				x:rx,
+				y:0,
+				w:rw,
+				h:y,
+				dx:dmx
+			},
+			m1:{
+				x:0,
+				y:y,
+				w:x,
+				h:h,
+				dh:dmh
+			},
+			m2:{
+				x:x,
+				y:y,
+				w:w,
+				h:h,
+				dw:dmw,
+				dh:dmh
+			},
+			m3:{
+				x:rx,
+				y:y,
+				w:rw,
+				h:h,
+				dx:dmx,
+				dh:dmh
+			},
+			b1:{
+				x:0,
+				y:by,
+				w:x,
+				h:bh,
+				dy:dmy
+			},
+			b2:{
+				x:x,
+				y:by,
+				w:w,
+				h:bh,
+				dw:dmw,
+				dy:dmy
+			},
+			b3:{
+				x:rx,
+				y:by,
+				w:rw,
+				h:bh,
+				dx:dmx,
+				dy:dmy
+			}
+		}
+	},
+    onRender:function(g){
+    	if(this.animations.playingK){
+    		var ani = this.animations.animation;
+    		if(!ani.lastUpdateTime)ani.lastUpdateTime = new Date().getTime();
+            var now = new Date().getTime();
+            var delta = now - ani.lastUpdateTime;
+            //处理跳帧情况
+            var deltaFrames = delta/(ani.frameRate*16.7)>>0;
+            
+            //差值大于帧率，切换帧
+            if(deltaFrames>0){
+                ani.index += deltaFrames;
+                if(ani.index >= ani.frames.length){
+                    if(ani.loop){
+                        ani.index = 0;
+                    }else{
+                    	var k = this.animations.playingK;
+                        this.animations.stop();
+                        this.animations.emit('stop',k);
+                        return;
+                    }
+                }
+
+                ani.lastUpdateTime = now;
+            }
+	        
+	  	    var frame = ani.frames[ani.index];
+			g.map(this.images[frame],0,0,this.w,this.h);
+    	}else if(this.__scale9grid && this.__updateCache){
+    		var img = this.images[0];
+    		var sd = this.__scale9Data;
+    		var t1 = sd.t1,t2 = sd.t2,t3 = sd.t3,
+    			m1 = sd.m1,m2 = sd.m2,m3 = sd.m3,
+    			b1 = sd.b1,b2 = sd.b2,b3 = sd.b3;
+
+    		//top
+    		g.map(img,t1.x,t1.y,t1.w,t1.h,t1.x,t1.y,t1.w,t1.h);
+    		g.map(img,t2.x,t2.y,t2.dw,t2.h,t2.x,t2.y,t2.w,t2.h);
+    		g.map(img,t3.dx,t3.y,t3.w,t3.h,t3.x,t3.y,t3.w,t3.h);
+    		//middle
+    		g.map(img,m1.x,m1.y,m1.w,m1.dh,m1.x,m1.y,m1.w,m1.h);
+    		g.map(img,m2.x,m2.y,m2.dw,m2.dh,m2.x,m2.y,m2.w,m2.h);
+    		g.map(img,m3.dx,m3.y,m3.w,m3.dh,m3.x,m3.y,m3.w,m3.h);
+    		//bottom
+    		g.map(img,b1.x,b1.dy,b1.w,b1.h,b1.x,b1.y,b1.w,b1.h);
+    		g.map(img,b2.x,b2.dy,b2.dw,b2.h,b2.x,b2.y,b2.w,b2.h);
+    		g.map(img,b3.dx,b3.dy,b3.w,b3.h,b3.x,b3.y,b3.w,b3.h);
+
     	}else{
-    		g.map(this.textures[0],0,0,this.w,this.h);
+    		g.map(this.images[this.frameIndex],0,0,this.w,this.h);
     	}
     },
     /**
@@ -2254,11 +4551,11 @@ soya2d.ext(soya2d.Sprite.prototype,/** @lends soya2d.Sprite.prototype */{
 	 */
 	nextFrame:function(){
 		this.frameIndex++;
-		if(this.frameIndex >= this.textures.length){
+		if(this.frameIndex >= this.images.length){
 			if(this.loop){
 				this.frameIndex = 0;
 			}else{
-				this.frameIndex = this.textures.length-1;
+				this.frameIndex = this.images.length-1;
 			}
 		}
 	},
@@ -2269,7 +4566,7 @@ soya2d.ext(soya2d.Sprite.prototype,/** @lends soya2d.Sprite.prototype */{
 		this.frameIndex--;
 		if(this.frameIndex < 0){
 			if(this.loop){
-				this.frameIndex = this.textures.length-1;
+				this.frameIndex = this.images.length-1;
 			}else{
 				this.frameIndex = 0;
 			}
@@ -2277,82 +4574,98 @@ soya2d.ext(soya2d.Sprite.prototype,/** @lends soya2d.Sprite.prototype */{
 	},
 	/**
 	 * 设置或者更改精灵纹理
-	 * @param {soya2d.Texture | HTMLImageElement | Array} textures 纹理对象或者纹理数组
+	 * @param {String | HTMLImageElement | Array<String> | Array<HTMLImageElement>} images 图像加载时的key/key数组/图形对象/图形对象数组
 	 */
-	setTextures:function(textures){
-		if(textures instanceof soya2d.Texture){
-	        this.textures = [textures];
-	    }else if(textures instanceof self.Image){
-	    	this.textures = [soya2d.Texture.fromImage(textures)];
-	    }else if(textures instanceof Array){
-	    	this.textures = textures;
+	setImages:function(images,changeSize){
+		if(typeof images === 'string'){
+	    	this.images = [this.game.assets.image(images)];
+	    }else if(images instanceof self.Image || (images.getContext && images.nodeType == 1)){
+	    	this.images = [images];
+	    }else if(images instanceof Array){
+	    	var imgs = [];
+	    	images.forEach(function(img){
+	    		if(typeof img === 'string'){
+	    			imgs.push(this.game.assets.image(img));
+	    		}else{
+	    			imgs.push(img);
+	    		}
+	    	},this);
+	    	this.images = imgs;
 	    }else{
-	    	this.textures = [];
+	    	this.images = [];
 	    }
 
-	    if(!this.textures[0]){
-	    	console.error('soya2d.Sprite: invalid param [textures]; '+this.textures[0]);
+	    if(!this.images[0]){
+	    	soya2d.console.error('soya2d.Sprite: invalid param [images]; '+this.images[0]);
 	    }
+	    this.frameIndex = 0;
+
+	    if(changeSize){
+	    	this.w = this.images[0].width;
+	    	this.h = this.images[0].height;
+	    }
+
+	    if(this.animations)
+	    	this.animations.destroy();
+	    this.animations = new AnimationManager(this,this.images.length);
+
+	    return this;
 	}
 });
 /**
- * @classdesc 瓦片精灵，可以让该精灵内部平铺指定的纹理<br/>
- * @class 
+ * 瓦片精灵，可以让该精灵内部平铺指定的纹理<br/>
+ * @class soya2d.TileSprite
  * @extends soya2d.DisplayObjectContainer
+ *
+ * @constructor
  * @param {Object} data 所有父类参数，以及新增参数，如下：
- * @param {soya2d.Texture | soya2d.Sprite | HTMLImageElement} data.sprite 瓦片精灵，必须
+ * @param {soya2d.Sprite | HTMLImageElement | String} data.sprite 瓦片精灵，必须
  * @param {boolean} [data.autoScroll=false] 自动移动瓦片
  * @param {int} data.speed 移动速度,默认1。单位px
- * @param {int} data.angle 移动角度,默认0
- * @author {@link http://weibo.com/soya2d MrSoya}
- * @see {soya2d.Texture}
+ * @param {int} data.scrollAngle 移动角度,默认0
  */
-soya2d.TileSprite = function(data) {
-    data = data || {};
-    soya2d.DisplayObjectContainer.call(this, data);
-    soya2d.ext(this, data);
+soya2d.class("soya2d.TileSprite",{
+    extends:soya2d.DisplayObjectContainer,
+    constructor:function(data) {
+        /**
+         * 瓦片精灵，可以设置该属性的缩放等特性
+         * @type {soya2d.Sprite}
+         */
+        this.sprite = null;
+        
+        if(data.sprite instanceof soya2d.Sprite){
+            this.sprite = data.sprite;
+        }else{
+            this.sprite = new soya2d.Sprite({images:data.sprite});
+        } 
+        
+        //同步为纹理size
+        this.w = data.w || this.sprite.w;
+        this.h = data.h || this.sprite.h;
 
-    /**
-     * 瓦片精灵，可以设置该属性的缩放等特性
-     * @type {soya2d.Sprite}
-     */
-    this.sprite = null;
-    
-    if(data.sprite instanceof soya2d.Texture || data.sprite instanceof self.Image){
-        this.sprite = new soya2d.Sprite({textures:data.sprite});
-    }else if(data.sprite instanceof soya2d.Sprite){
-    	this.sprite = data.sprite;
-    }
-    
-    //同步为纹理size
-    this.w = data.w || this.sprite.w;
-    this.h = data.h || this.sprite.h;
-
-    /**
-     * 是否自动滚动瓦片
-     * @type {Boolean}
-     * @default false
-     */
-    this.autoScroll = data.autoScroll||false;
-    /**
-     * 移动瓦片的速度
-     * @type {Number}
-     * @default 1
-     */
-    this.speed = data.speed||1;
-    /**
-     * 瓦片移动的角度
-     * @type {int}
-     * @default 0
-     */
-    this.angle = data.angle||0;
-    
-    //用于内部移动处理
-    this.__tileOffx = 0;
-    this.__tileOffy = 0;
-};
-soya2d.inherits(soya2d.TileSprite, soya2d.DisplayObjectContainer);
-soya2d.ext(soya2d.TileSprite.prototype, /** @lends soya2d.TileSprite.prototype */{
+        /**
+         * 是否自动滚动瓦片
+         * @type {Boolean}
+         * @default false
+         */
+        this.autoScroll = data.autoScroll||false;
+        /**
+         * 移动瓦片的速度
+         * @type {Number}
+         * @default 1
+         */
+        this.speed = data.speed||1;
+        /**
+         * 瓦片移动的角度
+         * @type {int}
+         * @default 0
+         */
+        this.scrollAngle = data.scrollAngle||0;
+        
+        //用于内部移动处理
+        this.__tileOffx = 0;
+        this.__tileOffy = 0;
+    },
 	/**
      * 滚动tile中的纹理。
      * 滚动速度和方向依赖实例对应参数
@@ -2362,7 +4675,7 @@ soya2d.ext(soya2d.TileSprite.prototype, /** @lends soya2d.TileSprite.prototype *
             this.__tileOffx += x||0;
             this.__tileOffy += y||0;
         }else{
-            var angle = (this.angle>>0)%360;
+            var angle = (this.scrollAngle>>0)%360;
             this.__tileOffx += soya2d.Math.COSTABLE[angle]*this.speed;
             this.__tileOffy += soya2d.Math.SINTABLE[angle]*this.speed;
         }
@@ -2376,7 +4689,7 @@ soya2d.ext(soya2d.TileSprite.prototype, /** @lends soya2d.TileSprite.prototype *
     },
     _onUpdate:function(){
         if(this.autoScroll){
-            var angle = (this.angle>>0)%360;
+            var angle = (this.scrollAngle>>0)%360;
             
             this.__tileOffx += soya2d.Math.COSTABLE[angle]*this.speed;
             this.__tileOffy += soya2d.Math.SINTABLE[angle]*this.speed;
@@ -2411,7 +4724,7 @@ soya2d.ext(soya2d.TileSprite.prototype, /** @lends soya2d.TileSprite.prototype *
             offsetY -= texScaledH;
         }
 
-        var tex = this.sprite.textures[0];
+        var tex = this.sprite.images[0];
 
         for (var i = rowNum;i--;) {
             for (var j = colNum;j--;) {
@@ -2429,7 +4742,7 @@ soya2d.ext(soya2d.TileSprite.prototype, /** @lends soya2d.TileSprite.prototype *
     }
 });
 /**
- * @classdesc 图形类,提供了贴图和矢量绘制的接口。<br/>
+ * 图形类,提供了贴图和矢量绘制的接口。<br/>
  * 注意，该类不应被显示实例化。引擎会在onRender回调中注入该类的实例。<br/>
  * 该图形对象基于Canvas构建。
  * @param ctx CanvasRenderingContext2D的实例
@@ -2917,7 +5230,7 @@ soya2d.CanvasGraphics = function(ctx){
 	/**
      * 
      * 贴图接口
-     * @param {soya2d.Texture} tex 需要绘制的纹理
+     * @param {HTMLImageElement} tex 需要绘制的纹理
      * @param  {int} sx  纹理起始坐标x
      * @param  {int} sy  纹理起始坐标y
      * @param  {int} sw  纹理起始尺寸w
@@ -2928,17 +5241,17 @@ soya2d.CanvasGraphics = function(ctx){
      * @param  {int} dh  纹理目标尺寸h
      * @return this
      */
-	this.map = function(tex,dx,dy,dw,dh,sx,sy,sw,sh){
+	this.map = function(img,dx,dy,dw,dh,sx,sy,sw,sh){
 		sx = sx || 0;
         sy = sy || 0;
-        sw = sw || tex.w;
-        sh = sh || tex.h;
+        sw = sw || img.width;
+        sh = sh || img.height;
 
-        if(sw===0 || sh===0 || dh===0 || dh===0){
+        if(sw===0 || sh===0 || dw===0 || dh===0){
             return;
         }
 
-		this.ctx.drawImage(tex.__data,
+		this.ctx.drawImage(img,
                             sx>>0,sy>>0,sw>>0,sh>>0,
                             dx>>0,dy>>0,dw>>0,dh>>0);
 		return this;
@@ -2978,7 +5291,7 @@ soya2d.CanvasGraphics = function(ctx){
 };
 
 /**
- * @classdesc 渲染器是引擎提供可视化内容展示的底层基础。
+ * 渲染器是引擎提供可视化内容展示的底层基础。
  * 不同的渲染器构建在不同的技术之上比如CSS/WEBGL/CANVAS/SVG等等。<br/>
  * 每个渲染器都和一个soya2d.Game实例绑定，一个应用有且只有一个渲染器。
  * 如果要实现多层渲染，那么你需要创建多个soya2d.Game实例。<br/>
@@ -2992,7 +5305,6 @@ soya2d.CanvasGraphics = function(ctx){
  * @param {boolean} [data.smoothEnable=true] 是否启用对图像边缘的平滑处理
  * @param {boolean} [data.crispEnable=false] 是否启用图像非平滑渲染
  * @class 
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.CanvasRenderer = function(data){
     data = data||{};
@@ -3059,13 +5371,9 @@ soya2d.CanvasRenderer = function(data){
 
     /**
      * 渲染方法。每调用一次，只进行一次渲染
-     * @param {soya2d.Scene} scene 需要渲染的场景实例
      */
-    this.render = function(scene){
-        if(!scene instanceof soya2d.Scene)return;
-        //update matrix——>sort(optional)——>onUpdate(matrix)——>onRender(g)
-
-        scene.__updateMatrix();
+    this.render = function(stage,camera){
+        if(!stage instanceof Stage)return;
 
         //render
         ctx.setTransform(1,0,0,1,0,0);
@@ -3073,7 +5381,9 @@ soya2d.CanvasRenderer = function(data){
             ctx.clearRect(0,0,this.w,this.h);
         }
 
-        render(ctx,scene,g,this.sortEnable,renderStyle);
+        var rect = camera.__view;
+
+        render(rect,ctx,stage,g,this.sortEnable,renderStyle);
     };
 
     var ctxFnMap = {
@@ -3124,12 +5434,12 @@ soya2d.CanvasRenderer = function(data){
     function renderMask(ctx,mask){
         if(mask.onRender){
             var te = mask.__worldTransform.e;
-            var pe = mask.__worldPosition.e;
-            ctx.setTransform(te[0],te[1],te[2],te[3],pe[0],pe[1]);
+            var wp = mask.worldPosition;
+            ctx.setTransform(te[0],te[1],te[2],te[3],wp.x,wp.y);
 
             //css style
-            var oe = mask.__originPosition.e;
-            ctx.translate(-oe[0], -oe[1]);
+            var ap = mask.anchorPosition;
+            ctx.translate(-ap.x, -ap.y);
             mask.onRender(g);
         }//over onRender
         //渲染子节点
@@ -3141,10 +5451,12 @@ soya2d.CanvasRenderer = function(data){
             }
         }
     }
-    function render(ctx,ro,g,sortEnable,rs){
+    function render(cameraRect,ctx,ro,g,sortEnable,rs,inWorld){
         if(ro.opacity===0 
         || !ro.visible
         || ro.__masker)return;
+
+        if(!ro.__renderable)return;
 
         if(ro.mask instanceof soya2d.DisplayObject){
             ctx.save();
@@ -3155,19 +5467,20 @@ soya2d.CanvasRenderer = function(data){
             validCtx(ctx);
             ctx.closePath();
         }
-
-        if(ro instanceof soya2d.ScrollSprite){
-            ctx.save();
-        }
         
         if(ro.onRender){
             var te = ro.__worldTransform.e;
-            var pe = ro.__worldPosition.e;
-            var oe = ro.__originPosition.e;
+            var sp = ro.__screenPosition;
+            var ap = ro.anchorPosition;
             if(ro.__updateCache){
-                ctx.setTransform(1,0,0,1,oe[0]<<1,oe[1]<<1);
+                var x = ap.x,
+                    y = ap.y;
+                ctx.setTransform(1,0,0,1,x,y);
             }else{
-                ctx.setTransform(te[0],te[1],te[2],te[3],pe[0],pe[1]);
+                var x = sp.x,
+                    y = sp.y;
+                
+                ctx.setTransform(te[0],te[1],te[2],te[3],x,y);
             }
 
             //apply alpha
@@ -3182,15 +5495,18 @@ soya2d.CanvasRenderer = function(data){
             }
 
             //css style
-            ctx.translate(-oe[0], -oe[1]);
+            ctx.translate(-ap.x, -ap.y);
             if(ro.imageCache && !ro.__updateCache){
                 ctx.drawImage(ro.imageCache,0,0);
             }else{
                 ro.onRender(g);
             }
+
         }//over onRender
+        //reset render tag
+        ro.__renderable = false;
         //渲染子节点
-        if(ro.children && ro.children.length>0){
+        if(ro.children && ro.children.length>0 && !ro.__updateCache){
             var children = ro.children;
             //排序
             if(sortEnable)children.sort(function(a,b){
@@ -3202,12 +5518,9 @@ soya2d.CanvasRenderer = function(data){
             });
 
             for(var i=0;i<children.length;i++){
-                render(ctx,children[i],g,sortEnable,rs);
+                render(cameraRect,ctx,children[i],g,sortEnable,rs,
+                    children[i].__soya_type != 'world' && !(ro instanceof Stage)?true:false);
             }
-        }
-
-        if(ro instanceof soya2d.ScrollSprite){
-            ctx.restore();
         }
 
         //mask
@@ -3250,7 +5563,6 @@ soya2d.CanvasRenderer = function(data){
     this.smooth = function(enabled){
         if(enabled !== undefined){
             ctx.imageSmoothingEnabled = 
-            ctx.webkitImageSmoothingEnabled = 
             ctx.mozImageSmoothingEnabled = 
             ctx.oImageSmoothingEnabled = 
             ctx.msImageSmoothingEnabled = 
@@ -3312,24 +5624,6 @@ soya2d.CanvasRenderer = function(data){
     };
 
     /**
-     * 获取一个该渲染器的点击测试器
-     * @param {int} type 测试器类型.默认路径检测
-     * @return {soya2d.HitTester} 测试器
-     */
-    this.getHitTester = function(type){
-        switch(type){
-            case 2:return this.__pixelTester;
-            case 1:default:
-            return this.__pathTester;
-        }
-    }
-    //优化为每个渲染器只对应各类型一个检测器
-    this.__pixelTester = new soya2d.__HitPixelTester(this.w,this.h);
-    this.__pathTester = new soya2d.__HitPathTester(this.w,this.h);
-
-
-
-    /**
      * 创建一个图像绘制模式
      * @param {HTMLImageElement|HTMLCanvasElement|HTMLVideoElement} image 图像
      * @param {string} [repetition=soya2d.REPEAT] 重复类型
@@ -3355,12 +5649,12 @@ soya2d.CanvasRenderer = function(data){
      * @see soya2d.GRADIENTTYPE_LINEAR
      */
     this.createGradient = function(ratios,colors,len,opt){
-        var angle=0,x=0,y=0,type=soya2d.GRADIENTTYPE_LINEAR,focalRatio=0,focalRadius=0;
+        var angle=0,x=0,y=0,type=soya2d.GRADIENT_LINEAR,focalRatio=0,focalRadius=0;
         if(opt){
             angle = opt.angle||0,
             x=opt.x||0,
             y=opt.y||0,
-            type=opt.type||soya2d.GRADIENTTYPE_LINEAR,
+            type=opt.type||soya2d.GRADIENT_LINEAR,
             focalRatio=opt.focalRatio||0,
             focalRadius=opt.focalRadius||0;
         }
@@ -3368,13 +5662,13 @@ soya2d.CanvasRenderer = function(data){
         var g,m=soya2d.Math;
         angle = Math.abs((angle||0)>>0);
         switch(type){
-            case soya2d.GRADIENTTYPE_LINEAR:
+            case soya2d.GRADIENT_LINEAR:
                 g = ctx.createLinearGradient(x,y,x+len* m.COSTABLE[angle],y+len* m.SINTABLE[angle]);
                 for(var i=0,l=ratios.length;i<l;i++){
                     g.addColorStop(ratios[i],colors[i]||"RGBA(0,0,0,0)");
                 }
                 break;
-            case soya2d.GRADIENTTYPE_RADIAL:
+            case soya2d.GRADIENT_RADIAL:
                 var fl = len*focalRatio;
                 g = ctx.createRadialGradient(x,y,focalRadius,x+fl* m.COSTABLE[angle],y+fl* m.SINTABLE[angle],len);
                 for(var i=0,l=ratios.length;i<l;i++){
@@ -3413,116 +5707,9 @@ soya2d.CanvasRenderer.prototype.getImageFrom = function(ro,w,h){
     tc = null;
     return img;
 };
-
-/********************点击测试器***********************/
-
-soya2d.__HitPathTester = function(w,h){
-
-    function invalidCtx(ctx) {
-        ctx.stroke = function() {};
-        ctx.fill = function() {};
-        ctx.fillRect = function(x, y, w, h) {
-            ctx.rect(x, y, w, h);
-        };
-        ctx.strokeRect = function(x, y, w, h) {
-            ctx.rect(x, y, w, h);
-        };
-        ctx.drawImage = function(img,sx,sy,sw,sh,dx,dy,dw,dh){
-        	if(arguments.length===3){
-        		ctx.rect(sx,sy,img.width,img.height);
-        	}else if(arguments.length===5){
-        		ctx.rect(sx,sy,sw,sh);
-        	}else if(arguments.length===9){
-        		ctx.rect(dx,dy,dw,dh);
-        	}
-        		
-        };
-        ctx.fillText = function(){};
-        ctx.strokeText = function(){};
-    }
-
-    //创建path检测层
-    var layer = document.createElement('canvas');
-    layer.width = w;layer.height = h;
-
-    var ctx = layer.getContext('2d');
-    var cg = new soya2d.CanvasGraphics(ctx);
-    invalidCtx(ctx);
-
-    this.test = function(ro,x,y){
-        render(ro,ctx,cg);
-        return ctx.isPointInPath(x,y);
-    }
-
-    function render(ro,ctx,cg){
-        var te = ro.__worldTransform.e;
-        var pe = ro.__worldPosition.e;
-        ctx.setTransform(te[0],te[1],te[2],te[3],pe[0],pe[1]);
-        if (ro.onRender) {
-            ctx.beginPath();
-            var oe = ro.__originPosition.e;
-            ctx.translate(-oe[0], -oe[1]);
-            ro.onRender(cg);
-        }
-    }
-};
-
-soya2d.__HitPixelTester = function(w,h){
-    var w,h;
-    //创建pixel检测层
-    var layer = document.createElement('canvas');
-    layer.width = w;layer.height = h;
-    var ctx = layer.getContext('2d');
-    var cg = new soya2d.CanvasGraphics(ctx);
-
-    this.test = function(ro,x,y){
-        render(ro,ctx,cg);
-
-        var d = ctx.getImageData(0,0,w,h).data;
-        return !!d[((w * y) + x) * 4 + 3];
-    };
-
-    function render(ro,ctx,cg){
-        var te = ro.__worldTransform.e;
-        var pe = ro.__worldPosition.e;
-        ctx.setTransform(te[0],te[1],te[2],te[3],pe[0],pe[1]);
-        if (ro.onRender) {
-            ctx.beginPath();
-            var oe = ro.__originPosition.e;
-            ctx.translate(-oe[0], -oe[1]);
-            ro.onRender(cg);
-        }
-    }
-};
-
-/**
- * @classdesc 点击测试器，可以检测2D点是否在绘制图形中，
- * 只适用于基于canvas的2D图形点击检测<br/>
- * 注意，除非你确定需要使用基于canvas2d的检测API，否则应该使用DisplayObject自带的检测函数。<br/>
- * 注意，该类无法直接实例化，只能通过渲染器获取
- * <p>
- * 渲染器有基于路径和像素两种，基于路径的检测器性能更高，但只能检测由path构成的闭合图元。<br/>
- * 如果需要检测一个RO中绘制的非连续图形，比如点状分布的多边形或者像素，则可以使用像素检测
- * 注意：在像素检测中，透明色会被认为无效点击
- * </p>
- * @class 
- * @author {@link http://weibo.com/soya2d MrSoya}
- */
-soya2d.HitTester = function(){
-    /**
-     * 测试渲染对象<br/>
-     * 注意：不要在onRender事件中调用该方法
-     * @param {soya2d.DisplayObject} ro 渲染对象
-     * @param {int} x 相对于场景的坐标
-     * @param {int} y 相对于场景的坐标
-     * @return {Boolean} 指定2D坐标是否在测试的渲染对象内
-     */
-    soya2d.HitTester.prototype.test = function(ro,x,y){};
-};
 /**
  * 引擎当前运行所在设备的信息<br/>
  * @namespace soya2d.Device
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Device = new function(){
   	var userAgent = this.userAgent = self.navigator.userAgent.toLowerCase();
@@ -3617,328 +5804,10 @@ soya2d.Device = new function(){
      */
     this.safari = type.Safari?true:false;
 };
-!function(){
-    /**
-     * 创建视图对象
-     * @classdesc 视图对象用于设置游戏实例的视图规则，包括分辨率适应、窗口事件回调等
-     * @class 
-     * @param {soya2d.Game} game 游戏实例
-     * @author {@link http://weibo.com/soya2d MrSoya}
-     */
-    soya2d.View = function(game){
-        /********************* 属性定义 *********************/
-        this.game = game;
-        /**
-         * 缩放类型
-         * @type {int}
-         * @default soya2d.SCALEMODE_SHOWALL
-         */
-        this.scaleMode = soya2d.SCALEMODE_SHOWALL;
-        /**
-         * 缩放最小宽度
-         * @type {Number}
-         * @default 0
-         */
-        this.minWidth = 0;
-        /**
-         * 缩放最小高度
-         * @type {Number}
-         * @default 0
-         */
-        this.minHeight = 0;
-        /**
-         * 缩放最大宽度
-         * @type {Number}
-         * @default 0
-         */
-        this.maxWidth = 0;
-        /**
-         * 缩放最大高度
-         * @type {Number}
-         * @default 0
-         */
-        this.maxHeight = 0;
-        /**
-         * 是否在横竖屏切换、resize窗口时，都进行缩放
-         * @type {boolean}
-         * @default true
-         */
-        this.autoScale = true;
-
-        /********************* 行为定义 *********************/
-        /**
-         * 扫描是否需要缩放，如果需要，则根据缩放参数进行缩放
-         * @private
-         */
-        this.scan = function(){
-            if(!this.game)return;
-
-            var designWidth = this.game.w;
-            var designHeight = this.game.h;
-            
-            //选择缩放器
-            var scaler;
-            switch(this.scaleMode){
-                case soya2d.SCALEMODE_NOSCALE:break;
-                case soya2d.SCALEMODE_NOBORDER:scaler = NOBORDER;break;
-                case soya2d.SCALEMODE_EXACTFIT:scaler = EXACTFIT;break;
-                case soya2d.SCALEMODE_SHOWALL:
-                default:
-                scaler = SHOWALL;
-            }
-            if(!scaler)return;
-            var renderer = this.game.getRenderer();
-            var container = renderer.getCanvas().parentNode;
-            //判断设计size是否超过了容器size
-            var cw = container.clientWidth;
-            var ch = container.clientHeight;
-            if(container.tagName === 'BODY'){
-                ch = window.innerHeight;
-            }
-            var wh = scaler(designWidth,designHeight,cw,ch,this.minWidth,this.minHeight,this.maxWidth,this.maxHeight);
-            renderer.resize(wh[0],wh[1]);
-            this.w = wh[0];
-            this.h = wh[1];
-
-            //rotate
-            rotate(this.scaleMode,rotation,renderer.getCanvas(),renderer);
-        }
-
-        /**
-         * 视图方向。portrait或者landscape
-         * @type {string}
-         * @default portrait
-         */
-        this.orientation = getOrientation();
-        var that = this;
-        var timer;
-        window.addEventListener("orientationchange", function(e){
-            clearTimeout(timer);
-            timer = setTimeout(function() {
-                that.orientation = getOrientation();
-            }, 500);
-            if(that.autoScale){
-                that.scan();
-            }
-        }, false);
-        window.addEventListener("resize", function(e){
-            that.orientation = getOrientation();
-            if(that.autoScale){
-                that.scan();
-            }
-        }, false);
-
-        function getOrientation(){
-            var w = window.innerWidth;
-            var h = window.innerHeight;
-            var rs;
-            if(w > h){
-                rs = 'landscape';
-            }else{
-                rs = 'portrait';
-            }
-            return rs;
-        }
-
-        var rotation = soya2d.ROTATEMODE_0;
-        /**
-         * 设置或者获取该视图旋转模式
-         * @param  {int} rotateMode 旋转模式
-         * @return {int | this} 返回view或者旋转模式
-         */
-        this.rotate = function(rotateMode){
-            if(!this.game)return;
-            if(rotateMode){
-                
-                rotation = rotateMode;
-                this.scan();
-
-                return this;
-            }else{
-                return rotation;
-            }
-        }
-
-        function rotate(scaleMode,rotateMode,canvas,renderer){
-            switch(rotateMode){
-                case soya2d.ROTATEMODE_90:
-                    rs = 'rotate('+90+'deg)';
-                    break;
-                case soya2d.ROTATEMODE_180:
-                    rs = 'rotate('+180+'deg)';
-                    break;
-                case soya2d.ROTATEMODE_270:
-                    rs = 'rotate('+270+'deg)';
-                    break;
-                case soya2d.ROTATEMODE_0:
-                default:
-                    rs = 'rotate('+0+'deg)';
-                    rotation = soya2d.ROTATEMODE_0;
-                    break;
-            }
-
-            canvas.style.transform = 
-            canvas.style.webkitTransform = 
-            canvas.style.mozTransform = 
-            canvas.style.msTransform = 
-            canvas.style.oTransform = rs;
-
-            canvas.style.left = canvas.style.top = 0;
-
-            //reset bounds
-            if(rotateMode === soya2d.ROTATEMODE_90 || rotateMode === soya2d.ROTATEMODE_270){
-                var h = canvas.offsetWidth;
-                var w = canvas.offsetHeight;
-
-                if(scaleMode === soya2d.SCALEMODE_NOBORDER){
-                    var designWidth = this.game.w;
-                    var designHeight = this.game.h;
-                    h = h>designHeight?designHeight:h;
-                    w = w>designWidth?designWidth:w;
-                }
-                renderer.resize(w,h);
-
-                if(scaleMode === soya2d.SCALEMODE_EXACTFIT){
-                    var offLeft = (h - w)/2;
-                    offLeft = w%2===0?offLeft:Math.floor(offLeft);
-                    var offTop = (w - h)/2;
-                    offTop = h%2===0?offTop:Math.floor(offTop);
-                    
-                    canvas.style.left = offLeft +'px';
-                    canvas.style.top = offTop +'px';
-                }
-            }
-        }
-
-        var align = soya2d.ALIGNMODE_CENTER;
-        /**
-         * 设置或者获取该视图对齐模式。SHOWALL模式下有效
-         * @param  {int} alignMode 对齐模式
-         * @return {int | this} 返回view或者对齐模式
-         */
-        this.align = function(alignMode){
-            if(!this.game)return;
-            if(alignMode && this.scaleMode === soya2d.SCALEMODE_SHOWALL){
-                var canvas = this.game.getRenderer().getCanvas();
-                align = alignMode;
-                switch(alignMode){
-                    case soya2d.ALIGNMODE_LEFT:
-                        canvas.style.left = 0;
-                        canvas.style.right = 'auto';
-                        break;
-                    case soya2d.ALIGNMODE_RIGHT:
-                        canvas.style.left = 'auto';
-                        canvas.style.right = 0;
-                        break;
-                    case soya2d.ALIGNMODE_CENTER:
-                    default:
-                        canvas.style.left = 0;
-                        canvas.style.right = 0;
-                        align = soya2d.ALIGNMODE_CENTER;//覆盖错误参数
-                        break;
-                }
-                canvas.style.margin = 'auto';
-                return this;
-            }else{
-                return align;
-            }
-        }
-        
-    };
-
-    /**
-     * 视图缩放类型，不缩放。游戏默认值
-     */
-    soya2d.SCALEMODE_NOSCALE = 0;
-    /**
-     * 视图缩放类型，等比缩放，总是显示全部
-     */
-    soya2d.SCALEMODE_SHOWALL = 1;
-    /**
-     * 视图缩放类型，等比缩放，不一定显示全部
-     */
-    soya2d.SCALEMODE_NOBORDER = 2;
-    /**
-     * 视图缩放类型，非等比缩放。完全适配容器
-     */
-    soya2d.SCALEMODE_EXACTFIT = 3;
-
-    /**
-     * 视图对齐类型
-     */
-    soya2d.ALIGNMODE_LEFT = 1;
-    /**
-     * 视图对齐类型
-     */
-    soya2d.ALIGNMODE_CENTER = 2;
-    /**
-     * 视图对齐类型
-     */
-    soya2d.ALIGNMODE_RIGHT = 3;
-
-    /**
-     * 视图旋转类型
-     */
-    soya2d.ROTATEMODE_0 = 1;
-    /**
-     * 视图旋转类型
-     */
-    soya2d.ROTATEMODE_90 = 2;
-    /**
-     * 视图旋转类型
-     */
-    soya2d.ROTATEMODE_180 = 3;
-    /**
-     * 视图旋转类型
-     */
-    soya2d.ROTATEMODE_270 = 4;
-
-    /********************* 规则定义 *********************/
-    function NOBORDER(dw,dh,cw,ch,mw,mh,mxw,mxh){
-        cw = mxw && cw > mxw?mxw:cw;
-        ch = mxh && ch > mxh?mxh:ch;
-
-        var r = Math.max(cw/dw,ch/dh);
-        var w = dw*r,
-            h = dh*r;
-        return [w,h];
-    }
-    function SHOWALL(dw,dh,cw,ch,mw,mh,mxw,mxh){
-        cw = mxw && cw > mxw?mxw:cw;
-        ch = mxh && ch > mxh?mxh:ch;
-
-        var r = Math.min(cw/dw,ch/dh);
-        var w = dw*r,
-            h = dh*r;
-        return [w,h];
-    }
-    function EXACTFIT(dw,dh,cw,ch,mw,mh,mxw,mxh){
-        var w,h;
-        if(mw && cw < mw){
-            w = mw;
-        }else if(mxw && cw > mxw){
-            w = mxw;
-        }else{
-            w = cw;
-        }
-        if(mh && ch < mh){
-            h = mh;
-        }else if(mxh && ch > mxh){
-            h = mxh;
-        }else{
-            h = ch;
-        }
-        return [w,h];
-    }
-}();
-
-
-
 /**
- * @classdesc 字体类。用于指定绘制字体的样式、大小等
+ * 字体类。用于指定绘制字体的样式、大小等
  * @class
  * @param {String} desc 字体描述字符串，可以为空。为空时创建默认样式字体:[normal 400 13px/normal sans-serif]<br/>符合W3C[CSSFONTS]规范
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Font = function(desc){
     var fontElement = document.createElement('span');
@@ -4059,11 +5928,10 @@ soya2d.Font = function(desc){
     /**
      * 获取字体宽高
      * @param {String} str 测试字符串
-     * @param {Object} renderer 渲染器
      * @return {Object} 指定字符串在当前字体下的宽高。｛w:w,h:h｝
      */
-    this.getBounds = function(str,renderer){
-        var ctx = renderer.ctx;
+    this.getBounds = function(str){
+        var ctx = this.__game.renderer.ctx;
         ctx.font = this.getDesc();
         var w = ctx.measureText(str).width;
         return {w:w,h:this.fontSize};
@@ -4071,20 +5939,20 @@ soya2d.Font = function(desc){
 };
 
 /**
- * 使用纹理集对象，构建一个图像字体类。
- * @classdesc 图像字体类用于创建一个传递给文本精灵的字体对象，通过图片和映射文件创建。映射文件同精灵表。其实n为需要
+ * 使用图像集对象，构建一个图像字体类。
+ * 图像字体类用于创建一个传递给文本精灵的字体对象，通过图片和映射文件创建。映射文件同精灵表。其实n为需要
  * 替换的字符
  * @class
- * @param {soya2d.TextureAtlas} data 用于字体映射的纹理集对象
- * @author {@link http://weibo.com/soya2d MrSoya}
+ * @param {soya2d.Atlas} data 用于字体映射的图像集对象
+ * @param {Number} size 图像字体大小
  */
-soya2d.ImageFont = function(data){
+soya2d.ImageFont = function(data,size){
     
     this.__fontMap = data;
 
-    var oriFontSize = data.texs[Object.keys(data.texs)[0]].h;
+    var oriFontSize = data.texs[Object.keys(data.texs)[0]].height;
     this.fontSize = oriFontSize;
-    var fontWidth = data.texs[Object.keys(data.texs)[0]].w
+    this.fontWidth = data.texs[Object.keys(data.texs)[0]].width;
     var scaleRate = 1;//缩放比率
     var lineH = 1;
 
@@ -4103,15 +5971,15 @@ soya2d.ImageFont = function(data){
             var offx = 0;
             for(var j=0,k=text.length;j<k;j++){
                 var c = text[j];
-                var tex = this.font.__fontMap.getTexture(c);
+                var tex = this.font.__fontMap.get(c);
                 if(tex){
-                    var w = tex.w*scaleRate;
-                    var h = tex.h*scaleRate
+                    var w = tex.width*scaleRate;
+                    var h = tex.height*scaleRate
                     lastW = w;
                     
                     g.map(tex,
                             offx, offy, w, h,
-                            0, 0, tex.w, tex.h);
+                            0, 0, tex.width, tex.height);
                 }
                 
                 offx += lastW + this.letterSpacing;
@@ -4149,14 +6017,16 @@ soya2d.ImageFont = function(data){
      */
     this.getBounds = function(str){
         var len = str.length;
-        return {w:len*fontWidth*scaleRate,h:this.fontSize};
+        return {w:len*this.fontWidth*scaleRate,h:this.fontSize};
     }
+
+    if(size)this.size(size);
 };
 
 
 /**
  * 创建一个用于渲染文本的实例
- * @classdesc 文本类用于显示指定的文本内容，支持多行文本显示。
+ * 文本类用于显示指定的文本内容，支持多行文本显示。
  * 文本渲染效果取决于所指定的font，默认为普通字体soya2d.Font。<br/>
  * 注意，需要显示的指定实例的w属性，来让引擎知道文本是否需要分行显示
  * @class 
@@ -4164,53 +6034,58 @@ soya2d.ImageFont = function(data){
  * @param {Object} data 所有父类参数
  * @see soya2d.Font
  * @see soya2d.ImageFont
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
-soya2d.Text = function(data){
-	data = data||{};
-    soya2d.DisplayObjectContainer.call(this,data);
-    soya2d.ext(this,data);
+soya2d.class("soya2d.Text",{
+    extends:soya2d.DisplayObjectContainer,
+    constructor:function(data) {
+        /**
+         * 文本内容
+         * *注意，直接设置该属性后，需要手动刷新才会更新显示内容。如果不想手动刷新，可以使用setText函数来更新内容
+         * @see soya2d.Text.refresh
+         * @type {String}
+         */
+        this.text = data.text||'';
+        /**
+         * 字符间距
+         * @type {int}
+         * @default 1
+         */
+        this.letterSpacing = data.letterSpacing || 0;
+        /**
+         * 行间距
+         * @type {int}
+         * @default 5
+         */
+        this.lineSpacing = data.lineSpacing||0;
 
-    /**
-     * 文本内容
-     * *注意，直接设置该属性后，需要手动刷新才会更新显示内容。如果不想手动刷新，可以使用setText函数来更新内容
-     * @see soya2d.Text.refresh
-     * @type {String}
-     */
-    this.text = data.text||'';
-    /**
-     * 字符间距
-     * @type {int}
-     * @default 1
-     */
-    this.letterSpacing = data.letterSpacing || 0;
-    /**
-     * 行间距
-     * @type {int}
-     * @default 5
-     */
-    this.lineSpacing = data.lineSpacing||0;
-    /**
-     * 字体对象
-     * @type {String | soya2d.Font | soya2d.ImageFont}
-     * @default soya2d.Font
-     * @see soya2d.Font
-     */
-    this.font = data.font;
-    if(typeof this.font === 'string'){
-        this.font = new soya2d.Font(this.font);
-    }
-    var font = this.font||new soya2d.Font();
-    this.font = font;
+        //data.size 用于图像字体的初始大小
 
-    this.__changed = true;//默认需要修改
-    this.__lines;//分行内容
+        /**
+         * 字体对象
+         * @type {String | soya2d.Font | soya2d.ImageFont | soya2d.Atlas}
+         * @default soya2d.Font
+         * @see soya2d.Font
+         */
+        this.font = data.font;
+        if(typeof this.font === 'string'){
+            this.font = new soya2d.Font(this.font);
+        }else if(this.font instanceof soya2d.Atlas){
+            this.font = new soya2d.ImageFont(this.font,data.size);
+        }
+        var font = this.font||new soya2d.Font();
+        this.font = font;
+        this.font.__game = this.game;
 
-    this.__renderer = this.font.__renderText;//绑定渲染
-};
-soya2d.inherits(soya2d.Text,soya2d.DisplayObjectContainer);
+        this.__changed = true;//默认需要修改
+        this.__lines;//分行内容
 
-soya2d.ext(soya2d.Text.prototype,{
+        this.__renderer = this.font.__renderText;//绑定渲染
+
+        this.fillStyle = data.fillStyle || '#000';
+
+        if(!this.w)this.w = this.font.getBounds(this.text).w;
+        if(!this.h)this.h = this.font.fontSize;
+    },
     onRender:function(g){
         this.__renderer(g);
     },
@@ -4233,20 +6108,25 @@ soya2d.ext(soya2d.Text.prototype,{
     /**
      * 设置文本内容，并刷新
      * @param {string} txt 文本内容
+     * @param {Boolean} changeW 是否自动改变宽度
      */
-	setText:function(txt){
+	setText:function(txt,changeW){
 		this.text = txt+'';
 		this.refresh();
+        if(changeW){
+            this.w = this.font.getBounds(this.text).w;
+        }
+        return this;
 	},
     _onUpdate:function(game){
         if(!this.__lh){//init basic size
-            var bounds_en = this.font.getBounds("s",game.getRenderer());
-            var bounds_zh = this.font.getBounds("豆",game.getRenderer());
+            var bounds_en = this.font.getBounds("s",game.renderer);
+            var bounds_zh = this.font.getBounds("豆",game.renderer);
             this.__lh = (bounds_en.h+bounds_zh.h)/2>>0;//行高
             this.__uw = (bounds_en.w+bounds_zh.w)/2>>0;//单字宽度
         }
         if(this.__changed){
-            this.__lines = this.__calc(game.getRenderer());
+            this.__lines = this.__calc(game.renderer);
             this.__changed = false;
         }
     },
@@ -4316,845 +6196,9 @@ soya2d.ext(soya2d.Text.prototype,{
     }
 });
 /**
- * 创建一个纹理对象
- * @classdesc 纹理是用来储存展示图像的矩形。它不能直接被渲染，必须映射到一个显示对象上。比如Image。
- * 在纹理生成后，可以释放image对象。纹理则需要单独释放
- * @class 
- * @param {Image | HTMLCanvasElement} data 图形对象
- * @param {int} [w] 图像的宽度
- * @param {int} [h] 图像的高度
- * @author {@link http://weibo.com/soya2d MrSoya}
- */
-soya2d.Texture = function(data,w,h){
-	/**
-	 * 纹理数据，可能是image或者canvas,根据引擎来决定
-	 * @private
-     */
-	this.__data = data;
-	/**
-	 * 纹理宽度,只读
-	 * @type int 
-     */
-	this.w = parseInt(w) || data.width;
-	/**
-	 * 纹理高度,只读
-	 * @type int 
-     */
-	this.h = parseInt(h) || data.height;
-};
-
-soya2d.ext(soya2d.Texture,/** @lends soya2d.Texture */{
-	/**
-	* 通过图片来创建一个纹理
-	* @param {Image | HTMLCanvasElement} data 图形对象
-	*/
-	fromImage:function(img){
-		return new soya2d.Texture(img,img.width,img.height);
-	},
-	//创建一个指定大小和颜色的纹理，color可以是渐变对象
-	/**
-   * 通过指定大小和颜色来创建一个纹理
-   * @param {int} w 纹理宽度
-   * @param {int} h 纹理高度
-   * @param {String} color 命名色彩/RGB色彩/Hex色彩
-   * @param {CanvasGradient} color 线性渐变/径向渐变
-   * @param {CanvasPattern} color 图案
-   * @param {Array} color 顶点颜色数组,内容可以是任意合法颜色字符串,按照0-1-2-3的顺序,如果数组颜色不足4个，使用#000000代替
-   * 0---1
-   * |   |
-   * 2---3
-   * @see soya2d.CanvasRenderer.createGradient
-   * @see soya2d.CanvasRenderer.createPattern
-   */
-	fromColor:function(w,h,color){
-		var data = document.createElement('canvas');
-		data.width = w;
-		data.height = h;
-		var ctx = data.getContext('2d');
-		
-		if(color instanceof Array){
-			var c1 = soya2d.RGBColor.parse(color[0]||'#000000');
-			var c2 = soya2d.RGBColor.parse(color[1]||'#000000');
-			var c3 = soya2d.RGBColor.parse(color[2]||'#000000');
-			var c4 = soya2d.RGBColor.parse(color[3]||'#000000');
-			
-			var hsl0 = new soya2d.HSLColor(c1[0],c1[1],c1[2]);
-			var baseLight0 = hsl0.l;
-			
-			var hsl1 = new soya2d.HSLColor(c2[0],c2[1],c2[2]);
-			var baseLight1 = hsl1.l;
-			
-			var hsl2 = new soya2d.HSLColor(c3[0],c3[1],c3[2]);
-			var baseLight2 = hsl2.l;
-			
-			var hsl3 = new soya2d.HSLColor(c4[0],c4[1],c4[2]);
-			var baseLight3 = hsl3.l;
-			
-		  var texData = ctx.createImageData(w,h);
-			var tdd = texData.data;
-			for(var i =0,len = tdd.length; i<len;i+=4){
-				var x = i/4%w;
-				var y = i/4/w>>0;
-				
-				/************ 顶点0 ************/
-				var u = (w-x)/w;
-				var v = (h-y)/h;
-				var delta = u*v;
-				hsl0.lighteness(delta*baseLight0);
-				var rgb0 = hsl0.getRGB();
-				
-				/************ 顶点1 ************/
-				u = (x)/w;
-				v = (h-y)/h;
-				delta = u*v;
-				hsl1.lighteness(delta*baseLight1);
-				var rgb1 = hsl1.getRGB();
-				
-				/************ 顶点2 ************/
-				u = (w-x)/w;
-				v = (y)/h;
-				delta = u*v;
-				hsl2.lighteness(delta*baseLight2);
-				var rgb2 = hsl2.getRGB();
-				
-				/************ 顶点3 ************/
-				u = (x)/w;
-				v = (y)/h;
-				delta = u*v;
-				hsl3.lighteness(delta*baseLight3);
-				var rgb3 = hsl3.getRGB();
-				/*
-				tdd[i] = (rgb0[0]^rgb1[0]^rgb2[0]^rgb3[0])/1;
-				tdd[i+1] = (rgb0[1]^rgb1[1]^rgb2[1]^rgb3[1])/1;
-				tdd[i+2] = (rgb0[2]^rgb1[2]^rgb2[2]^rgb3[2])/1;
-				//*/
-				tdd[i] = rgb0[0]+rgb1[0]+rgb2[0]+rgb3[0];
-				tdd[i+1] = rgb0[1]+rgb1[1]+rgb2[1]+rgb3[1];
-				tdd[i+2] = rgb0[2]+rgb1[2]+rgb2[2]+rgb3[2];
-				
-				tdd[i+3] = 255;
-			}
-			
-			ctx.putImageData(texData,0,0);
-		}else{
-			ctx.fillStyle = color;
-			ctx.fillRect(0,0,w,h);
-		}
-		
-		return new soya2d.Texture(data,w,h);
-	}
-});
-
-soya2d.Texture.prototype = {
-	/**
-	 * 释放纹理数据
-	 */
-	dispose:function(){
-		this.__data = null;
-	}
-};
-
-
-
-
-/**
- * @classdesc 纹理集是一个将许多小的纹理整合到一张大图中，可以从纹理集中快速的读取指定部分的纹理，从而加速动画的渲染。
- * ssheet格式为<br/>
- * <pre>
- * [
- 		{n:'hero_001.png',x:0,y:0,w:50,h:50,r:90},//ssheet unit
- 		{n:'hero_002.png',x:50,y:50,w:50,h:50,r:180},
- 		...
- 	]
- 	</pre>
- * r:将指定部分资源旋转指定角度后，形成新纹理
- * @class 
- * @param {soya2d.Texture} tex 大图纹理
- * @param {json} ssheet 纹理集描述
- * @author {@link http://weibo.com/soya2d MrSoya}
- */
-soya2d.TextureAtlas = function(tex,ssheet){
-	this.texs = {};//纹理集
-	ssheet.forEach(function(desc){
-		var data = document.createElement('canvas');
-		data.width = desc.w;
-		data.height = desc.h;
-		var ctx = data.getContext('2d');
-		ctx.translate(desc.w/2,desc.h/2);
-		ctx.rotate((desc.r||0)*Math.PI/180);
-
-		var descW = desc.w>>0,
-			descH = desc.h>>0;
-		if(descW===0 || descH===0){
-			console.error('soya2d.TextureAtlas: invalid ssheet unit，w/h must be a positive;[w:'+descW+',h:'+descH+'] ');
-			return;
-		}
-		ctx.drawImage(tex.__data,
-						desc.x>>0,desc.y>>0,descW,descH,
-						-descW/2>>0,-descH/2>>0,descW,descH);
-		this.texs[desc.n] = new soya2d.Texture(data,descW,descH);
-	},this);
-};
-
-soya2d.TextureAtlas.prototype = {
-	/**
-	 * 返回由一个指定的字符串开始按字母排序的所有纹理
-	 */
-	getTextures:function(prefix){
-		var rs = [];
-		for(var i in this.texs){
-			if(i.indexOf(prefix)===0)rs.push(this.texs[i]);
-		}
-		return rs;
-	},
-	getTexture:function(name){
-		return this.texs[name];
-	},
-	/**
-	 * 释放纹理集数据
-	 */
-	dispose:function(){
-		for(var i in this.texs){
-			this.texs[i].dispose();
-		}
-		this.texs = null;
-	}
-};
-
-
-
-
-/**
- * 创建一个纹理管理器对象
- * @classdesc 纹理集管理器用来管理所绑定game实例中的所有纹理集，用于获取，创建，删除纹理集。<br/>
- * 该类无需显式创建，引擎会自动绑定到game实例属性中。
- * @extends soya2d.ResourceManager
- * @class 
- * @author {@link http://weibo.com/soya2d MrSoya}
- */
-soya2d.TextureAtlasManager = function(){
-    //继承
-    soya2d.ResourceManager.call(this);
-
-    this._add = function(tag,res){
-        this.urlMap[tag] = res;
-    };
-};
-soya2d.inherits(soya2d.TextureAtlasManager,soya2d.ResourceManager);
-/**
- * 创建一个纹理管理器对象
- * @classdesc 纹理管理器用来管理所绑定game实例中的所有纹理，用于获取，创建，删除纹理。<br/>
- * 该类无需显式创建，引擎会自动绑定到game实例属性中。
- * @extends soya2d.ResourceManager
- * @class 
- * @author {@link http://weibo.com/soya2d MrSoya}
- */
-soya2d.TextureManager = function(){
-    //继承
-    soya2d.ResourceManager.call(this);
-
-    //添加纹理到管理器，用于loader
-    this._add = function(src,res){
-        this.urlMap[src] = res;
-    };
-};
-soya2d.inherits(soya2d.TextureManager,soya2d.ResourceManager);
-/**
- * 异步加载类
- * @namespace soya2d.AJAXLoader
- * @author {@link http://weibo.com/soya2d MrSoya}
- */
-soya2d.AJAXLoader = new function(){
-
-    var timeout = 5000;
-    function obj2str(obj){
-        var rs = '';
-        for(var i in obj){
-            rs += '&'+i+'='+ escape(obj[i]);
-        }
-        return rs.substr(1);
-    }
-
-    function downloadRequest(type,url,async,onload,onprogress,ontimeout,onerror,t,data,contentType){
-        var xhr = new XMLHttpRequest();
-        type = type||"get";
-        if(type === 'get'){//转换参数
-            data = typeof(data)==='string'?data:obj2str(data);
-            if(url.indexOf('?') > -1){
-                url = url.replace(/&$/,'');
-                url += '&' + data.replace(/^&/,'');
-            }else{
-                url += '?' + data.replace(/^&/,'');
-            }
-            data = null;
-        }
-
-        xhr.open(type,url, async===false?false:true);
-        if(async)xhr.timeout = t || timeout;
-        xhr.ontimeout = ontimeout;
-        xhr.onerror = onerror;
-        if(xhr.onload === null){
-            xhr.onload = function(){
-                if(xhr.status===0 || //native
-                    (xhr.status >= 200 && xhr.status <300) || xhr.status === 304){
-                    onload(xhr);
-                }
-            }
-            xhr.onprogress=function(e){
-                if(onprogress && e.lengthComputable)onprogress(xhr,e.loaded,e.total);
-            }
-        }else{
-            xhr.onreadystatechange = function () {
-                if(xhr.status===0 || //native
-                    ((xhr.status >= 200 && xhr.status <300) || xhr.status === 304) && xhr.readyState === 4){
-                    onload(xhr);
-                }
-            };
-        }
-        if(type === 'post'){
-            data = typeof(data)==='string'?data:obj2str(data);
-            xhr.setRequestHeader("Content-Type",contentType||'application/x-www-form-urlencoded');
-        }
-        xhr.send(data);
-    }
-
-    function uploadRequest(type,url,async,onload,onprogress,ontimeout,onerror,t,data,contentType){
-        var xhr = new XMLHttpRequest();
-        xhr.open('post',url, async===false?false:true);
-        if(async)xhr.timeout = t || timeout;
-        xhr.ontimeout = ontimeout;
-        if(xhr.upload){
-            xhr.upload.addEventListener("progress",function(e){
-                if(onprogress && e.lengthComputable) {
-                    var percentComplete = e.loaded / e.total;
-                    onprogress(xhr,e.loaded,e.total);
-                }
-            }, false);
-            xhr.upload.addEventListener("error", onerror, false);
-        }
-        if(xhr.onload === null){
-            xhr.onload = function(){
-                if(xhr.status===0 || //native
-                    (xhr.status >= 200 && xhr.status <300) || xhr.status === 304){
-                    onload(xhr);
-                }
-            }
-        }else{
-            xhr.onreadystatechange = function () {
-                if(xhr.status===0 || //native
-                    ((xhr.status >= 200 && xhr.status <300) || xhr.status === 304) && xhr.readyState === 4){
-                    onload(xhr);
-                }
-            };
-        }
-        xhr.setRequestHeader("Content-Type",contentType||'application/x-www-form-urlencoded');
-        data = typeof(data)==='string'?data:obj2str(data);
-        xhr.send(data);
-    }
-
-    /**
-     * 加载文本信息
-     * @param {Object} opts 参数对象
-     * @param  {string} opts.data 请求数据
-     * @param  {string} opts.url 请求地址
-     * @param  {string} [opts.type=get] 请求类型
-     * @param  {boolean} [opts.async=true] 是否异步
-     * @param  {Function} [opts.onLoad] 回调函数，参数为文本
-     * @param  {Function} [opts.onProgress] 回调函数
-     * @param  {Function} [opts.onTimeout] 回调函数
-     * @param  {Function} [opts.onError] 回调函数
-     * @param  {int} [opts.timeout=5000] 超时上限，毫秒数
-     */
-	this.loadText = function(opts){
-        if(!opts)return;
-        if(!(opts.onLoad instanceof Function))return;
-
-        downloadRequest(opts.type,opts.url,opts.async,function(xhr){
-            opts.onLoad(xhr.responseText);
-        },opts.onProgress,opts.onTimeout,opts.onError,opts.timeout,opts.data);
-    };
-
-    /**
-     * 加载json对象
-     * @param {Object} opts 参数对象
-     * @param  {string} opts.data 请求数据
-     * @param  {string} opts.url 请求地址
-     * @param  {string} [opts.type=get] 请求类型
-     * @param  {boolean} [opts.async=true] 是否异步
-     * @param  {Function} [opts.onLoad] 回调函数，参数为json对象;如果json解析失败，返回错误对象
-     * @param  {Function} [opts.onProgress] 回调函数
-     * @param  {Function} [opts.onTimeout] 回调函数
-     * @param  {Function} [opts.onError] 回调函数
-     * @param  {int} [opts.timeout=5000] 超时上限，毫秒数
-     */
-    this.loadJSON = function(opts){
-        if(!opts)return;
-        if(!(opts.onLoad instanceof Function))return;
-
-        downloadRequest(opts.type,opts.url,opts.async,function(xhr){
-            var json;
-            try{
-                json = new Function('return '+xhr.responseText)();
-            }catch(e){
-                json = e;
-            }
-            opts.onLoad(json);
-        },opts.onProgress,opts.onTimeout,opts.onError,opts.timeout,opts.data);
-    };
-
-    /**
-     * 上传文本
-     * @param {Object} opts 参数对象
-     * @param  {string} opts.data 上传的文本数据
-     * @param  {string} opts.url 请求地址
-     * @param  {string} [opts.type=get] 请求类型
-     * @param  {boolean} [opts.async=true] 是否异步
-     * @param  {Function} [opts.onLoad] 回调函数，参数为文本
-     * @param  {Function} [opts.onProgress] 回调函数
-     * @param  {Function} [opts.onTimeout] 回调函数
-     * @param  {Function} [opts.onError] 回调函数
-     * @param  {int} [opts.timeout=5000] 超时上限，毫秒数
-     */
-    this.uploadText = function(opts){
-        if(!opts)return;
-        if(!(opts.onLoad instanceof Function))return;
-
-        uploadRequest(opts.type,opts.url,opts.async,function(xhr){
-            opts.onLoad(xhr.responseText);
-        },opts.onProgress,opts.onTimeout,opts.onError,opts.timeout,opts.data+'');
-    };
-};
-/**
- *  资源加载类<br/>
- *  除脚本支持不同加载方式外，其他资源都是并行加载。
- *  调用者应该注意，在并行请求过多时，可能导致请求失败，需要控制请求并发数
- * @namespace soya2d.Loader
- * @author {@link http://weibo.com/soya2d MrSoya}
- */
-soya2d.Loader = new function(){
-	/**
-	 * 加载图像,如果成功，返回纹理soya2d.Texture
-     * @param {Object} cfg 参数
-     * @param {Array} cfg.urls 图像路径数组。['1.jpg','2.png','3.gif']
-	 * @param {Function} cfg.onLoad 单个图像加载成功事件,可选  回调参数[texture,url]
-	 * @param {Function} cfg.onEnd 全部图像加载完成事件,可选 回调参数[texture数组]
-     * @param {Function} cfg.onError 单个图像加载错误事件,可选 回调参数[url]
-     * @param {Function} cfg.onTimeout 单个图像加载超时事件,可选 回调参数[url]
-     * @param {int} cfg.timeout 每个图像加载超时时间,默认5000ms
-     * @param {String} cfg.crossOrigin 跨域标识
-	 * @see soya2d.Texture
-     * @return this
-     */
-	this.loadTextures = function(cfg){
-        var loaded = cfg.urls.length;
-        var onLoad = cfg.onLoad;
-        var onEnd = cfg.onEnd;
-        var onError = cfg.onError;
-        var onTimeout = cfg.onTimeout;
-        var timeout = cfg.timeout||soya2d.TIMEOUT;
-        var crossOrigin = cfg.crossOrigin;
-        var rs = new Array(loaded);
-        
-        for(var i=cfg.urls.length;i--;){
-            var img = new Image();
-            if(crossOrigin !== undefined)img.crossOrigin = crossOrigin;
-            img.i = i;
-            img.path = cfg.urls[i];
-            img.onload=function(){
-                var tex = new soya2d.Texture.fromImage(this);
-                rs[this.i] = tex;
-                delete this.i;
-                if(onLoad && onLoad.call){
-                    onLoad(tex,this.path);
-                }
-
-                loaded--;
-                if(!loaded && onEnd && onEnd.call){
-                    onEnd(rs);
-                }
-                this.onerror = null;
-                this.onload = null;
-            }
-            img.onerror=function(){
-                if(onError && onError.call){
-                    onError(this.src);
-                }
-                loaded--;
-                if(!loaded && onEnd && onEnd.call){
-                    onEnd();
-                }
-                this.onerror = null;
-                this.onload = null;
-            }
-            img.src = cfg.urls[i];
-            if(img.complete){
-                img.onload();
-            }
-        }
-        return this;
-	}
-	
-	function loadScript(src,loaded,onLoad,onError,onEnd){
-		var script = document.createElement("script");
-		script.onload=function(){
-            this.onerror = null;
-            this.onload = null;
-            document.body.removeChild(this);
-			if(onLoad && onLoad.call){
-                onLoad(this.src);
-			}
-            loaded--;
-            
-            if(!loaded){
-                if(onEnd && onEnd.call){
-		                onEnd();
-
-		            }
-                return;
-            }
-            loadScript(src,loaded,onLoad,onError,onEnd);
-		}
-		script.onerror=function(){
-            this.onerror = null;
-            this.onload = null;
-            document.body.removeChild(this);
-            if(onError && onError.call){
-                onError(this.src);
-            }
-            loaded--;
-            if(!loaded){
-                if(onEnd && onEnd.call){
-		                onEnd();
-		            }
-                return;
-            }
-            loadScript(src,loaded,onLoad,onError,onEnd);
-		}
-        script.src = src.shift();
-		document.body.appendChild(script);
-	}
-	/**
-	 * 加载脚本
-     * @param {Object} cfg 参数
-     * @param {Array} cfg.urls 脚本路径数组。['/lib/a.js','/lib/b.js','/lib/c.js']
-     * @param {int} cfg.mode 脚本加载方式，默认为串行加载soya2d.LOADMODE_SEQU
-     * @param {Function} cfg.onLoad 单个脚本加载成功事件,可选   回调参数[src]
-     * @param {Function} cfg.onEnd 全部脚本加载完成事件,可选
-     * @param {Function} cfg.onError 单个脚本加载失败事件,可选
-     * @return this
-     */
-	this.loadScripts = function(cfg){
-        var loaded = cfg.urls.length;
-        var onLoad = cfg.onLoad;
-        var onEnd = cfg.onEnd;
-        var onError = cfg.onError;
-        var d = document;
-        var b = document.body;
-        var mode = cfg.mode||soya2d.LOADMODE_SEQU;
-        if(mode===soya2d.LOADMODE_SEQU)
-		    loadScript(cfg.urls.concat(),loaded,onLoad,onError,onEnd);
-        else{
-            for(var i=cfg.urls.length;i--;){
-                var s = d.createElement("script");//指定src时，类型必须是javascript或者空，无法加载文本资源
-                if(!s.async)s.defer = true;
-                s.onload = function () {
-                    this.onerror = null;
-                    this.onload = null;
-                    document.body.removeChild(this);
-                    if(onLoad && onLoad.call){
-                        onLoad(this.src);
-                    }
-                    loaded--;
-                    if(!loaded && onEnd && onEnd.call){
-                        onEnd();
-                    }
-                }
-                s.onerror=function(){
-                    this.onerror = null;
-                    this.onload = null;
-                    document.body.removeChild(this);
-                    if(onError && onError.call){
-                        onError(this.src);
-                    }
-                    loaded--;
-                    if(!loaded && onEnd && onEnd.call){
-                        onEnd();
-                    }
-                }
-                s.src = cfg.urls[i];
-                b.appendChild(s);
-            }
-        }
-        return this;
-	}
-	/**
-	 * 加载器声音数据
-     * @param {Object} cfg 参数
-     * @param {Array} cfg.urls 声音路径数组,支持跨平台定义。['a.wav',['b.mp3','b.m4a','b.ogg'],'c.ogg']，子数组内为一个声音的不同格式，引擎会自动加载平台支持的第一个
-     * @param {Function} cfg.onLoad 单个声音加载成功事件,可选   回调参数[sound,url]
-     * @param {Function} cfg.onEnd 全部声音加载完成事件,可选    回调参数[sound数组]
-     * @param {Function} cfg.onError 单个声音加载失败事件,可选 回调参数[errorCode,url]
-	 * @see soya2d.MEDIA_ERR_ABORTED
-     * @see soya2d.Sound
-	 */
-	this.loadSounds = function(cfg){
-        var loaded = cfg.urls.length;
-        var onLoad = cfg.onLoad;
-        var onEnd = cfg.onEnd;
-        var onError = cfg.onError;
-        var d = document;
-        var rs = [];
-        
-        for(var i=cfg.urls.length;i--;){
-            var urls = cfg.urls[i];
-            var handler = new Howl({
-                src: urls instanceof Array?urls:[urls],
-                onload:function(){
-                    if(onLoad && onLoad.call){
-                        var sound = new soya2d.Sound();
-                        sound.__handler = this;
-                        rs.push(sound);
-                        onLoad(sound,this._src);
-                    }
-                    loaded--;
-                    if(!loaded && onEnd && onEnd.call){
-                        onEnd(rs);
-                    }
-                },
-                onloaderror:function(error){
-                    if(onError && onError.call){
-                        var errorType = soya2d.MEDIA_ERR_DECODE;
-                        if(error){
-                            errorType = error.type;
-                        }
-                        onError(errorType,this._src);
-                    }
-                    loaded--;
-                    if(!loaded && onEnd && onEnd.call){
-                        onEnd(rs);
-                    }
-                }
-            });
-        }
-        return this;
-	}
-
-    //加载单个字体
-    function loadFont(rs,font,onLoad,onTimeout,onEnd,timeout){
-        var originFamily = ['serif','sans-serif'];
-        var originCSS = "border:none;position:absolute;top:-999px;left:-999px;" +
-                        "font-size:100px;width:auto;height:auto;line-height:normal;margin:0;" +
-                        "padding:0;font-variant:normal;white-space:nowrap;font-family:";
-        var originWidth = {};
-        var originHeight = {};
-        var originSpan = {};
-        for(var i=originFamily.length;i--;){
-            var span = document.createElement('div');
-            span.style.cssText = originCSS+"'"+originFamily[i]+"'";
-            span.innerHTML = font.family;
-            document.body.appendChild(span);
-            originSpan[originFamily[i]] = span;
-            //获取原始size
-            originWidth[originFamily[i]] = span.offsetWidth;
-            originHeight[originFamily[i]] = span.offsetHeight;
-        }
-        //开始加载样式
-        var style = document.createElement('style');
-        style.id = 'FontLoader_'+new Date().getTime();
-        style.innerHTML =  "@font-face {" +
-                        "font-family: '" + font.family + "';" +
-                        "src: url(" + font.url + ")" +
-                        "}";
-        document.head.appendChild(style);
-        for(var i in originSpan){
-            originSpan[i].style.fontFamily = font.family+','+originSpan[i].style.fontFamily;
-        }
-        //监控器启动扫描
-        var startTime = new Date().getTime();
-        setTimeout(function(){
-            fontScan(rs,startTime,timeout,originSpan,originWidth,originHeight,onLoad,onEnd,onTimeout,font.family);
-        },100);//100ms用于浏览器识别非法字体，然后还原并使用次等匹配字体
-    }
-    var fontLoaded=0;
-    //扫描字体是否加载OK
-    function fontScan(rs,startTime,timeout,originSpan,originWidth,originHeight,onLoad,onEnd,onTimeout,family){
-        setTimeout(function(){
-            if(new Date().getTime() - startTime > timeout){
-                //超时
-                if(onTimeout && onTimeout.call){
-                    onTimeout(family);
-                }
-                fontLoaded--;
-                if(!fontLoaded && onEnd && onEnd.call){
-                    onEnd();
-                }
-                return;
-            }
-            //检查originSpan的宽度是否发生了变化
-            for(var i in originSpan){
-                originSpan[i].style.left = '-1000px';
-                var w = originSpan[i].offsetWidth;
-                var h = originSpan[i].offsetHeight;
-                if(w !== originWidth[i] || h !== originHeight[i]){//发生了改变
-                    //document.body.removeChild(originSpan[i]);
-                    var font;
-                    if(onLoad && onLoad.call){
-                        font = new soya2d.Font().family(family);
-                        onLoad(font,family);
-                    }
-                    rs[fontLoaded--] = font;
-                    if(!fontLoaded && onEnd && onEnd.call){
-                        onEnd(rs);
-                    }
-                    return;
-                }
-            }
-            //没有改变，继续扫描
-            fontScan(rs,startTime,timeout,originSpan,originWidth,originHeight,onLoad,onEnd,onTimeout,family);
-        },20);
-    }
-    /**
-     * 加载外部字体文件
-     * @param {Object} cfg 参数
-     * @param {Array} cfg.urls 字体描述数组。[{family:'myfont',url:'a/b/c.ttf'},...]
-     * @param {Function} cfg.onLoad 单个字体加载成功事件,可选   回调参数 [font对象,family]
-     * @param {Function} cfg.onEnd 全部字体加载完成事件,可选    回调参数 [font对象数组]
-     * @param {Function} cfg.onTimeout 单个字体加载超时事件,可选 回调参数[family]
-     * @param {int} cfg.timeout 每个字体加载超时时间,默认5000ms
-     */
-    this.loadFonts = function(cfg){
-        var loaded = cfg.urls.length;
-        var onLoad = cfg.onLoad;
-        var onEnd = cfg.onEnd;
-        var onTimeout = cfg.onTimeout;
-        var timeout = cfg.timeout||soya2d.TIMEOUT;
-        var rs = new Array(loaded);
-
-        fontLoaded = loaded;
-        //加载字体
-        for(var i=cfg.urls.length;i--;){
-            loadFont(rs,cfg.urls[i],onLoad,onTimeout,onEnd,timeout);
-        }
-    }
-
-    /**
-     * 加载纹理集
-     * @param {Object} cfg 参数
-     * @param {Array} cfg.urls 纹理集描述数组。[{ssheet:'a/b/c.ssheet',image:'a/b/c.png'},...]
-     * @param {Function} cfg.onLoad 单个纹理集加载成功事件,可选   回调参数 [纹理集对象,纹理对象，精灵表对象]
-     * @param {Function} cfg.onEnd 全部纹理集加载完成事件,可选    回调参数 [纹理集对象数组]
-     * @param {Function} cfg.onError 单个纹理集加载失败事件,可选  回调参数 [ssheet,image]
-     */
-    this.loadTexAtlas = function(cfg){
-        var loaded = cfg.urls.length;
-        var onLoad = cfg.onLoad;
-        var onEnd = cfg.onEnd;
-        var onError = cfg.onError;
-
-        var imgUrls = [];
-        var map = {};
-        for(var i=loaded;i--;){
-            imgUrls.push(cfg.urls[i].image);
-            map[cfg.urls[i].image] = cfg.urls[i].ssheet;
-        }
-        
-        var rs = [];
-
-        //loadTextures
-        this.loadTextures({
-            urls:imgUrls,
-            onLoad:function(tex,url){
-                soya2d.AJAXLoader.loadJSON(
-                    {
-                        url:map[url],
-                        onLoad:function(ssheet){
-                            var atlas = new soya2d.TextureAtlas(tex,ssheet);
-                            if(onLoad){
-                                onLoad(atlas,tex,ssheet,url,map[url]);
-                            }
-                            rs.push(atlas);
-
-                            if(--loaded===0){
-                                if(onEnd){
-                                    onEnd(rs);
-                                }
-                            }
-                        },
-                        onError:function(){
-                            loaded--;
-                            if(onError){
-                                onError(url,map[url]);
-                            }
-                        }
-                    }
-                );
-            },
-            onError:function(url){
-                loaded--;
-                if(onError){
-                    onError(url,map[url]);
-                }
-            }
-        });
-    }
-};
-/**
- * 默认超时时间，5000ms
- */
-soya2d.TIMEOUT = 5000;
-
-
-/**
- * 媒体加载错误类型——MEDIA_ERR_UNCERTAIN<br/>
- * 未知错误
- * @constant
- */
-soya2d.MEDIA_ERR_UNCERTAIN = -1;
-/**
- * 媒体加载错误类型——MEDIA_ERR_ABORTED<br/>
- * 加载被中断
- * @constant
- */
-soya2d.MEDIA_ERR_ABORTED = 1;
-/**
- * 媒体加载错误类型——MEDIA_ERR_NETWORK<br/>
- * 网络异常
- * @constant
- */
-soya2d.MEDIA_ERR_NETWORK = 2;
-/**
- * 媒体加载错误类型——MEDIA_ERR_DECODE<br/>
- * 无法解码
- * @constant
- */
-soya2d.MEDIA_ERR_DECODE = 3;
-/**
- * 媒体加载错误类型——MEDIA_ERR_SRC_NOT_SUPPORTED<br/>
- * 类型不支持
- * @constant
- */
-soya2d.MEDIA_ERR_SRC_NOT_SUPPORTED = 4;
-/**
- * 媒体加载错误类型——MEDIA_ERR_SRC_NOT_FORTHCOMING<br/>
- * 无法获取资源数据
- * @constant
- */
-soya2d.MEDIA_ERR_SRC_NOT_FORTHCOMING = 101;
-
-/**
- * 加载类型——并行
- * @constant
- */
-soya2d.LOADMODE_PARA = 1;
-/**
- * 加载类型——串行
- * @constant
- */
-soya2d.LOADMODE_SEQU = 2;
-/**
- * @classdesc 游戏对象是构建soya2d应用的入口类，用于构建和启动一个soya2d应用。
+ * 游戏对象是构建soya2d应用的入口类，用于构建和启动一个soya2d应用。
  * 一个页面可以同时运行多个游戏对象，并且拥有不同的FPS和场景
- * @class 
+ * @class soya2d.Game
  * @param {Object} opts 构造参数对象，参数如下：
  * @param {string | HTMLElement} opts.container 游戏渲染的容器，可以是一个选择器字符串或者节点对象
  * @param {int} opts.rendererType 渲染器类型，目前只支持canvas
@@ -5162,7 +6206,6 @@ soya2d.LOADMODE_SEQU = 2;
  * @param {int} opts.h 游戏的高度
  * @param {boolean} opts.autoClear 自动清除背景
  * @param {boolean} opts.smoothEnable 是否平滑处理
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Game = function(opts){
 	opts = opts || {};
@@ -5189,193 +6232,74 @@ soya2d.Game = function(opts){
 	//}
 
 	soya2d.ext(this,opts);
-
-	/**
-	 * 当前场景
-	 * @type {soya2d.Scene}
-	 */
-	this.scene = null;
-
 	/********** 外部接口 ***********/
 
-	/**
-	 * 获取渲染器
-	 * @return {Object} 渲染器实例
-	 */
-	this.getRenderer = function(){
-		return renderer;
-	};
-
-	/**
-	 * 默认视图
-	 * @type {soya2d.View}
-	 */
-	this.view = new soya2d.View(this);
-
-	/**
-	 * 纹理管理器
-	 * @type {soya2d.TextureManager}
-	 */
-	this.textureManager = new soya2d.TextureManager();
-
-	/**
-	 * 纹理集管理器
-	 * @type {soya2d.TextureAtlasManager}
-	 */
-	this.texAtlasManager = new soya2d.TextureAtlasManager();
-
-	/**
-     * 加载资源
-     * @param {Object} opts 参数对象
-     * @param {Array} opts.textures 需要加载的纹理数组，比如：[url1,url2,...]
-     * @param {Array} opts.texAtlas 需要加载的纹理集数组，比如：[{id:'xxx',ssheet:'a/b/c.ssheet',image:'a/b/c.png'},...]
-     * @param {Array} opts.sounds 需要加载的声音路径数组,支持跨平台定义。['a.wav',['b.mp3','b.m4a','b.ogg'],'c.ogg']，子数组内为一个声音的不同格式，引擎会自动加载平台支持的第一个
-     * @param {Array} opts.fonts 需要加载的字体数组，比如：[{url:xxx,family:xxx},...]
-     * @param {Array} opts.scripts 需要加载的脚本数组，比如：[url1,url2,...]
-     * @param {String} opts.crossOrigin 跨域加载资源标识，如果设置该标识，则资源按照该标识方式来加载
-     * @param {Function} opts.onLoad 回调函数，加载完成、超时、错误时触发
-     * @param {Function} opts.onEnd 回调函数，所有资源加载完成时触发
+    /**
+     * 渲染器
      */
-	this.loadRes = function(opts){
-		var textures = opts.textures||[];
-		var texAtlas = opts.texAtlas||[];
-        var fonts = opts.fonts||[];
-        var sounds = opts.sounds||[];
-        var scripts = opts.scripts||[];
-        var onload = opts.onLoad||function(){};
-        var onend = opts.onEnd||function(){};
-        var crossOrigin = opts.crossOrigin;
-        var loader = soya2d.Loader;
-                
-        //创建加载队列
-        var loaders = [];
-        if(textures.length>0)loaders.push([loadTextures,textures]);
-        if(texAtlas.length>0)loaders.push([loadTexAtlas,texAtlas]);
-        if(soya2d.Sound && sounds.length>0)loaders.push([loadSounds,sounds]);
-        if(fonts.length>0)loaders.push([loadFonts,fonts]);
-        if(scripts.length>0)loaders.push([loadScripts,scripts]);
-        
-        var llen = loaders.length;
-        //开始加载
-        if(llen>0)
-            loaders[0][0](crossOrigin,loader,loaders[0][1],onload,function(){
-                if(llen>1)
-                loaders[1][0](crossOrigin,loader,loaders[1][1],onload,function(){
-                	if(llen>2)
-    		            loaders[2][0](crossOrigin,loader,loaders[2][1],onload,function(){
-    		                if(llen>3)
-    		                    loaders[3][0](crossOrigin,loader,loaders[3][1],onload,function(){
-    		                        if(llen>4)
-    		                            loaders[4][0](crossOrigin,loader,loaders[4][1],onload,onend);
-    		                        else{onend();}
-    		                    });
-    		                    else{onend();}
-    		            });
-    		            else{onend();}
-                });
-                else{onend();}
-            });
-        else{
-            soya2d.console.warn('empty resources be loaded...');
-            onend();
-        }
-	};
-	/*********** 加载资源 ************/
-	function loadTexAtlas(crossOrigin,loader,urls,onload,onEnd){
-        "use strict";
-
-        var map = {};
-        for(var i=urls.length;i--;){
-            map[urls[i].image+'/'+urls[i].ssheet] = urls[i].id;
-        }
-
-        loader.loadTexAtlas({
-            crossOrigin:crossOrigin,
-            urls:urls,
-            onLoad:function(atlas,tex,ssheet,texUrl,ssheetUrl){
-            	thisGame.textureManager._add(texUrl,tex);
-            	var id = map[texUrl+'/'+ssheetUrl];
-            	thisGame.texAtlasManager._add(id,atlas);
-                onload(atlas,tex,ssheet);
-            },
-            onError:function(image,ssheet){
-                onload(image,ssheet);
-            },
-            onEnd:function(){
-                onEnd();
-            }
-        });
-    }
-    function loadScripts(crossOrigin,loader,urls,onload,onEnd){
-        "use strict";
-        //加载脚本
-        loader.loadScripts({
-            crossOrigin:crossOrigin,
-            urls:urls,
-            onLoad:function(src){
-                onload(src);
-            },
-            onError:function(src){
-                onload(src);
-            },
-            onEnd:function(){
-                onEnd();
-            }
-        });
-    }
-    var thisGame = this;
-    function loadSounds(crossOrigin,loader,urls,onload,onEnd){
-        "use strict";
-        //加载音频
-        loader.loadSounds({
-            urls:urls,
-            onLoad:function(sound,src){
-                thisGame.soundManager._add(src,sound);
-                onload(src);
-            },
-            onError:function(code,src){
-                onload(src);
-            },
-            onEnd:function(sounds){
-                onEnd(sounds);
-            }
-        });
-    }
-    function loadTextures(crossOrigin,loader,urls,onload,onEnd){
-        "use strict";
-        //加载纹理
-        loader.loadTextures({
-            crossOrigin:crossOrigin,
-            urls:urls,
-            onLoad:function(tex,url){
-            	thisGame.textureManager._add(url,tex);
-                onload();
-            },
-            onError:function(url){
-                onload(url);
-            },
-            onEnd:function(texs){
-                onEnd();
-            }
-        });
-    }
-    function loadFonts(crossOrigin,loader,urls,onload,onEnd){
-        "use strict";
-        loader.loadFonts({
-            urls:urls,
-            timeout:1000,
-            onLoad:function(font,family){
-                onload(font,family);
-            },
-            onTimeout:function(family){
-                onload(family);
-            },
-            onEnd:function(){
-                onEnd();
-            }
-        });
-    }
-
+    this.renderer = renderer;
+    /**
+     * 对象工厂，用来注册新的显示对象类型
+     * @type {DisplayObjectFactory}
+     */
+    this.objects = new DisplayObjectFactory(this);
+    /**
+     * 对象工厂，用来注册新的显示对象类型
+     * @type {DisplayObjectFactoryProxy}
+     */
+    this.add = new DisplayObjectFactoryProxy(this);
+    /**
+     * 全局事件监听器，包括DOM事件和自定义事件
+     * @type {Signal}
+     */
+    this.events = new Signal();
+    this.events.__signalHandler = new SignalHandler();
+    /**
+     * 场景管理器
+     * @type {SceneManager}
+     */
+    this.scene = new SceneManager(this);
+	/**
+	 * 舞台
+	 * @type {soya2d.Stage}
+	 */
+	this.stage = new Stage({game:this,w:renderer.w,h:renderer.h});
+    /**
+     * 世界
+     * @type {soya2d.World}
+     */
+    this.world = new World({game:this,w:renderer.w,h:renderer.h});
+    this.stage.add(this.world);
+    /**
+     * 每个game实例只存在唯一的一个摄像机，摄像机展示了世界中的内容
+     * @type {Camera}
+     */
+    this.camera = new Camera(renderer.w,renderer.h,this);
+	/**
+	 * 资源管理器
+	 * @type {Assets}
+	 */
+	this.assets = new Assets();
+	/**
+     * 加载器
+     * @type {Loader}
+     */
+	this.load = new Loader(this);
+    /**
+     * 定时器
+     * @type {Timer}
+     */
+    this.timer = new Timer();
+    /**
+     * 物理系统
+     * @type {Physics}
+     */
+    this.physics = new Physics();
+    /**
+     * 瓦片地图管理器
+     * @type {TilemapManager}
+     */
+    this.tilemap = new TilemapManager(this);
 	/**
 	 * 当前游戏的宽度
 	 * @type {int}
@@ -5401,21 +6325,12 @@ soya2d.Game = function(opts){
 	 * @param {soya2d.Scene} scene 启动场景
      * @return this
 	 */
-	this.start = function(scene){
+	this.start = function(){
 		if(this.running)return;
 		this.running = true;
-        if(!this.scene){
-		  this.cutTo(scene);
-        }
 
-        soya2d.console.info('game starting...');
-        if(scene.children.length < 1){
-            soya2d.console.warn('empty scene be showing...');
-        }
-
-		//scan view
-		this.view.scan(this.w,this.h,container,renderer);
-		this.view.align(this.view.align());
+		//scan stage
+		this.stage.__scan(this.w,this.h,container,renderer);
 
 		//start modules
 		var modules = soya2d.module._getAll();
@@ -5427,53 +6342,73 @@ soya2d.Game = function(opts){
 		for(var k in modules){
 			if(modules[k].onStart)modules[k].onStart(this);
 
-            if(modules[k].onBeforeUpdate)beforeUpdates.push(modules[k].onBeforeUpdate);
-			if(modules[k].onUpdate)onUpdates.push(modules[k].onUpdate);
-            if(modules[k].onAfterUpdate)afterUpdates.push(modules[k].onAfterUpdate);
-            if(modules[k].onBeforeRender)beforeRenders.push(modules[k].onBeforeRender);
-            if(modules[k].onAfterRender)afterRenders.push(modules[k].onAfterRender);
+            if(modules[k].onBeforeUpdate)beforeUpdates.push([modules[k],modules[k].onBeforeUpdate]);
+			if(modules[k].onUpdate)onUpdates.push([modules[k],modules[k].onUpdate]);
+            if(modules[k].onAfterUpdate)afterUpdates.push([modules[k],modules[k].onAfterUpdate]);
+            if(modules[k].onBeforeRender)beforeRenders.push([modules[k],modules[k].onBeforeRender]);
+            if(modules[k].onAfterRender)afterRenders.push([modules[k],modules[k].onAfterRender]);
 		}
 		
 		//start
 		threshold = 1000 / currFPS;
 		run(function(now,d){
-
             //before updates
             beforeUpdates.forEach(function(cbk){
-                cbk(thisGame,now,d);
+                cbk[1].call(cbk[0],thisGame,now,d);
             });
-			//update modules
+            //update modules
             if(onUpdates.length>0){
                 now = Date.now();
                 onUpdates.forEach(function(cbk){
-                    cbk(thisGame,now,d);
+                    cbk[1].call(cbk[0],thisGame,now,d);
                 });
             }
+
+            //physics
+            if(thisGame.physics.running)game.physics.update();
+
+            //calc camera rect
+            thisGame.camera.__onUpdate();
+
             //update entities
-            thisGame.scene.__update(thisGame);
+            //update matrix——>sort(optional)——>onUpdate(matrix)——>onRender(g)
+            
+            thisGame.timer.__scan(d);
+
+            thisGame.stage.__updateMatrix();
+            thisGame.stage.__update(thisGame,d);
+            
+            
+            if(thisGame.currentScene.onUpdate)
+                thisGame.currentScene.onUpdate(thisGame,d);
             //after updates
             if(afterUpdates.length>0){
                 now = Date.now();
                 afterUpdates.forEach(function(cbk){
-                    cbk(thisGame,now,d);
+                    cbk[1].call(cbk[0],thisGame,now,d);
                 });
             }
-            
 
+            
+            thisGame.camera.__cull(thisGame.stage);
+
+            thisGame.camera.__viewport(thisGame.world);
+            
             //before render
             if(beforeRenders.length>0){
                 now = Date.now();
                 beforeRenders.forEach(function(cbk){
-                    cbk(thisGame,now,d);
+                    cbk[1].call(cbk[0],thisGame,now,d);
                 });
             }
             //render
-            renderer.render(thisGame.scene);
+            renderer.render(thisGame.stage,thisGame.camera);
+            
             //after render
             if(afterRenders.length>0){
                 now = Date.now();
                 afterRenders.forEach(function(cbk){
-                    cbk(thisGame,now,d);
+                    cbk[1].call(cbk[0],thisGame,now,d);
                 });
             }
 		});
@@ -5481,6 +6416,7 @@ soya2d.Game = function(opts){
 		return this;
 	};
 
+    var thisGame = this;
 	var lastCountTime=0;
 	var maxFPS = 60;
     var currFPS = 60;
@@ -5537,36 +6473,6 @@ soya2d.Game = function(opts){
 		return this;
 	};
 
-	/**
-	 * 跳转场景
-	 * @param {soya2d.Scene} scene 需要跳转到的场景
-     * @return this
-	 */
-	this.cutTo = function(scene){
-		if(!scene)return;
-        var fireModuleCbk = false;
-        if(this.scene){
-            fireModuleCbk = true;
-            //clear old scene
-            this.scene.clear();
-        }
-		this.scene = scene;
-		this.scene.game = this;
-		//初始化场景
-		if(this.scene.onInit && this.scene.onInit.call){
-			this.scene.onInit(this);
-		}
-
-        if(fireModuleCbk){
-            var modules = soya2d.module._getAll();
-            for(var k in modules){
-                if(modules[k].onSceneChange)modules[k].onSceneChange(this,scene);
-            }   
-        }
-
-		return this;
-	};
-
 	//init modules
 	var modules = soya2d.module._getAll();
     var ms = 0;
@@ -5574,6 +6480,13 @@ soya2d.Game = function(opts){
 		if(modules[k].onInit)modules[k].onInit(this);
         ms++;
 	}
+
+    //init DOF
+    this.objects.register('shape',soya2d.Shape);
+    this.objects.register('sprite',soya2d.Sprite);
+    this.objects.register('tileSprite',soya2d.TileSprite);
+    this.objects.register('group',soya2d.DisplayObjectContainer);
+    this.objects.register('text',soya2d.Text);
 
     var t1 = 'soya2d Game instance created...';
     var t2 = ms + ' plugins loaded...';
@@ -5610,161 +6523,5 @@ soya2d.RENDERER_TYPE_CANVAS = 2;
  * 引擎会使用webgl方式进行渲染
  */
 soya2d.RENDERER_TYPE_WEBGL = 3;
-/**
- * @classdesc 资源加载场景合并了资源加载和进度显示功能。
- * 提供了默认的加载进度效果。如果需要自定义加载效果，请重写onStart和onProgress函数
- * @class 
- * @extends soya2d.Scene
- * @param {Object} data 所有父类参数，以及新增参数，如下：
- * @param {soya2d.Scene} [data.nextScene] 加载完成后需要跳转的场景，如果为空需要手动切换场景
- * @param {Array} data.textures 需要加载的纹理数组
- * @param {Array} data.texAtlas 需要加载的纹理集数组
- * @param {Array} data.sounds 需要加载的声音数组
- * @param {Array} data.scripts 需要加载的脚本数组
- * @param {Array} data.fonts 需要加载的字体数组
- * @param {function} [data.onStart] 开始加载回调,回调参数[game,length]
- * @param {function} [data.onProgress] 加载时回调,回调参数[game,length,index]
- * @param {function} [data.onEnd] 加载结束时回调,回调参数[game,length]
- * @author {@link http://weibo.com/soya2d MrSoya}
- */
-soya2d.LoaderScene = function(data){
-    data = data||{};
-    soya2d.Scene.call(this,data);
-    soya2d.ext(this,data);
-    
-    this.nextScene = data.nextScene;
-    this.textures = data.textures||[];
-    this.texAtlas = data.texAtlas||[];
-    this.sounds = data.sounds||[];
-    this.scripts = data.scripts||[];
-    this.fonts = data.fonts||[];
 
-    var startCbk = data.onStart;
-    var progressCbk = data.onProgress;
-    var endCbk = data.onEnd;
-    
-    this.onInit = function(game){
-        //初始化时启动
-        var index = 0;
-        //资源总数
-        var allSize = this.textures.length +this.texAtlas.length +this.sounds.length +this.scripts.length +this.fonts.length;
-        if(allSize<1){
-            soya2d.console.warn('empty resources be loaded...');
-            if(this.onEnd)this.onEnd(game,allSize);
-            if(endCbk instanceof Function)endCbk.call(this,game,allSize);
-            if(this.nextScene)game.cutTo(this.nextScene);
-            return;
-        }
-    
-        if(this.onStart)this.onStart(game,allSize);
-        if(startCbk instanceof Function)startCbk.call(this,game,allSize);            
-        
-        var loader = this;
-        game.loadRes({
-            textures: this.textures,
-            texAtlas:this.texAtlas,
-            sounds: this.sounds,
-            fonts: this.fonts,
-            scripts: this.scripts,
-            onLoad: function() {
-                if(loader.onProgress)loader.onProgress(game,allSize,++index);
-                if(progressCbk instanceof Function)progressCbk.call(loader,game,allSize,index);
-            },
-            onEnd: function() {
-                if(loader.onEnd)loader.onEnd(game,allSize);
-                if(endCbk instanceof Function)endCbk.call(loader,game,allSize);
-                if(loader.nextScene)
-                game.cutTo(loader.nextScene);
-            }
-        });
-        
-    };
-
-
-    /**
-     * 资源开始加载时调用
-     * 如果需要修改加载样式，请重写该函数
-     * @abstract
-     * @param  {soya2d.Game} game  游戏实例
-     * @param  {int} length 资源总数
-     */
-    this.onStart = function(game,length) {
-        var logo = new soya2d.Shape({
-            x: game.w/2 - 11,
-            y: game.h/2 - 30 - 20
-        });
-        var p1 = new soya2d.Shape({
-            w:23,h:20,
-            skewY:-30,
-            fillStyle:'#69CA14',
-            onRender:function(g){
-                g.beginPath();
-                g.fillStyle(this.fillStyle);
-                g.rect(0,0,this.w,this.h);
-                g.fill();
-                g.closePath();
-            }
-        });
-        var p2 = new soya2d.Shape({
-            w:23,h:20,
-            skewY:30,
-            y:13,
-            opacity:.9,
-            fillStyle:'#2A5909',
-            onRender:function(g){
-                g.beginPath();
-                g.fillStyle(this.fillStyle);
-                g.rect(0,0,this.w,this.h);
-                g.fill();
-                g.closePath();
-            }
-        });
-        var p3 = new soya2d.Shape({
-            w:23,h:20,
-            skewY:-30,
-            y:28,
-            blendMode:soya2d.BLEND_LIGHTER,
-            fillStyle:'#69CA14',
-            onRender:function(g){
-                g.beginPath();
-                g.fillStyle(this.fillStyle);
-                g.rect(0,0,this.w,this.h);
-                g.fill();
-                g.closePath();
-            }
-        });
-        logo.add(p1,p2,p3);
-        this.add(logo);
-
-        var font = new soya2d.Font('normal 400 23px/normal Arial,Helvetica,sans-serif');
-        this.tip = new soya2d.Text({
-            x: logo.x - 70,
-            y: logo.y + 60 + 10,
-            font:font,
-            text:'Loading... 0/0',
-            w:200,
-            fillStyle: this.fillStyle || '#fff'
-        });
-        this.add(this.tip);
-    };
-    /**
-     * 资源加载时调用,默认显示loading...字符。如果需要修改加载样式，请重写该函数
-     * @abstract
-     * @param  {soya2d.Game} game  游戏实例
-     * @param  {int} length 资源总数
-     * @param  {int} index  当前加载索引
-     */
-    this.onProgress = function(game,length,index) {
-        if(this.tip)
-        this.tip.setText('Loading... '+index+'/'+length);
-    };
-    /**
-     * 资源结束加载时调用
-     * 如果需要修改加载样式，请重写该函数
-     * @abstract
-     * @param  {soya2d.Game} game  游戏实例
-     * @param  {int} length 资源总数
-     */
-    this.onEnd = function(game,length) {};
-};
-soya2d.inherits(soya2d.LoaderScene,soya2d.Scene);
+}(window||this);

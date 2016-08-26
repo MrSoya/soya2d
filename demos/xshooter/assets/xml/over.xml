@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<world>
+	<text layout-left="50%" layout-offsetLeft="-50%" 
+		fillStyle="#fff" y="200" atlas="imgFont" size="50">
+		GAME OVER
+	</text>
+	<text layout-left="50%" layout-offsetLeft="-50%"
+		fillStyle="#fff" atlas="imgFont" size="30" y="300">
+		SCORE:
+		<text layout-left="100%" id="scoreText" w="100"
+			fillStyle="#fff" atlas="imgFont" size="30">
+			0
+		</text>
+	</text>
+	<text layout-left="50%" layout-offsetLeft="-50%" 
+		fillStyle="#fff" atlas="imgFont" y="400" on-pointdown="home">
+		&lt; HOME
+	</text>
+</world>

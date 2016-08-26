@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<world>
+	<sprite images="scene">
+		<sprite layout-left="70%" images="score">
+			<text x="170" y="20" fillStyle="#fff" font="normal 40px normal" id="score">
+				0
+			</text>
+		</sprite>
+	</sprite>
+	<sprite images="cover" id="cover">
+	</sprite>
+	<rect id="gameoverLayer" 
+		layout-width="100%" 
+		layout-height="100%" 
+		opacity="0.6" z="9" visible="false" fillStyle="#000">
+		<text layout-left="50%" layout-offsetLeft="-140" layout-top="30%" w="280" fillStyle="#fff" font="italic 60px normal">
+			Game Over
+		</text>
+		<text id="overScore" layout-left="50%" layout-offsetLeft="-90" layout-top="40%" w="180" fillStyle="#fff" font="normal 40px normal">
+			Scores:xx
+		</text>
+		<sprite images="btn_exit" on-click="back" layout-left="50%" layout-offsetLeft="-25%" layout-top="55%"></sprite>
+	</rect>
+</world>

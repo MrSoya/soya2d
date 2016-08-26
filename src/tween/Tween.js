@@ -1,306 +1,337 @@
-﻿/**
-    * @classdesc 补间类，用于创建动画<br/>
-    * 该类提供了在周期时间内，按照指定补间类型进行“补间目标”属性的计算，并提供反馈的过程<br/>
-    * 补间目标可以是一个可渲染对象，比如sprite，也可以是它的对象属性，比如
-    * @example
-var MrSoya = new soya2d.Text({
-    text:"Hi~~,i'm MrSoya"
-});
-var tween1 = new soya2d.Tween(MrSoya,
-        {opacity:1,scaleX:1},
-        1000,{easing:soya2d.Tween.Expo.Out,
-        cacheable:true,
-        onUpdate:function(target,ratio){
-            target.sclaeY = ratio;
-        }
-});
-var tween2 = new soya2d.Tween(MrSoya.bounds,
-        {w:100,h:200},
-        1000,
-        {easing:soya2d.Tween.Expo.Out,cacheable:false
-});
-    * @param {Object} target 需要进行对象
-    * @param {Object} attris 补间目标属性
-    * @param {int} duration 补间周期(ms)
-    * @param {Object} [opts] 补间属性
-    * @param {function} [opts.easing=soya2d.Tween.Linear] 补间类型
-    * @param {boolean} [opts.cacheable=false] 是否缓存，启用缓存可以提高动画性能，但是动画过程会有些许误差
-    * @param {int} [opts.iteration=0] 循环播放次数，-1为无限
-    * @param {boolean} [opts.alternate=false] 是否交替反向播放动画，只在循环启用时生效
-    * @param {function} [opts.onUpdate] 补间更新事件
-    * @param {function} [opts.onEnd] 补间结束事件
-    * @class
-    * @see {soya2d.Tween.Linear}
-    * @author {@link http://weibo.com/soya2d MrSoya}
-    */
-soya2d.Tween = function(target,attris,duration,opts){
+﻿!function(){
+    soya2d.class("soya2d.Tween",{
+        extends:Signal,
+        constructor:function(target){
+            this.__signalHandler = new SignalHandler();
 
-    //用来保存每个属性的，变化值，补间值
-    this.__attr = {};
-    this.__attr_inverse = {};
-    this.__attriNames;
-    this.attris = attris;
-    this.target = target;
-    this.duration = duration;
+            this.target = target;
+            this.__tds = {};
+            this.__startTimes = [];
+            this.__long = 0;
 
-    opts = opts||{};
-    this.easing = opts.easing||soya2d.Tween.Linear;
-    this.iteration = opts.iteration||0;
-    this.alternate = opts.alternate||false;
+            this.position = 0;
+            this.__reversed = false;
+            this.__paused = false;
+            this.__infinite = false;
 
-    /**
-     * @name soya2d.Tween#onUpdate
-     * @desc  补间每运行一次时触发，this指向补间器
-     * @param {Object} target 补间目标，可能为null
-     * @param {Number} ratio 补间系数。当补间器运行时，会回传0-1之间的补间系数，
-     * 系数个数为补间帧数，系数值根据补间类型不同而不同。根据这个系数，可以实现多目标同时补间的效果，比如：
-     * @example
-     var tween1 = new soya2d.Tween(ken,
-             {opacity:1,scaleX:1},
-             1000,
-             {easing:soya2d.Tween.Expo.Out,cacheable:true,
-             onUpdate:function(target,ratio){
-                 target.sclaeY = ratio;
-             }
-    });
-     * @event
-     */
-    this.onUpdate = opts.onUpdate;
-    /**
-     * @name soya2d.Tween#onEnd
-     * @desc  补间运行完触发，this指向补间器
-     * @param {Object} target 补间目标
-     * @event
-     */
-    this.onEnd = opts.onEnd;
-    this.cacheable = opts.cacheable||false;
+            this.__state = {};
 
-    this.__loops = 0;//已经循环的次数
-    this.__delay = 0;
-};
+            this.__status = 'paused';
 
-soya2d.Tween.prototype = {
-    __calc:function(un){
-        var keys = this.__attriNames = Object.getOwnPropertyNames(this.attris);
-        //初始化指定属性的step
-        for(var i=keys.length;i--;){//遍历引擎clone的对象，不包括引擎属性
-            var key = keys[i];
+            this.__runningTD;
 
-            //没有该属性直接跳过
-            var tKey = this.target[key];
-            if(tKey===un)continue;
+            this.__changeTimes = 0;
+            this.__lastChangeTD;
+        },
+        __calc:function(attris,duration,easing){
+            var keys = Object.keys(attris);
+            var attr = {},
+                cacheRatio = {};//用于传递给onupdate
+            //初始化指定属性的step
+            for(var i=keys.length;i--;){//遍历引擎clone的对象，不包括引擎属性
+                var k = keys[i];
 
-            var initVal = parseFloat(tKey||0);//修复初始值为字符的问题，会导致字符和数字相加，数值变大--2014.9.16
-            var endVal = this.attris[key];
-            if(typeof endVal === 'string' || endVal instanceof String){//relative
-                if(endVal.indexOf('-')===0){
-                    endVal = initVal-parseFloat(endVal.substring(1,endVal.length));
-                }else if(endVal.indexOf('+')===0){
-                    endVal = initVal+parseFloat(endVal.substring(1,endVal.length));
-                }else{
-                    endVal = parseFloat(endVal);
+                //没有该属性直接跳过
+                var val = this.__state[k];
+                if(val===undefined){
+                    val = this.target[k];
+                }
+                if(val===undefined)continue;
+
+                var initVal = parseFloat(val||0);
+                var endVal = attris[k];
+                if(typeof endVal === 'string' || endVal instanceof String){//relative
+                    if(endVal.indexOf('-')===0){
+                        endVal = initVal-parseFloat(endVal.substring(1,endVal.length));
+                    }else if(endVal.indexOf('+')===0){
+                        endVal = initVal+parseFloat(endVal.substring(1,endVal.length));
+                    }else{
+                        endVal = parseFloat(endVal);
+                    }
+                }
+                var varVal = (endVal-initVal);
+                attr[k] = {'initVal':initVal,'varVal':varVal,'endVal':endVal};
+                this.__state[k] = endVal;
+
+                //预计算。精度为10MS
+                if(this.cacheable){
+                    var dVal = attr[k].dVal = {};
+                    for(var j=0;(j+=10)<duration;){
+                        var r = easing(j,0,1,duration);
+                        cacheRatio['p_'+j] = r;
+                        dVal['p_'+j] = initVal + varVal*r;
+                    }
+                }//over if
+            }//over for
+
+            return [attr,cacheRatio];
+        },
+        /**
+         * @param {Object} attris 补间目标属性
+        * @param {int} duration 补间周期(ms)
+        * @param {Object} [opts] 补间属性
+        * @param {function} [opts.easing=soya2d.Tween.Linear] 补间类型
+        * @param {boolean} [opts.cacheable=false] 是否缓存，启用缓存可以提高动画性能，但是动画过程会有些许误差
+        * @param {int} [opts.repeat=0] 循环播放次数，-1为无限
+        * @param {boolean} [opts.yoyo=false] 是否交替反向播放动画，只在循环启用时生效
+        * @param {int} [opts.delay] 延迟时间(ms)
+        * @param {boolean} [opts.clear=true] 是否在执行完成后自动销毁释放内存
+        * @see {soya2d.Tween.Linear}
+         */
+        to:function(attris,duration,opts){
+            if(this.__infinite)return this;
+            opts = opts || {};
+            var easing = opts.easing||soya2d.Tween.Linear;
+            var data = this.__calc(attris,duration,easing);
+
+            var yoyo = opts.yoyo||false;
+            var repeat = opts.repeat||0;
+            var odd = repeat % 2;
+            if(yoyo && odd){
+                for(var k in data[0]){
+                    this.__state[k] = data[0][k].initVal;
                 }
             }
-            var varVal = (endVal-initVal);
-            this.__attr[key] = {'initVal':initVal,'varVal':varVal,'endVal':endVal};
-            //inverse
-            var varVal_inverse = (initVal-endVal);
-            this.__attr_inverse[key] = {'initVal':endVal,'varVal':varVal_inverse,'endVal':initVal};
+            var state = {};
+            soya2d.ext(state,this.__state);
 
+            var td = new TweenData(data,state,duration,opts);
+            this.__long += td.delay;
 
-            //预计算。精度为10MS
-            if(this.cacheable){
-                this.__ratio = {};//用于传递给onupdate
-                this.__ratio_inverse = {};
-
-                var dVal = this.__attr[key].dVal = {};
-                var dVal_inverse = this.__attr_inverse[key].dVal = {};
-                for(var j=0;(j+=10)<this.duration;){
-                    var r = this.easing(j,0,1,this.duration);
-                    this.__ratio['p_'+j] = r;
-                    dVal['p_'+j] = initVal + varVal*r;
-                    //inverse
-                    r = this.easing(j,0,1,this.duration);
-                    this.__ratio_inverse['p_'+j] = r;
-                    dVal_inverse['p_'+j] = endVal + varVal_inverse*r;
+            for(var tdk in this.__tds){
+                var t = this.__tds[tdk];
+                for(var k in data[0]){
+                    if(t.__initState[k] === undefined)
+                        t.__initState[k] = data[0][k].initVal;
                 }
             }
 
-        }
-    },
-    /**
-     * 启动补间器<br/>
-     * *启动新的补间实例，会立即停止当前目标正在执行的补间
-     * @return this
-     */
-    start:function(){
-        this.__calc();
-        this.__startTime = Date.now();
-
-        if(this.target.__soya__tween instanceof soya2d.Tween){
-            this.target.__soya__tween.stop();
-        }
-
-        this.target.__soya__tween = this;
-
-        soya2d.TweenManager.add(this);
-        return this;
-    },
-    /**
-     * 延迟启动补间器
-     * @param {int} delay 延迟毫秒数
-     * @return this
-     */
-    delay:function(delay){
-        this.__delay = delay;
-        return this;
-    },
-    /**
-     * 停止补间器
-     */
-    stop:function(){
-        delete this.target.__soya__tween;
-        soya2d.TweenManager.remove(this);
-        return this;
-    },
-    /**
-     * 跳转到指定间隔
-     */
-    goTo:function(target,time,un){
-        var ratio,attNames=this.__attriNames,attr=this.__attr,t=target;
-        //预计算
-        if(this.cacheable){
-            var phase = 'p_'+(time/10>>0)*10;
-            ratio = this.__ratio[phase];
-            if(phase==='p_0')ratio=0;
-            if(ratio===un)ratio = 1;
-            //更新参数
-            for(var i=attNames.length;i--;){
-                var k = attNames[i];
-                if(!attr[k])continue;
-                var v = attr[k].dVal[phase];
-                if(v===un)v = attr[k].endVal;
-                t[k] = v;
+            this.__tds[this.__long] = td;
+            this.__startTimes.push(this.__long);
+            td.__startPos = this.__long;
+            if(td.repeat === -1){
+                this.__infinite = true;
+                soya2d.console.warn('infinite loop instance');
             }
-        }else{
-            ratio = this.easing(time,0,1,this.duration);
-            if(time>this.duration)ratio=1;
-            //更新参数
-            for(var i=attNames.length;i--;){
-                var k = attNames[i];
-                if(attr[k])
-                t[k] = attr[k].initVal + attr[k].varVal*ratio;
-            }
-        }
-        return ratio;
-    },
-    /**
-     * 更新补间实例
-     */
-    update:function(now,d){
-        var c = now - this.__startTime;
-        if(this.__delay > 0){
-            this.__delay -= d;
-            if(this.__delay <=0)this.__startTime = Date.now();
-            return;
-        }
-        var t=this.target;
-        var ratio = this.goTo(t,c);
+            this.__long += td.duration * (td.repeat+1);
 
-        //判断结束
-        if(c>=this.duration){
-            if(this.onEnd)this.onEnd(t);
-            //是否循环
-			if(this.iteration===-1 ||
-                (this.iteration>0 && this.__loops++ < this.iteration)){
-                //重新计算
-                this.__startTime = Date.now();
-                if(this.alternate){
-                    //替换属性
-                    var tmp = this.__attr;
-                    this.__attr = this.__attr_inverse;
-                    this.__attr_inverse = tmp;
-                    //替换缓存
-                    tmp = this.__ratio;
-                    this.__ratio = this.__ratio_inverse;
-                    this.__ratio_inverse = tmp;
+            return this;
+        },
+        /**
+         * 启动补间器
+         * @return this
+         */
+        play:function(keepAlive){
+            this.__reversed = false;
+            this.__status = 'running';
+
+            this.keepAlive = keepAlive;
+            
+            return this;
+        },
+        reverse:function(){
+            if(this.__infinite)return;
+            this.__status = 'running';
+            this.__reversed = true;
+        },
+        /**
+         * 暂停补间器
+         */
+        pause:function(){
+            this.__status = 'paused';
+            this.emit('pause');
+            return this;
+        },
+        restart:function(){
+            this.position = 0;
+            this.play();
+        },
+        __getTD:function(){
+            for(var i=this.__startTimes.length;i--;){
+                if(this.position >= this.__startTimes[i]){
+                    return this.__tds[this.__startTimes[i]];
                 }
+            }
+        },
+        __onUpdate:function(r,td){
+            this.emit('process',r,this.position / this.__long);
+            if(((r === 1 && !this.__reversed) || (r === 0 && this.__reversed)) && 
+                this.__lastChangeTD != td){
+                
+                this.__onChange(++this.__changeTimes);
+                this.__lastChangeTD = td;
+            }
+        },
+        __onChange:function(times){
+            this.emit('change',times);
+        },
+        __onEnd:function(){
+            this.emit('stop');
+            
+            if(!this.keepAlive){
+                this.destroy();
+            }
+        },
+        __update:function(now,d){
+            if(this.__status !== 'running')return;
+
+            if(this.position > this.__long && !this.__reversed && !this.__infinite){
+                this.position = this.__long;
+                this.pause();
+                this.__onEnd();
+                return;
+            }else if(this.position < 0 && this.__reversed && !this.__infinite){
+                this.position = 0;
+                this.pause();
+                this.__onEnd();
                 return;
             }
-            //销毁
-            this.destroy();
-            soya2d.TweenManager.remove(this);
 
-            if(this.__next){
-                this.__next.start();
+            d = this.__reversed?-d:d;
+            this.position += d;
+
+            var td = this.__getTD();
+            if(!td)return;
+            if(this.__runningTD !== td){
+                this.__runningTD = td;
+                this.__runningTD.__inited = false;
             }
 
-            return;
+            td.update(
+                this,
+                this.position);
+        },
+        destroy:function(){
+            this.__manager.__remove(this);
+            
+            for(var k in this.__tds){
+                this.__tds[k].destroy();
+            }
+            this.__tds = null;
+            this.target = null;
+            this.__currentTD = null;            
         }
-        //调用更新[target,ratio]
-        if(this.onUpdate)this.onUpdate(t,ratio);
-    },
-    /**
-     * 销毁补间实例，释放内存
-     */
-    destroy:function(){
-        this.__attr = null;
-        this.__ratio = null;
-        this.attris = null;
-        this.easing = null;
-        delete this.target.__soya__tween;
-        this.target = null;
-        this.onUpdate = null;
-        this.onEnd = null;
-    },
-    /**
-     * 设置当前补间完成后的下一个补间，进行链式执行<br/>
-     * *如果当前补间设置了无限循环，永远不会进入下一个
-     * @param  {soya2d.Tween} tween 下一个补间
-     * @return this
-     */
-    next:function(tween){
-        this.__next = tween;
-        if(this.iteration===-1){
-            soya2d.console.warn('invalid [next] setting on infinite loop instance...');
-        }
-        return this;
-    }
-};
+    });
 
-/********* 扩展 **********/
-soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.prototype */{
     /**
-    * 播放补间动画
-    * @param {Object} attris 补间目标属性
-    * @param {int} duration 补间周期(ms)
-    * @param {Object} [opts] 补间属性
-    * @param {function} [opts.easing=soya2d.Tween.Linear] 补间类型
-    * @param {boolean} [opts.cacheable=false] 是否缓存，启用缓存可以提高动画性能，但是动画过程会有些许误差
-    * @param {int} [opts.iteration=0] 循环播放次数，-1为无限
-    * @param {boolean} [opts.alternate=false] 是否交替反向播放动画，只在循环启用时生效
-    * @param {function} [opts.onUpdate] 补间更新事件
-    * @param {function} [opts.onEnd] 补间结束事件
-    * @param {boolean} [si=true] 是否立即启动
-    * @see {soya2d.Tween.Linear}
-    * @return {soya2d.Tween} 补间实例
-    * @requires tween
-    */
-	animate:function(attris,duration,opts,si){
-        var tween = new soya2d.Tween(this,attris,duration,opts);
-        si = si===false?false:si || true;
-        if(si)tween.start();
-		return tween;
-	},
-    /**
-     * 停止当前对象正在执行的补间动画
-     * @return {soya2d.DisplayObject} 
-     * @requires tween
+     * 补间数据
      */
-    stopAnimation:function(){
-        if(this.__soya__tween){
-            this.__soya__tween.stop();
-        }
-        return this;
+    function TweenData(data,state,duration,opts){
+        /**
+         * 补间时长(s)
+         * @type {Number}
+         */
+        this.duration = duration * 1000;
+
+        opts = opts||{};
+        /**
+         * 补间算法
+         * @type {Function}
+         */
+        this.easing = opts.easing||soya2d.Tween.Linear;
+        /**
+         * 循环播放次数，-1为无限
+         * @type {int}
+         */
+        this.repeat = opts.repeat||0;
+        /**
+         * 是否交替反向播放动画，只在循环多于1次时有效
+         * @type {Boolean}
+         */
+        this.yoyo = opts.yoyo||false;
+        /**
+         * 是否缓存，启用缓存可以提高动画性能，但是动画过程会有些许误差
+         * @type {Boolean}
+         */
+        this.cacheable = opts.cacheable||false;
+        /**
+         * 延迟时间(s)
+         * @type {Number}
+         */
+        this.delay = (opts.delay||0) * 1000;
+
+        //用来保存每个属性的，变化值，补间值
+        this.__attr = data[0];
+        this.__attriNames = Object.keys(data[0]);
+        this.__ratio = data[1];
+
+        this.__initState = state;
+
+        this.__loops = 0;//已经循环的次数
     }
-});
+    TweenData.prototype = {
+        update:function(tween,pos){
+            var c = pos - this.__startPos;
+            if(this.repeat !== 0){
+                this.__loops = Math.ceil(c / this.duration) - 1;
+
+                if(this.repeat > 0 && this.__loops > this.repeat)return;
+
+                c = c % this.duration;
+            }else{
+                c = c>this.duration?this.duration:c;
+            }
+
+            var t = tween.target;
+            if(!this.__inited){
+                for(var k in this.__initState){
+                    t[k] = this.__initState[k];
+                }
+                this.__inited = true;
+            }
+            
+            var ratio;
+            if(this.repeat === 0){
+                ratio = this.goTo(t,c);
+            }else{
+                var odd = this.__loops % 2;
+                if(odd && this.__loops > 0 && this.yoyo){
+                    ratio = this.goTo(t,c,true);
+                }else{
+                    ratio = this.goTo(t,c);
+                }
+            }
+
+            tween.__onUpdate(ratio,this);
+        },
+        goTo:function(target,time,reverse){
+            var ratio,attNames=this.__attriNames,attr=this.__attr,t=target;
+            //预计算
+            if(this.cacheable){
+                var phase = 'p_'+(time/10>>0)*10;
+                ratio = this.__ratio[phase];
+                if(phase==='p_0')ratio=0;
+                if(ratio===undefined)ratio = 1;
+                //更新参数
+                for(var i=attNames.length;i--;){
+                    var k = attNames[i];
+                    if(!attr[k])continue;
+                    var v = attr[k].dVal[phase];
+                    if(v===undefined)v = attr[k].endVal;
+                    t[k] = v;
+                }
+            }else{
+                if(time < 0)time = 0;
+                ratio = this.easing(time,0,1,this.duration);
+                if(time > this.duration)ratio=1;
+                // console.log(ratio)
+                //更新参数
+                for(var i=attNames.length;i--;){
+                    var k = attNames[i];
+                    if(attr[k])
+                    t[k] = attr[k].initVal + attr[k].varVal*(reverse?1-ratio:ratio);
+                }
+            }
+            return ratio;
+        },
+        destroy:function(){
+            this.__attr = null;
+            this.__ratio = null;
+            this.easing = null;
+            this.target = null;
+            this.onUpdate = null;
+            this.onEnd = null;
+        }
+    };
+
+}();

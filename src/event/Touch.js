@@ -1,5 +1,5 @@
 ﻿/**
- * @classdesc 触摸事件处理类,提供如下事件:<br/>
+ * 触摸事件处理类,提供如下事件:<br/>
  * <ul>
  *     <li>touchstart</li>
  *     <li>touchmove</li>
@@ -22,6 +22,7 @@ soya2d.Touch = function(){
     };
     var thisGame;
     var touch = this;
+    var eventMap = soya2d.DisplayObject.prototype.__signalHandler.map;
 
     this.touchList = [];
 
@@ -71,7 +72,7 @@ soya2d.Touch = function(){
 
         var touchList = touch.touchList;
 
-        var renderer = thisGame.getRenderer();
+        var renderer = thisGame.renderer;
         var cvs = renderer.getCanvas();
         var marginLeft = window.getComputedStyle(cvs,null).marginLeft;
         marginLeft = parseFloat(marginLeft) || 0;
@@ -82,7 +83,7 @@ soya2d.Touch = function(){
             var x = touchList[i];
             var y = touchList[i+1];
             
-            switch(thisGame.view.rotate()){
+            switch(thisGame.stage.rotateMode){
                 case soya2d.ROTATEMODE_90:
                     //平移，计算出canvas内坐标
                     x = x + cvs.offsetLeft - marginTop;
@@ -91,7 +92,7 @@ soya2d.Touch = function(){
                     //旋转
                     var tmp = x;
                     x = y;
-                    y = thisGame.view.w - Math.abs(tmp);
+                    y = thisGame.stage.w - Math.abs(tmp);
                     break;
                 case soya2d.ROTATEMODE_270:
                     //平移，计算出canvas内坐标
@@ -101,12 +102,12 @@ soya2d.Touch = function(){
                     //旋转
                     var tmp = y;
                     y = x;
-                    x = thisGame.view.h - Math.abs(tmp);
+                    x = thisGame.stage.h - Math.abs(tmp);
                     break;
                 case soya2d.ROTATEMODE_180:
                     //旋转
-                    x = thisGame.view.w - Math.abs(x);
-                    y = thisGame.view.h - Math.abs(y);
+                    x = thisGame.stage.w - Math.abs(x);
+                    y = thisGame.stage.h - Math.abs(y);
                     break;
             }
             
@@ -167,8 +168,6 @@ soya2d.Touch = function(){
         }
     }
 
-
-
     /******************* interface *******************/
 
     /**
@@ -180,7 +179,7 @@ soya2d.Touch = function(){
             var event = fireMap[key];
             if(!event)continue;
             if(event.fire){
-                var events = this.__eventMap[key];
+                var events = eventMap[key];
                 fireEvent(events,event);
             }
         }
@@ -198,26 +197,16 @@ soya2d.Touch = function(){
 
     function fireEvent(events,ev){
         if(!events)return;
-
+        var x,y;
         var contextSet = [];
-        var hasGame = false;
-        var scene = null;
         var touchList = touch.touchList;
         for(var i=events.length;i--;){
-            var target = events[i].context;
-            if(target == thisGame){
-                hasGame = true;
-                continue;
-            }
-            if(target instanceof soya2d.Scene){
-                scene = target;
-                continue;
-            }
+            var target = events[i][1];
             for(var j=0;j<touchList.length;j+=2){
                 x = touchList[j];
                 y = touchList[j+1];
 
-                if(target.hitTest(x,y)){
+                if(target.hitTest(x,y) && target.isRendered()){
                     if(contextSet.indexOf(target) < 0){
                         contextSet.push(target);
                     }
@@ -229,12 +218,7 @@ soya2d.Touch = function(){
         contextSet.sort(function(a,b){
             return b.z - a.z;
         });
-        if(scene){
-            contextSet.push(scene);
-        }
-        if(hasGame){
-            contextSet.push(thisGame);
-        }
+
         if(contextSet.length<1)return;
 
         var target = contextSet[0];
@@ -253,26 +237,25 @@ soya2d.Touch = function(){
 
             p = p.parent;
         }
-
-        if(hasGame && target != thisGame){
-            fireListeners(thisGame,events,ev);
-        }
     }
 
     function fireListeners(target,events,ev){
         var listeners = [];
         events.forEach(function(ev){
-            if(ev.context == target){
+            if(ev[1] == target){
                 listeners.push(ev);
             }
         });
 
         listeners.sort(function(a,b){
-            return a.order - b.order;
+            return b[2] - a[2];
         });
 
         for(var i=listeners.length;i--;){
-            listeners[i].fn.call(target,ev);
+            listeners[i][0].call(target,ev);
+            if(listeners[i][3]){
+                listeners[i][1].off(ev.type,listeners[i][0]);
+            }
         }
         return ev;
     }
@@ -283,7 +266,7 @@ soya2d.Touch = function(){
      */
     this.startListen = function(game){
         thisGame = game;
-        var cvs = game.getRenderer().getCanvas();
+        var cvs = game.renderer.getCanvas();
 
         if (window.PointerEvent) {
             cvs.addEventListener("pointerdown", proxy, false);
@@ -311,7 +294,7 @@ soya2d.Touch = function(){
      * @return this
      */
     this.stopListen = function(game){
-        var cvs = game.getRenderer().getCanvas();
+        var cvs = game.renderer.getCanvas();
         
         if (window.PointerEvent) {
             cvs.removeEventListener("pointerdown", proxy, false);
@@ -331,10 +314,7 @@ soya2d.Touch = function(){
         }
         return this;
     }
-
-    soya2d.EventHandler.call(this);
 };
-soya2d.inherits(soya2d.Touch,soya2d.EventHandler);
 /**
  * 事件类型 - 触摸按下
  * @type {String}

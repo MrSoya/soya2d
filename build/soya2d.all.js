@@ -1,9 +1,25 @@
-/**
- * 引擎命名空间
- * @namespace
- * @author {@link http://weibo.com/soya2d MrSoya}
+/*
+ * soya2D is a web interactive animation(game) engine for modern web browsers 
+ *
+ *
+ * Copyright 2015-2016 MrSoya and other contributors
+ * Released under the MIT license
+ *
+ * website: http://soya2d.com
+ * last build: 2016-08-26
  */
-var soya2d = new function(){
+!function (global) {
+	'use strict';
+/**
+ * 核心包定义了soya2d的入口，基础组件以及循环体等
+ *
+ * @module core
+ */
+
+/**
+ * @namespace soya2d
+ */
+global.soya2d = new function(){
 
     //渲染实例编号
     this.__roIndex=0;
@@ -15,8 +31,8 @@ var soya2d = new function(){
      * @property {function} toString 返回版本
      */
 	this.version = {
-        v:[1,4,1],
-        state:'',
+        v:[2,0,0],
+        state:'beta1',
         toString:function(){
             return soya2d.version.v.join('.') + ' ' + soya2d.version.state;
         }
@@ -42,17 +58,53 @@ var soya2d = new function(){
         }
 	};
 
-    /**
-     * 继承
-     * @param {Function} child 子类
-     * @param {Function} parent 父类
-     */
-    this.inherits = function(child,parent){
+    function inherits(child,parent){
     	//采用原型对象创建，可以保证只继承原型上挂着的方法，而构造内定义的方法不会继承
         child.prototype = Object.create(parent.prototype);
         child.prototype.constructor = child;
         child.prototype._super = parent.prototype;
 	}
+
+    /**
+     * define a class
+     * @param {String} namePath full class path with namespace
+     * @param {Object} param    as below
+     * @param {Object} param.extends    extends to
+     * @param {Object} param.constructor   constructor of the class
+     */
+    this.class = function(namePath,param){
+        var constr = param.constructor;        
+        var parent = param.extends;
+        var cls = function(){
+            if(parent)parent.apply(this,arguments);
+            if(constr)constr.apply(this,arguments);
+        };
+        if(parent)inherits(cls,parent);
+        for(var k in param){
+            if(k === 'extends' || k==='constructor')continue;
+            cls.prototype[k] = param[k];
+        }
+
+        if(namePath){
+            var ps = namePath.split('.');
+            var name = ps[ps.length-1];
+            var ns = self;
+            if(ps.length>1){
+                for (var i = 0; i < ps.length; i++) {
+                    if(ps[i] !== name){
+                        ns = ns[ps[i]];
+                        if(!ns){
+                            ns = {};
+                        }
+                    }
+                }
+            }
+            ns[name] = cls;
+            cls.prototype.class = namePath;
+        }
+
+        return cls;
+    }
 
     /**
      * 模块管理
@@ -87,8 +139,27 @@ var soya2d = new function(){
             return map;
         }
     }
+
+    /**
+     * 渲染一个soya2D舞台
+     * @param {String | HTMLElement} container 游戏渲染的容器，可以是一个选择器字符串或者节点对象
+     * @param {int} w 游戏的宽度
+     * @param {int} h 游戏的高度
+     * @param  {Scene} scene  渲染场景
+     * @return {soya2d.Game}
+     */
+    this.render = function(container,w,h,scene){
+        var game = new soya2d.Game({
+            w:w,
+            h:h,
+            container:container
+        });
+        game.start();
+        game.scene.start(scene);
+        return game;
+    }
 };
-var soya = soya2d;
+global.soya = soya2d;
 
 //系统扩展
 self.Int8Array = self.Int8Array || Array;
@@ -304,35 +375,15 @@ soya2d.TEXTDIR_LTR = "ltr";
 soya2d.TEXTDIR_RTL = "rtl";
 
 /**
- * 纹理重复类型——REPEAT
- * @constant
- */
-soya2d.REPEAT = 'repeat';
-/**
- * 纹理重复类型——NOREPEAT
- * @constant
- */
-soya2d.NOREPEAT = 'no-repeat';
-/**
- * 纹理重复类型——REPEAT_X
- * @constant
- */
-soya2d.REPEAT_X = 'repeat-x';
-/**
- * 纹理重复类型——REPEAT_Y
- * @constant
- */
-soya2d.REPEAT_Y = 'repeat-y';
-/**
  * 线性渐变类型
  * @constant
  */
-soya2d.GRADIENTTYPE_LINEAR = 1;
+soya2d.GRADIENT_LINEAR = 1;
 /**
  * 放射渐变类型
  * @constant
  */
-soya2d.GRADIENTTYPE_RADIAL = 2;
+soya2d.GRADIENT_RADIAL = 2;
 
 /**
  * 点击测试类型——路径
@@ -347,9 +398,246 @@ soya2d.HITTEST_PIXEL = 2;
 
 
 /**
+ * 摄像机是游戏世界的视口，game.world里的内容都会呈现在camera的镜头内。
+ * @class Camera
+ */
+function Camera(w,h,game) {
+
+    Object.defineProperties(this,{
+        /**
+         * camera在world中的位置
+         * @type {int}
+         */
+        x : {
+            set:function(v){
+                this.__view.x = v;
+                this.__checkBounds();
+            },
+            get:function(){
+                return this.__view.x;
+            }
+        },
+        /**
+         * camera在world中的位置
+         * @type {int}
+         */
+        y : {
+            set:function(v){
+                this.__view.y = v;
+                this.__checkBounds();
+            },
+            get:function(){
+                return this.__view.y;
+            }
+        },
+        w : {
+            get:function(){
+                return this.__view.w;
+            }
+        },
+        h : {
+            get:function(){
+                return this.__view.h;
+            }
+        }
+    });
+    /**
+     * 镜头内限制目标跟踪范围的矩形区域，跟踪目标时有效。
+     * freezone的x/y/w/h都是相对于camera的
+     * @type {soya2d.Rectangle}
+     */
+    this.freezone = null;
+
+    this.__view = new soya2d.Rectangle(0,0,w,h);
+    this.__game = game;
+}
+Camera.prototype = {
+    /**
+     * 设置camera跟踪一个精灵。<br/>一旦设置有效精灵后，camera将根据freezone设置进行精灵位置跟踪，
+     * 而忽略camera本身的任何移动方法。
+     * @param  {soya2d.DisplayObject} target camera跟踪目标，必须是容器内的精灵
+     */
+    follow:function(target){
+        var tmp = this.__game.world.find(function(ro){
+            if(target.roid === ro.roid)return true;
+        },true);
+        if(tmp.length<0){
+            soya2d.console.error('camera: '+target.toString()+' must be a child node of game.world');
+        }
+        this.target = target;
+    },
+    /**
+     * 取消跟踪
+     */
+    unfollow:function(){
+        this.target = null;
+    },
+    /**
+     * 移动卷轴指定坐标
+     * @param  {number} x x轴坐标
+     * @param  {number} y y轴坐标
+     */
+    moveTo:function(x,y){
+        if(this.target)return;
+        this.__view.x = x;
+        this.__view.y = y;
+        
+        this.__checkBounds();
+    },
+    /**
+     * 移动卷轴指定偏移
+     * @param  {number} offX x轴偏移量
+     * @param  {number} offY y轴偏移量
+     */
+    moveBy:function(offX,offY){
+        if(this.target)return;
+        this.__view.x += offX;
+        this.__view.y += offY;
+        
+        this.__checkBounds();
+    },
+    reset:function(){
+        this.__view.x = this.__view.y = 0;
+    },
+    /**
+     * @private
+     */
+    __checkBounds:function(){
+        var scope = this.__game.world.bounds;
+
+        var left = scope.x,
+            top = scope.y,
+            right = scope.w,
+            bottom = scope.h;
+
+        //l & r
+        var bx = this.__view.x;
+        if(bx < left)this.__view.x = left;
+        if(right>0 && bx + this.__view.w > right)
+            this.__view.x = right - this.__view.w;
+        //t & b
+        var by = this.__view.y;
+        if(by < top)this.__view.y = top;
+        if(bottom>0 && by + this.__view.h > bottom)
+            this.__view.y = bottom - this.__view.h;
+    },
+    /**
+     * 设置camera freezone范围
+     * @param {soya2d.Rectangle} freezone 范围矩形
+     */
+    setFreezone:function(scope){
+        if(!scope)return;
+        this.freezone = scope;
+    },
+    __onUpdate:function(){
+        if(!this.target || !this.target.game)return;
+
+        var tx,ty;
+        var wp = this.target.worldPosition;
+        tx = wp.x,
+        ty = wp.y;
+        var tw = this.target.w,
+            th = this.target.h;
+            
+        var offx = tx - this.__view.x,
+            offy = ty - this.__view.y;
+        if(this.freezone){
+            var fx = this.freezone.x,
+                fy = this.freezone.y,
+                fw = this.freezone.w,
+                fh = this.freezone.h;
+            var left = this.__view.x + fx,
+                top = this.__view.y + fy,
+                right = this.__view.x + fx + fw,
+                bottom = this.__view.y + fy + fh;
+            var halfTw = tw/2,
+                halfTh = th/2;
+            if(tx - halfTw < left){
+                this.__view.x = tx - fx - halfTw;
+            }else if(tx+halfTw > right){
+                this.__view.x = tx - fw - fx + halfTw;
+            }
+
+            if(ty - halfTh < top){
+                this.__view.y = ty - fy - halfTh;
+            }else if(ty+halfTh > bottom){
+                this.__view.y = ty - fh - fy + halfTh;
+            }
+        }else{
+            this.__view.x = tx - this.__view.w/2;
+            this.__view.y = ty - this.__view.h/2;
+        }
+
+        this.__checkBounds();
+    },
+    //裁剪舞台，修改全局坐标
+    __cull:function(stage){
+        var c = stage.children;
+        for(var i=c.length;i--;){
+            cull(c[i],this.__view);
+        }
+    },
+    //转换世界坐标到屏幕坐标
+    __viewport:function(world){
+        var c = world.children;
+        for(var i=c.length;i--;){
+            viewport(c[i],this.__view);
+        }
+    }
+}
+
+function cull(ro,cameraRect){
+    if(ro.__renderable){
+        //don't cull fixed DO
+        if(ro.__fixedToCamera)return;
+
+        if(!cameraRect.intersectWith(ro.getBoundingBox())){
+            ro.__renderable = false;
+            return;
+        }
+
+        if(ro.children)
+            for(var i=ro.children.length;i--;){
+                var c = ro.children[i];
+                if(c.__renderable){
+                    cull(c,cameraRect);
+                }
+            }
+    }
+}
+
+function viewport(ro,cameraRect,toFixed){
+    if(ro.__renderable){
+        var x = null,y = null;
+        if(ro.__fixedToCamera){
+            var x = ro.cameraOffset.x + ro.anchorPosition.x;
+            var y = ro.cameraOffset.y + ro.anchorPosition.y;
+            toFixed = true;
+
+        }else if(toFixed){
+            x = ro.parent.__screenPosition.x - ro.parent.anchorPosition.x + ro.x + ro.anchorPosition.x;
+            y = ro.parent.__screenPosition.y - ro.parent.anchorPosition.y + ro.y + ro.anchorPosition.y;
+        }else{
+            x = ro.worldPosition.x;
+            y = ro.worldPosition.y;
+            x -= cameraRect.x;
+            y -= cameraRect.y;
+        }
+        ro.__screenPosition.set(x,y);
+
+        if(ro.children)
+            for(var i=ro.children.length;i--;){
+                var c = ro.children[i];
+                if(c.__renderable){
+                    viewport(c,cameraRect,toFixed);
+                }
+            }
+    }
+}
+/**
  * 数学接口提供了常用的静态常量以及方法<br/>
- * @namespace soya2d.Math
- * @author {@link http://weibo.com/soya2d MrSoya}
+ * @class soya2d.Math
+ * @static
  */
 soya2d.Math = {
 	/**
@@ -425,7 +713,7 @@ soya2d.Math = {
 	 * @param {Number} p1y 
 	 * @param {Number} p2x 
 	 * @param {Number} p2y 
-	 * @returns 两点距离值
+	 * @return 两点距离值
 	 */
 	len2D:function(p1x,p1y,p2x,p2y){
 		return Math.sqrt((p2y-p1y)*(p2y-p1y) + (p2x-p1x)*(p2x-p1x));
@@ -435,7 +723,7 @@ soya2d.Math = {
 	 * 注意：此方法会产生少量误差，可以用在精度不高，但要求速度的场景中
 	 * @param {Number} dx X轴坐标差值
 	 * @param {Number} dy Y轴坐标差值
-	 * @returns 两点距离值
+	 * @return 两点距离值
 	 */
 	len2Df:function(dx,dy){//D-values
 		dx = Math.abs(dx);
@@ -475,89 +763,1293 @@ soya2d.Math = {
 	})()
 };
 /**
- * @classdesc 资源管理器是具体资源管理器的基类，该类不应被直接实例化。
- * 应使用相关资源的子类。
- * @class 
- * @author {@link http://weibo.com/soya2d MrSoya}
+ * 资源类提供了用于获取指定类型资源的服务。这是一个内部类，无法在外部实例化。
+ * 每个game有且只有一个assets属性，通过该属性可以获取资源。
+ * ```
+ *     game.assets.sound('bgm').play();
+ * ```
+ * @class Assets
+ * 
  */
-soya2d.ResourceManager = function(){
-    this.urlMap = {};//url->obj
+function Assets(){
+    this.__assets = {
+        image:{},
+        sound:{},
+        imageFont:{},
+        atlas:{},
+        text:{},
+        xml:{},
+        json:{}
+    };
 };
-soya2d.ResourceManager.prototype = {
+Assets.prototype = {
     /**
-     * 获取一个资源对象，如果匹配到多个，只返回第一个
-     * @param {string | Object} opts url字符串，或者参数对象，参数如下：
-     * @param {string} opts.url 需要查找的资源url，可以是全路径或部分路径，当fuzzy属性为false时，部分路径无效
-     * @param {boolean} [opts.fuzzy=true] 是否进行url模糊匹配
-     * @return {Object | null} 资源对象或者null
+     * 获取一个图像资源
+     * @method image
+     * @param  {String} key 加载资源时指定的key
+     * @return {HTMLImageElement}  
      */
-    find:function(opts){
-        if(!opts)return null;
-        if(typeof opts == "string"){
-            var url = opts;
-            opts = {};
-            opts.urls = [url];
-        }else{
-            opts.urls = [opts.url];
-        }
-        var rs = this.findAll(opts);
-        if (rs.length == 0) {
-            return null;
-        } else {
-            return rs[0];
-        }
+    image:function(key){
+        return this.__assets.image[key];
     },
     /**
-     * 获取一组资源对象
-     * @param {string | Object} opts url字符串，或者参数对象，参数如下(如果为空返回所有资源)：
-     * @param {Array} opts.urls 需要查找的资源url数组，可以是全路径或部分路径，当fuzzy属性为false时，部分路径无效。支持多标识
-     * @param {boolean} [opts.fuzzy=true] 是否进行url模糊匹配
-     * @return {Array | null} 资源数组或者null
+     * 获取一个声音资源。
+     * 如果没有装载声音模块，该方法永远不会返回有效值
+     * @method sound
+     * @param  {String} key 加载资源时指定的key
+     * @return {soya2d.Sound}  
      */
-    findAll:function(opts){
-        var urls = Object.keys(this.urlMap);
-
-        if(typeof opts == "string"){
-            var url = opts;
-            opts = {};
-            opts.urls = [url];
-
-        }
-        var fuzzy = opts?opts.fuzzy||true:true;
-
-        var tmp = [];
-        if(opts){
-            for(var k=opts.urls.length;k--;){
-                var url = opts.urls[k];
-                if(fuzzy){
-                    for(var i=urls.length;i--;){
-                        if(urls[i].indexOf(url)>-1)tmp.push(urls[i]);
-                    }
-                }else{
-                    for(var i=urls.length;i--;){
-                        if(urls[i] == url)tmp.push(urls[i]);
-                    }
-                }
-            }
-        }else{
-            tmp = urls;
-        }
-
-        var rs = [];
-        for(var i=tmp.length;i--;){
-            rs.push(this.urlMap[tmp[i]]);
-        }
-        return rs;
+    sound:function(key){
+        return this.__assets.sound[key];
+    },
+    /**
+     * 获取一个图像文字资源
+     * @method imageFont
+     * @param  {String} key 加载资源时指定的key
+     * @return {soya2d.ImageFont}  
+     */
+    imageFont:function(key){
+        return this.__assets.imageFont[key];
+    },
+    /**
+     * 获取一个图像集资源
+     * @method atlas
+     * @param  {String} key 加载资源时指定的key
+     * @return {soya2d.Atlas}  
+     */
+    atlas:function(key){
+        return this.__assets.atlas[key];
+    },
+    /**
+     * 获取一个文本资源
+     * @method text
+     * @param  {String} key 加载资源时指定的key
+     * @return {String}  
+     */
+    text:function(key){
+        return this.__assets.text[key];
+    },
+    /**
+     * 获取一个xml资源
+     * @method xml
+     * @param  {String} key 加载资源时指定的key
+     * @return {Document}  
+     */
+    xml:function(key){
+        return this.__assets.xml[key];
+    },
+    /**
+     * 获取一个json资源
+     * @method json
+     * @param  {String} key 加载资源时指定的key
+     * @return {Object}  
+     */
+    json:function(key){
+        return this.__assets.json[key];
     }
 }
 
 /**
- * @classdesc 几何结构，圆形。用于保存圆形结构数据
+ * 图像集是一个将许多小的图像整合到一张大图中，可以从图像集中快速的读取指定部分的图像，从而加速动画的渲染。
+ * ssheet格式为<br/>
+ * <pre>
+ * [
+ 		{n:'hero_001.png',x:0,y:0,w:50,h:50,r:90},//ssheet unit
+ 		{n:'hero_002.png',x:50,y:50,w:50,h:50,r:180},
+ 		...
+ 	]
+ 	</pre>
+ * r:将指定部分资源旋转指定角度后，形成新纹理
+ * @class soya2d.Atlas
+ * @constructor
+ * @param {Image} image 大图纹理
+ * @param {Object} ssheet 图像集描述
+ */
+soya2d.Atlas = function(image,ssheet){
+	this.texs = {};//纹理集
+	ssheet.forEach(function(desc){
+		var data = document.createElement('canvas');
+		data.width = desc.w;
+		data.height = desc.h;
+		var ctx = data.getContext('2d');
+		ctx.translate(desc.w/2,desc.h/2);
+		ctx.rotate((desc.r||0)*Math.PI/180);
+
+		var descW = desc.w>>0,
+			descH = desc.h>>0;
+		if(descW===0 || descH===0){
+			soya2d.console.error('soya2d.Atlas: invalid ssheet unit，w/h must be a positive;[w:'+descW+',h:'+descH+'] ');
+			return;
+		}
+		ctx.drawImage(image,
+						desc.x>>0,desc.y>>0,descW,descH,
+						-descW/2>>0,-descH/2>>0,descW,descH);
+		this.texs[desc.n] = data;
+	},this);
+};
+
+soya2d.Atlas.prototype = {
+	/**
+	 * 返回由一个指定的字符串开始按字母排序的所有纹理
+	 * @param  {[type]} prefix [description]
+	 * @return {[type]}        [description]
+	 */
+	getAll:function(prefix){
+		var rs = [];
+		for(var i in this.texs){
+			if(!prefix || prefix==='*' || (prefix && i.indexOf(prefix)===0))
+				rs.push(this.texs[i]);
+		}
+		
+		return rs;
+	},
+	getByIndex:function(s,e){
+		var rs = [];
+		var ks = Object.keys(this.texs);
+		for(var i=s;i<=e;i++){
+			var t = this.texs[ks[i]];
+			rs.push(t);
+		}
+		return rs;
+	},
+	get:function(name){
+		return this.texs[name];
+	},
+	/**
+	 * 释放图像集数据
+	 */
+	destroy:function(){
+		this.texs = null;
+	}
+};
+
+
+
+
+/**
+ * 信号类用来实现soya2D内部的消息系统
+ * @class 
+ */
+function Signal(){
+    this.__signalHandler;
+};
+Signal.prototype = {
+    /**
+     * 监听一个信号
+     * @param {String} type 信号类型，多个类型使用空格分割
+     * @param {Function} cbk 回调函数
+     * @param {int} order 触发序号，越大的值越先触发
+     * @return this
+     */
+    on:function(type,cbk,order){
+        if(this instanceof soya2d.DisplayObject){
+            switch(type){
+                case 'pointdown':
+                    type = soya2d.Device.mobile?'touchstart':'mousedown';
+                    break;
+                case 'pointmove':
+                    type = soya2d.Device.mobile?'touchmove':'mousemove';
+                    break;
+                case 'pointup':
+                    type = soya2d.Device.mobile?'touchend':'mouseup';
+                    break;
+            }
+        }
+        this.__signalHandler.on(type,cbk,order,this);
+        return this;
+    },
+    /**
+     * 监听一个信号一次
+     * @param {String} type 信号类型，多个类型使用空格分割
+     * @param {Function} cbk 回调函数
+     * @param {int} order 触发序号，越大的值越先触发
+     * @return this
+     */
+    once:function(type,cbk,order){
+        this.__signalHandler.once(type,cbk,order,this);
+        return this;
+    },
+    /**
+     * 取消监听
+     * @param {String} [type] 信号类型，多个类型使用空格分割。如果为空，删除所有信号监听
+     * @param {Function} [cbk] 监听时的函数引用。如果为空，删除该类型下所有监听
+     */
+    off:function(type,cbk){
+        this.__signalHandler.off(type,cbk,this);
+    },
+    /**
+     * 发射指定类型信号
+     * @param {String} type 信号类型
+     * @param {...} params 不定类型和数量的参数
+     */
+    emit:function(){
+        var params = [arguments[0],this];
+        for(var i=1;i<arguments.length;i++){
+            params.push(arguments[i]);
+        }
+        this.__signalHandler.emit.apply(this.__signalHandler,params);
+        return this;
+    }
+}
+
+function SignalHandler(){
+    this.map = {};
+}
+SignalHandler.prototype = {
+    on:function(type,cbk,order,context){
+        var ts = type.replace(/\s+/mg,' ').split(' ');
+        for(var i=ts.length;i--;){
+            var listeners = this.map[ts[i]];
+            if(!listeners)listeners = this.map[ts[i]] = [];
+            listeners.push([cbk,context,order]);
+        }
+    },
+    once:function(type,cbk,order,context){
+        var ts = type.replace(/\s+/mg,' ').split(' ');
+        for(var i=ts.length;i--;){
+            var listeners = this.map[ts[i]];
+            if(!listeners)listeners = this.map[ts[i]] = [];
+            listeners.push([cbk,context,order,true]);
+        }
+    },
+    off:function(type,cbk,context){
+        var types = null;
+        if(!type){
+            types = Object.keys(this.map);
+        }else{
+            types = type.replace(/\s+/mg,' ').split(' ');
+        }
+
+        for(var i=types.length;i--;){
+            var listeners = this.map[types[i]];
+            if(listeners){
+                var toDel = [];
+                for(var j=listeners.length;j--;){
+                    if(context === listeners[j][1] && 
+                        (cbk?listeners[j][0] === cbk:true)){
+                        toDel.push(listeners[j]);
+                    }
+                }
+                toDel.forEach(function(listener){
+                    var index = listeners.indexOf(listener);
+                    listeners.splice(index,1);
+                });
+            }
+        }
+    },
+    //type,src
+    emit:function(){
+        var listeners = this.map[arguments[0]];
+        if(!listeners)return;
+        
+        var target = arguments[1];
+        var params = [target];
+        for(var i=2;i<arguments.length;i++){
+            params.push(arguments[i]);
+        }
+
+        listeners.sort(function(a,b){
+            return b[2] - a[2];
+        });
+
+        listeners.filter(function(item){
+            if(item[1] === target)
+                item[0].apply(item[1],params);
+        });
+        var last = listeners.filter(function(item){
+            if(!item[3])return true;
+        });
+
+        this.map[arguments[0]] = last;
+    }
+}
+/**
+ *  资源加载类<br/>
+ *  除脚本支持不同加载方式外，其他资源都是并行加载。
+ *  调用者应该注意，在并行请求过多时，可能导致请求失败，需要控制请求并发数
+ *  @class Loader
+ */
+var Loader = soya2d.class("",{
+    extends:Signal,
+    timeout:5000,
+    constructor:function(game){
+        this.__signalHandler = new SignalHandler();
+        this.__assetsQueue = [];
+
+        this.game = game;
+        this.__assets = game.assets.__assets;
+
+        this.baseUrl = '';
+
+        var show = true;
+        Object.defineProperties(this,{
+            /**
+             * 是否显示默认的进度条
+             * @type {int}
+             */
+            show : {
+                set:function(v){
+                    show = v;
+                },
+                get:function(){
+                    return show;
+                }
+            },
+            fillStyle:{
+                set:function(v){
+                    this.__tip.fillStyle = v;
+                },
+                get:function(){
+                    return this.__tip.fillStyle;
+                }
+            }
+        });
+
+        this.__logo = new soya2d.Shape({
+            game:game,
+            opacity:0,
+            x: game.w/2 - 11,
+            y: game.h/2 - 30 - 20,
+            z:9999
+        });
+        var p1 = new soya2d.Shape({
+            w:23,h:20,
+            skewY:-30,
+            game:game,
+            fillStyle:'#69CA14',
+            onRender:function(g){
+                g.beginPath();
+                g.fillStyle(this.fillStyle);
+                g.rect(0,0,this.w,this.h);
+                g.fill();
+                g.closePath();
+            }
+        });
+        var p2 = new soya2d.Shape({
+            game:game,
+            w:23,h:20,
+            skewY:30,
+            y:13,
+            opacity:.9,
+            fillStyle:'#2A5909',
+            onRender:function(g){
+                g.beginPath();
+                g.fillStyle(this.fillStyle);
+                g.rect(0,0,this.w,this.h);
+                g.fill();
+                g.closePath();
+            }
+        });
+        var p3 = new soya2d.Shape({
+            game:game,
+            w:23,h:20,
+            skewY:-30,
+            y:28,
+            blendMode:soya2d.BLEND_LIGHTER,
+            fillStyle:'#69CA14',
+            onRender:function(g){
+                g.beginPath();
+                g.fillStyle(this.fillStyle);
+                g.rect(0,0,this.w,this.h);
+                g.fill();
+                g.closePath();
+            }
+        });
+        
+        var font = new soya2d.Font('normal 400 23px/normal Arial,Helvetica,sans-serif');
+        this.__tip = new soya2d.Text({
+            game:game,
+            x: -70,
+            y: 60 + 10,
+            font:font,
+            text:'Loading... 0/0',
+            w:200,
+            fillStyle: '#000'
+        });
+        this.__logo.add(p1,p2,p3,this.__tip);
+        game.world.add(this.__logo);
+    },
+    __addToAssets:function(type,data){
+        for(var k in data){
+            this.__assetsQueue.push({type:type,k:k,data:data[k],baseUrl:this.baseUrl});
+        }
+    },
+    /**
+     * 加载图像
+     * @param  {Object | Array} data 图像的key和url对象，如{btn:'button.png',bullet:'x01.png'}。
+     * 或者图像url数组，key为不包含后缀的图像名，如果重复会覆盖
+     */
+    image:function(data){
+        var map = data;
+        if(data instanceof Array){
+            map = {};
+            data.forEach(function(url){
+                var sPos = url.lastIndexOf('/')+1;
+                var ePos = url.lastIndexOf('.');
+                var k = url.substring(sPos,ePos);
+                map[k] = url;
+            });
+        }
+        this.__addToAssets('image',map);
+    },
+    /**
+     * 加载声音
+     * @param  {Object} data 声音的key和url。url可以是数组或者字符串。当url是数组类型时，
+     * 系统会自动判断当前环境支持的声音格式，并加载。{bird:'bird.ogg',boom:['b1.mp3','b1.ogg']}
+     */
+    sound:function(data){
+        this.__addToAssets('sound',data);
+    },
+    /**
+     * 加载声音
+     * @param  {Object} data 字体的key和url。key就是字体的family。{serif:'serif.woff'}
+     */
+    font:function(data){
+        this.__addToAssets('font',data);
+    },
+    /**
+     * 加载图像文字
+     * @param  {Object} data 图像文字的key和url。url是一个包含了图像地址和精灵表地址的数组。
+     * {title:['title.png','title_ss.json'|{{n:'xx',x:0,y:0,w:100,h:100}}]}
+     */
+    imageFont:function(data){
+        this.__addToAssets('imageFont',data);
+    },
+    /**
+     * 加载图像集
+     * @param  {Object} data 图像集的key和url。url是一个包含了图像地址和精灵表地址的数组。
+     * {birds:['birds.png','birds_ss.json']}
+     *
+     * @param {String} key 图像集的key
+     * @param {String} url 图像的url
+     * @param {int} width 单个图像的宽度
+     * @param {int} height 单个图像的高度
+     */
+    atlas:function(data){
+        var map = data;
+        if(arguments.length === 4){
+            map = {};
+            var k = arguments[0];
+            var url = arguments[1];
+            var w = arguments[2];
+            var h = arguments[3];
+            map[k] = [url,w,h];
+        }
+        this.__addToAssets('atlas',map);
+    },
+    /**
+     * 加载文本
+     * @param  {Object} data 文本的key和url
+     */
+    text:function(data){
+        this.__addToAssets('text',data);
+    },
+    /**
+     * 加载XML
+     * @param  {Object} data xml的key和url
+     */
+    xml:function(data){
+        this.__addToAssets('xml',data);
+    },
+    /**
+     * 加载json
+     * @param  {Object} data json的key和url
+     */
+    json:function(data){
+        this.__addToAssets('json',data);
+    },
+    __loadImage:function(baseUrl,url,onload){
+        var img = new Image();
+        if(this.crossOrigin !== undefined)img.crossOrigin = this.crossOrigin;
+        img.path = url;
+        var loader = this;
+        img.onload=function(){
+            onload('load',this);
+
+            this.onerror = null;
+            this.onload = null;
+        }
+        img.onerror=function(){
+            onload('error',this.path);
+
+            this.onerror = null;
+            this.onload = null;
+        }
+        img.src = baseUrl + url;
+        if(img.complete){
+            onload('load',img);
+
+            img.onerror = null;
+            img.onload = null;
+        }
+    },
+    __loadSound:function(baseUrl,url,onload){
+        var loader = this;
+        var urls = url instanceof Array?url:[url];
+        for(var i=urls.length;i--;){
+            urls[i] = baseUrl + urls[i];
+        }
+        new Howl({
+            src: urls,
+            onload:function(){
+                var sound = new soya2d.Sound();
+                sound.__handler = this;
+
+                onload('load',sound);
+            },
+            onloaderror:function(error){
+                var errorType = soya2d.MEDIA_ERR_DECODE;
+                if(error){
+                    errorType = error.type;
+                }
+                onload('error',this._src,errorType);
+            }
+        });
+    },
+    __loadFont:function(baseUrl,family,url,onload){
+        var originFamily = ['serif','sans-serif'];
+        var originCSS = "border:none;position:absolute;top:-999px;left:-999px;" +
+                        "font-size:100px;width:auto;height:auto;line-height:normal;margin:0;" +
+                        "padding:0;font-variant:normal;white-space:nowrap;font-family:";
+        var originWidth = {};
+        var originHeight = {};
+        var originSpan = {};
+        for(var i=originFamily.length;i--;){
+            var span = document.createElement('div');
+            span.style.cssText = originCSS+"'"+originFamily[i]+"'";
+            span.innerHTML = family;
+            document.body.appendChild(span);
+            originSpan[originFamily[i]] = span;
+            //获取原始size
+            originWidth[originFamily[i]] = span.offsetWidth;
+            originHeight[originFamily[i]] = span.offsetHeight;
+        }
+        //开始加载样式
+        var style = document.createElement('style');
+        style.id = 'FontLoader_'+new Date().getTime();
+        style.innerHTML =  "@font-face {" +
+                        "font-family: '" + family + "';" +
+                        "src: url(" + baseUrl+url + ")" +
+                        "}";
+        document.head.appendChild(style);
+        for(var i in originSpan){
+            originSpan[i].style.fontFamily = family+','+originSpan[i].style.fontFamily;
+        }
+        //监控器启动扫描
+        var startTime = new Date().getTime();
+        var that = this;
+        setTimeout(function(){
+            scanFont(startTime,that.timeout,originSpan,originWidth,originHeight,function(family){
+                onload('timeout',family);
+            },function(family){
+                onload('load',family);
+            },family);
+        },100);//100ms用于浏览器识别非法字体，然后还原并使用次等匹配字体
+    },
+    __loadAtlas:function(baseUrl,key,data,onload){
+        var loader = this;
+        this.__loadImage(baseUrl,data[0],function(type,img){
+            if(type === 'load'){
+                if(typeof(data[1]) === 'string' && data.length===2)
+                    loader.__getXhr(baseUrl,data[1],function(type,xhr){
+                        var atlas = xhr;
+                        if(type === 'load'){
+                            var json;
+                            try{
+                                json = new Function('return '+xhr.responseText)();
+                            }catch(e){
+                                json = e;
+                            }
+                            //创建图像集
+                            atlas = new soya2d.Atlas(img,json);
+                        }
+                        
+                        onload(type,atlas);
+                    });
+                else{
+                    var json = data[1];
+                    if(data.length > 2){
+                        json = [];
+                        var imgW = img.width;
+                        var imgH = img.height;
+                        var w = data[1];
+                        var h = data[2];
+                        var index = 1;
+                        for(var j=h;j<=imgH;j+=h){
+                            for(var i=w;i<=imgW;i+=w){
+                                json.push({
+                                    n:key+'_'+index,
+                                    x:i-w,y:j-h,
+                                    w:w,h:h});
+                                index++;
+                            }
+                        }
+                    }
+                    var atlas = new soya2d.Atlas(img,json);
+                    onload(type,atlas);
+                }
+            }else{
+                onload(type,img);
+            }
+        });
+    },
+    __getXhr:function(baseUrl,url,onload){
+        var loader = this;
+        xhrLoad(baseUrl+url,this.timeout,function(){
+            onload('timeout',url);
+        },function(){
+            onload('error',url);
+        },function(xhr){
+            onload('load',xhr);
+        });
+    },
+    __loadAssets:function(){
+        var loader = this;
+        this.__assetsQueue.forEach(function(asset){
+            switch(asset.type){
+                case 'image':
+                    loader.__loadImage(asset.baseUrl,asset.data,function(type,img){
+                        if(type==='load')
+                            loader.__assets.image[asset.k] = img;
+                        loader.__onLoad(type,img);
+                    });
+                    break;
+                case 'sound':
+                    if(!soya2d.Sound){
+                        soya2d.console.warn("can't load sounds, module [sound] needs to be loaded");
+                        return;
+                    }
+                    loader.__loadSound(asset.baseUrl,asset.data,function(type,sound){
+                        if(type==='load')
+                            loader.__assets.sound[asset.k] = sound;
+                        loader.__onLoad(type,sound,arguments[2]);
+                    });
+                    break;
+                case 'atlas':
+                    loader.__loadAtlas(asset.baseUrl,asset.k,asset.data,function(type,atlas){
+                        if(type==='load')
+                            loader.__assets.atlas[asset.k] = atlas;
+                        loader.__onLoad(type,atlas);
+                    });
+                    break;
+                case 'font':
+                    loader.__loadFont(asset.baseUrl,asset.k,asset.data,function(type,family){
+                        var font = family;
+                        if(type==='load'){
+                            font = new soya2d.Font().family(family);
+                            loader.__assets.imageFont[asset.k] = font;
+                        }
+                        loader.__onLoad(type,font);
+                    });
+                    break;
+                case 'imageFont':
+                    loader.__loadAtlas(asset.baseUrl,asset.k,asset.data,function(type,atlas){
+                        var font = atlas;
+                        if(type==='load'){
+                            font = new soya2d.ImageFont(atlas);
+                            loader.__assets.imageFont[asset.k] = font;
+                        }
+                        loader.__onLoad(type,font);
+                    });
+                    break;
+                case 'text':
+                    loader.__getXhr(asset.baseUrl,asset.data,function(type,xhr){
+                        var text = xhr;
+                        if(type==='load'){
+                            loader.__assets.text[asset.k] = xhr.responseText;
+                            text = xhr.responseText
+                        }
+                        loader.__onLoad(type,text);
+                    });
+                    break;
+                case 'xml':
+                    loader.__getXhr(asset.baseUrl,asset.data,function(type,xhr){
+                        var doc = xhr;
+                        if(type==='load'){
+                            doc = loader.__assets.xml[asset.k] = xhr.responseXML;
+                        }
+                        loader.__onLoad(type,doc);
+                    });
+                    break;
+                case 'json':
+                    loader.__getXhr(asset.baseUrl,asset.data,function(type,xhr){
+                        var json = xhr;
+                        if(type==='load'){
+                            try{
+                                json = new Function('return '+xhr.responseText)();
+                            }catch(e){
+                                json = e;
+                            }
+                            loader.__assets.json[asset.k] = json;
+                        }
+                        loader.__onLoad(type,json);
+                    });
+                    break;
+            }
+        });
+    },
+    __onLoad:function(type,rs){
+        this.__tip.setText('Loading... '+ (++this.__index) +'/'+this.__assetsQueue.length);
+        if(type === 'load'){
+            this.emit(type,rs,this.__index,this.__assetsQueue.length);
+        }else{
+            this.emit(type,rs,arguments[2]);   
+        }
+        if(this.__index == this.__assetsQueue.length){
+            this.__assetsQueue = [];
+            this.emit('end');
+            this.__logo.parent.remove(this.__logo);
+            this.__logo.opacity = 0;
+        }
+    },
+    /**
+     * 启动加载器。在preload中，引擎会自动调用
+     */
+    start:function(){
+        this.__index = 0;
+        if(this.show){
+            if(!this.__logo.parent){
+                this.game.world.add(this.__logo);
+            }
+            this.__logo.opacity = 1;
+        }
+
+        this.__loadAssets();
+    }
+});
+function xhrLoad(url,timeout,ontimeout,onerror,onload){
+    var xhr = new XMLHttpRequest();
+    xhr.open('get',url,true);
+    xhr.timeout = timeout;
+    xhr.ontimeout = ontimeout;
+    xhr.onerror = onerror;
+    if(xhr.onload === null){
+        xhr.onload = function(){
+            if(xhr.status===0 || //native
+                (xhr.status >= 200 && xhr.status <300) || xhr.status === 304){
+                onload(xhr);
+            }
+        }
+    }else{
+        xhr.onreadystatechange = function () {
+            if(xhr.status===0 || //native
+                ((xhr.status >= 200 && xhr.status <300) || xhr.status === 304) && xhr.readyState === 4){
+                onload(xhr);
+            }
+        };
+    }
+    xhr.send(null);
+}
+function scanFont(startTime,timeout,originSpan,originWidth,originHeight,onTimeout,onLoad,family){
+    setTimeout(function(){
+        if(new Date().getTime() - startTime > timeout){
+            onTimeout(family);
+            return;
+        }
+        //检查originSpan的宽度是否发生了变化
+        for(var i in originSpan){
+            originSpan[i].style.left = '-1000px';
+            var w = originSpan[i].offsetWidth;
+            var h = originSpan[i].offsetHeight;
+            if(w !== originWidth[i] || h !== originHeight[i]){//发生了改变
+                //document.body.removeChild(originSpan[i]);
+                
+                    onLoad(family);
+                
+                return;
+            }
+        }
+        //没有改变，继续扫描
+        scanFont(startTime,timeout,originSpan,originWidth,originHeight,onTimeout,onLoad,family);
+    },20);
+}
+
+/**
+ * 媒体加载错误类型——MEDIA_ERR_UNCERTAIN<br/>
+ * 未知错误
+ * @constant
+ */
+soya2d.MEDIA_ERR_UNCERTAIN = -1;
+/**
+ * 媒体加载错误类型——MEDIA_ERR_ABORTED<br/>
+ * 加载被中断
+ * @constant
+ */
+soya2d.MEDIA_ERR_ABORTED = 1;
+/**
+ * 媒体加载错误类型——MEDIA_ERR_NETWORK<br/>
+ * 网络异常
+ * @constant
+ */
+soya2d.MEDIA_ERR_NETWORK = 2;
+/**
+ * 媒体加载错误类型——MEDIA_ERR_DECODE<br/>
+ * 无法解码
+ * @constant
+ */
+soya2d.MEDIA_ERR_DECODE = 3;
+/**
+ * 媒体加载错误类型——MEDIA_ERR_SRC_NOT_SUPPORTED<br/>
+ * 类型不支持
+ * @constant
+ */
+soya2d.MEDIA_ERR_SRC_NOT_SUPPORTED = 4;
+/**
+ * 媒体加载错误类型——MEDIA_ERR_SRC_NOT_FORTHCOMING<br/>
+ * 无法获取资源数据
+ * @constant
+ */
+soya2d.MEDIA_ERR_SRC_NOT_FORTHCOMING = 101;
+/**
+ *  场景用来管理场景内的所有注册对象，如UI元素
+ *  @class Scene
+ */
+function Scene(data,game) {
+    soya2d.ext(this,data);
+
+    this.map = {};
+    this.game = game;
+}
+
+Scene.prototype = {
+    //
+    setView:function(doc){
+        var world = doc.children[0];
+        build(this,world,this.game.world,this.game);
+    },
+    findView:function(id){
+        return this.map[id];
+    }
+}
+
+function build(scene,node,parent,game){
+    for(var i=0;i<node.children.length;i++){
+        var n = node.children[i];
+        var type = n.tagName;
+        var id = n.attributes['id'] ? n.attributes['id'].value : null;
+        var data = parseData(n.attributes,parent);
+        var atlas = data['atlas'];
+        if(type === 'sprite' && atlas){
+            var prefix = data['atlas-prefix'];
+            data.images = game.assets.atlas(atlas).getAll(prefix);
+        }
+        if(type === 'text'){
+            var atlas = data['atlas'];
+            var txt = '';
+            for(var k=0;k<n.childNodes.length;k++){
+                if(n.childNodes[k].nodeType === 3){
+                    txt += n.childNodes[k].nodeValue;
+                }
+            }
+            data.text = txt.replace(/(^\s+)|(\s+$)/mg,'');
+            if(atlas)
+            data.font = game.assets.atlas(atlas);
+            data.size = parseInt(data['size']);
+        }
+        var ins = newInstance(type,data,game);
+
+        bindEvent(n.attributes,ins,scene);
+        if(id){
+            scene.map[id] = ins;
+        }
+        parent.add(ins);
+
+        if(n.children.length>0){
+            build(scene,n,ins,game);
+        }
+    }
+}
+
+function parseData(attrs,parent){
+    var rs = {};
+    var ks = Object.keys(attrs);
+    for(var i=ks.length;i--;){
+        var k = ks[i];
+        var kName = attrs[k].name;
+        if(kName.indexOf('layout-')===0){
+            if(!rs['layout'])rs['layout'] = {};
+            
+            rs['layout'][kName.split('-')[1]] = filter(kName,attrs[k].value,parent);
+        }else{
+            rs[kName] = filter(kName,attrs[k].value,parent);
+        }
+    }
+    return rs;
+}
+
+function bindEvent(attrs,ins,scene){
+    var ks = Object.keys(attrs);
+    for(var i=ks.length;i--;){
+        var k = ks[i];
+        var kName = attrs[k].name;
+        var val = attrs[k].value;
+        if(kName.indexOf('on-') !== 0)continue;
+        var evType = kName.substr(3);
+        var evFn = scene[val];
+        if(evFn instanceof Function){
+            ins.on(evType,evFn);
+        }else{
+            soya2d.console.warn('invalid callback "'+val+'" of '+kName);
+        }
+    }
+}
+
+
+function filter(type,val,parent){
+    switch(type){
+        case 'x':case 'w':
+        case 'y':case 'h':
+        case 'z':case 'angle':case 'scaleX':
+        case 'scaleY':case 'skewX':case 'skewY':
+        case 'scrollAngle':case 'speed':case 'frameRate':
+        case 'frameIndex':
+        case 'letterSpacing':case 'lineSpacing':
+            return parseFloat(val);
+        case 'visible':case 'autoScroll':
+        case 'loop':case 'autoplay':case 'fixedToCamera':
+            return new Function('return '+val)();
+        default:
+            return val;
+    }
+}
+
+function newInstance(type,data,game){
+    var instance = new game.objects.map[type](data);
+    return instance;
+}
+
+/**
+ *  场景管理器，提供场景注册和切换等
+ *  @class SceneManager
+ */
+function SceneManager(game) {
+    this.map = {};
+    this.game = game;
+}
+
+SceneManager.prototype = {
+    /**
+     * 启动场景
+     * @param  {String | Object} scene   场景对象，或者注册名称
+     * @param  {Boolean} clearWorld 是否清空world
+     */
+    start:function(scene,clearWorld){
+        var that = this;
+        var game = this.game;
+
+        if(typeof(scene) === 'string'){
+            scene = this.map[scene];
+        }else{
+            scene = new Scene(scene,game);
+        }
+        
+        game.currentScene = scene;
+        if(clearWorld){
+            //clear world
+            game.world.clear(true);
+            game.world.off();
+            game.camera.reset();
+        }
+        if(scene.onPreload){
+            scene.onPreload(game);
+            
+            game.load.once('end',function(){
+                //初始化场景
+                if(game.currentScene.onInit){
+                    setTimeout(function(){
+                        game.currentScene.onInit(game);
+                    },0)
+                    
+                }
+            });
+            game.load.start();
+        }else 
+        //初始化场景
+        if(scene.onInit){
+            scene.onInit(game);
+        }
+
+        var modules = soya2d.module._getAll();
+        for(var k in modules){
+            if(modules[k].onSceneChange)modules[k].onSceneChange(that,scene);
+        }
+        
+
+        return this;
+    },
+    add:function(key,scene){
+        this.map[key] = new Scene(scene,game);
+        return this.map[key];
+    }
+}
+/**
+ * 构造一个用于任务调度的触发器。
+ * 触发器是调度器进行任务调度时，触发任务的依据。根据触发器提供的表达式，进行触发。一个触发器只能绑定一个任务。
+ * @class TimerTrigger
+ * @param {string} exp 触发器表达式，根据触发类型而定
+ */
+function TimerTrigger(exp){
+    /**
+     * 触发表达式
+     * @type {String}
+     */
+    this.exp = exp;
+    /**
+     * 触发次数
+     * @type {Number}
+     */
+    this.times = 0;
+    /**
+     * 优先级
+     * @type {Number}
+     */
+    this.priority = 0;
+    /**
+     * 从调度开始，到最近一次触发的毫秒数
+     * @type {Number}
+     */
+    this.milliseconds = 0;
+    //上次触发毫秒数，相差不足1000，就不触发
+    this._lastTriggerMilliseconds = -1000;
+    //时间模式下，当前时间s,m,h
+    this._t = [];
+    //重置触发器
+    this._reset = function(){
+        this.times = 0;
+        this.milliseconds = 0;
+        this._lastTriggerMilliseconds = -1000;
+        this._t = [];
+        delete this._frameInfo;
+        delete this._timeInfo;
+    }
+
+    //是否可以卸载
+    this._canUnload = function(){
+        var h = this._timeInfo.hour;
+        if(h[2] === 1){//单次
+            if(this._t[2]>h[0])return true;
+        }else if(h[2] > 1){//多次
+            if(this._t[2]>h[3][h[3].length-1])return true;
+        }
+    }
+    /**
+     * 是否可以触发
+     */
+    this.canTrigger = function(){
+        return checkTimeTriggerable(this);
+    }
+
+    /************ build trigger ************/
+    if(!/^(\*|(?:[0-9]+(?:,[0-9]+)*)|(?:[0-9]+-[0-9]+)|(?:(?:(?:[0-9]+(?:-[0-9]+)?)|\*)\/[0-9]+)) (\*|(?:[0-9]+(?:,[0-9]+)*)|(?:[0-9]+-[0-9]+)|(?:(?:(?:[0-9]+(?:-[0-9]+)?)|\*)\/[0-9]+)) (\*|(?:[0-9]+(?:,[0-9]+)*)|(?:[0-9]+-[0-9]+)|(?:(?:(?:[0-9]+(?:-[0-9]+)?)|\*)\/[0-9]+))$/.test(exp)){
+        soya2d.console.error('invalid timer expression -- '+exp);
+    }
+    //解析时间信息
+    var secInfo = parseExp(RegExp.$1);
+    var minInfo = parseExp(RegExp.$2);
+    var hourInfo = parseExp(RegExp.$3);
+    this._timeInfo = {
+        sec:secInfo,
+        min:minInfo,
+        hour:hourInfo
+    }
+    
+}
+//触发器调用，解析表达式,并返回
+// [
+// interval,//间隔模式的间隔时长,以及单值模式的值
+// startOff,//间隔模式的启动偏移
+// triggerTimes,//总触发次数,-1为无限
+// values //多值模式，或者区间模式下存储所有合法值
+// ]
+function parseExp(exp){
+    var i,so,tt,values;
+    var tmp;
+    if(exp == '*'){
+        i = -1;//无间隔
+        so = 0;
+        tt = -1;
+    }else if((so = parseInt(exp)) == exp){//匹配整数
+        tt = 1;
+        i = 0;
+    }else if((tmp=exp.split('/')).length===2){//匹配间隔符&区间间隔
+        i = parseInt(tmp[1]);
+        var tmp2;
+        if((tmp2=tmp[0].split('-')).length===2){//存在区间
+            values = [];
+            for(var s=tmp2[0]>>0,e=tmp2[1]>>0;s<=e;s++){
+                values.push(s);
+            }
+            values.sort(function(a,b){
+                return a-b;
+            });
+            tt = values.length;
+        }else{
+            if(!(so = parseInt(tmp[0]))){
+                so = 0;
+            }
+            tt = -1;
+        }
+    }else if((tmp=exp.split(',')).length>1){//匹配多值符
+        values = [];
+        for(var i=tmp.length;i--;){
+            values.push(tmp[i]>>0);
+        }
+        values.sort(function(a,b){
+            return a-b;
+        });
+        tt = tmp.length;
+    }else if((tmp=exp.split('-')).length===2){//匹配区间符
+        values = [];
+        for(var s=tmp[0]>>0,e=tmp[1]>>0;s<=e;s++){
+            values.push(s);
+        }
+        values.sort(function(a,b){
+            return a-b;
+        });
+        tt = values.length;
+    }
+    return [i,so,tt,values];
+}
+//检测时间触发器是否可以触发
+function checkTimeTriggerable(trigger){
+    //换算时间
+    var tmp = trigger.milliseconds/1000;
+    var s = trigger._t[0] = tmp%60>>0;
+    var m = trigger._t[1] = tmp/60%60>>0;
+    var h = trigger._t[2] = tmp/60/60>>0;
+    /////////////////// 计算每个段 ///////////////////
+    if(!checkTimePart(trigger._timeInfo.hour,h))return false;
+    if(!checkTimePart(trigger._timeInfo.min,m))return false;
+    if(!checkTimePart(trigger._timeInfo.sec,s))return false;
+    return true;
+}
+//检测时间每个部分是否OK
+function checkTimePart(part,v){
+    if(part[2]===1){//只触发一次,计算值是否相同
+        if(part[1]!==v)return false;
+    }else if(part[2]===-1 && part[0]===-1){//无限
+    }else if(part[3] && !part[0]){//多值
+        if(part[3].indexOf(v)<0)return false;
+    }else if((part[2]===-1 && part[0]>0) ||
+            (part[0]>0 && part[3])){//间隔
+        if(part[3] && part[3].indexOf(v)<0)return false;//间隔内的区间
+        var actValue = v-part[1];
+        if(actValue <= 0 && part[1]!=0)return false;//防止0除数触发
+        if(actValue % part[0])return false;
+    }
+    return true;
+}
+/**
+ * 定时器
+ * 
+ * @class Timer
+ */
+var Timer = soya2d.class('',{
+    extends:Signal,
+    constructor:function(){
+        this.__signalHandler = new SignalHandler();
+        this.triggerList = [];
+        this.expMap = {};
+        this.threshold = 1000;
+    },
+    on:function(exp,cbk,order){
+        var that = this;
+        exp = exp.replace(/\[(.*?)\]/mg,function(all,ex){
+            if(!that.expMap[ex]){
+                var t = new TimerTrigger(ex);
+                that.triggerList.push(t);
+                that.expMap[ex] = t;
+            }
+            return ex.replace(/\s+/mg,'_');
+        });
+        
+        return this._super.on.call(this,exp,cbk,order);
+    },
+    once:function(exp,cbk,order){
+        var that = this;
+        exp = exp.replace(/\[(.*?)\]/mg,function(all,ex){
+            if(!that.expMap[ex]){
+                var t = new TimerTrigger(ex);
+                that.triggerList.push(t);
+                that.expMap[ex] = t;
+            }
+            return ex.replace(/\s+/mg,'_');
+        });
+        return this._super.once.call(this,exp,cbk,order);
+    },
+    off:function(exp,cbk){
+        var exArray = [];
+        exp = exp.replace(/\[(.*?)\]/mg,function(all,ex){
+            exArray.push(ex);
+            return ex.replace(/\s+/mg,'_');
+        });
+        this._super.off.call(this,exp,cbk);
+        exArray.forEach(function(ex){
+            var cbks = this.__signalHandler.map[ex.replace(/\s+/mg,'_')];
+            if(Object.keys(cbks).length<1){
+                this.expMap[ex] = null;
+                this.__removeTrigger(ex);
+            }
+        },this);
+    },
+    /**
+     * 内部调用，检查所有触发器是否有可以触发的
+     * @private
+     */
+    __scan : function(d){
+        //扫描所有触发器
+        var deleteTriggerList = [];
+        var deleteExp = [];
+        for(var i=this.triggerList.length;i--;){
+            var trigger = this.triggerList[i];
+            var tasks = this.__signalHandler.map[trigger.exp.replace(/\s+/mg,'_')];
+            var canTrigger = false;
+            trigger.milliseconds += d;//毫秒数增加
+            var delta = trigger.milliseconds - trigger._lastTriggerMilliseconds;
+            //是否可触发
+            if(trigger.canTrigger() && delta>=this.threshold){
+                canTrigger = true;
+                //重置触发时间
+                trigger._lastTriggerMilliseconds = trigger.milliseconds;
+            }
+            if(trigger._canUnload())deleteTriggerList.push(trigger.exp);
+
+            if(canTrigger){
+                trigger.times++;//触发次数加1
+                tasks.forEach(function(task,ti){
+                    if(task[3]){
+                        deleteExp.push([trigger.exp,task[0]]);
+                    }
+                    task[0].call(this,trigger.milliseconds,trigger.times,trigger._t);
+                },this);
+            }
+        }
+        //删除可以卸载的任务
+        for(var i=deleteTriggerList.length;i--;){
+            this.__removeTrigger(deleteTriggerList[i]);
+        }
+
+        for(var i=deleteExp.length;i--;){
+            this.off(deleteExp[i][0],deleteExp[i][1]);
+        }
+    },
+    __removeTrigger:function(exp){
+        for(var i=this.triggerList.length;i--;){
+            var trigger = this.triggerList[i];
+            if(trigger.exp === exp){
+                break;
+            }
+        }
+        this.triggerList.splice(i,1);
+    }
+});
+
+/**
+ * 几何结构，圆形。用于保存圆形结构数据
  * @class 
  * @param {Number} x
  * @param {Number} y
  * @param {Number} r
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Circle  = function(x,y,r){
 	this.x = x || 0;
@@ -570,14 +2062,34 @@ soya2d.Circle.prototype = {
     },
     clone:function(){
         return new soya2d.Circle(this.x,this.y,this.r);
+    },
+    intersectWith:function(geom){
+        if(geom instanceof soya2d.Circle && geom.r>0){
+            if(soya2d.Math.len2Df(geom.x - this.x,geom.y - this.y) <= this.r+geom.r)return false;
+        }else if(geom instanceof soya2d.Rectangle && geom.w>0 && geom.h>0){
+        	var w2 = geom.w/2,
+        		h2 = geom.h/2;
+        	var cx = this.x - (geom.x + w2);
+        	var cy = this.y - (geom.y + h2);
+
+        	if(cx > w2+this.r || cy > h2+this.r)return false;
+
+        	var dx = Math.min(cx,w2);
+        	var dx1 = Math.max(dx,-w2);
+        	var dy = Math.min(cy,h2);
+        	var dy1 = Math.max(dy,-h2);
+
+        	return (dx1 - cx) * (dx1 - cx) + (dy1 - cy) * (dy1 - cy)  <= this.r*this.r;
+        }
+
+        return true;
     }
 };
 
 /**
- * @classdesc 几何结构，多边形。
+ * 几何结构，多边形。
  * @class 
  * @param {Array} vtx 1维顶点数组
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Polygon  = function(vtx){
 	this.vtx = vtx;
@@ -592,15 +2104,14 @@ soya2d.Polygon.prototype = {
 };
 
 /**
- * @classdesc 几何结构，矩形。用于保存矩形结构数据
+ * 几何结构，矩形。用于保存矩形结构数据
  * @class 
  * @param {Number} x
  * @param {Number} y
  * @param {Number} w
  * @param {Number} h
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
-soya2d.Rectangle  = function(x,y,w,h){
+soya2d.Rectangle = function(x,y,w,h){
 	this.x = x || 0;
     this.y = y || 0;
     this.w = w || 0;
@@ -623,13 +2134,46 @@ soya2d.Rectangle.prototype = {
         if(x < this.x || x > this.x+this.w)return false;
         if(y < this.y || y > this.y+this.h)return false;
         return true;
+    },
+    intersectWith:function(geom){
+        if(geom instanceof soya2d.Rectangle && geom.w>0 && geom.h>0){
+            if(this.x > geom.x+geom.w || this.y > geom.y+geom.h)return false;
+            if(this.x+this.w < geom.x || this.y+this.h < geom.y)return false;
+        }else if(geom instanceof soya2d.Circle && geom.r>0){
+            return geom.intersectWith(this);
+        }
+
+        return true;
     }
 };
 
 /**
- * @classdesc 创建一个2*2单位矩阵，该矩阵用来描述2D变换信息
+ * 几何结构，点
  * @class 
- * @author {@link http://weibo.com/soya2d MrSoya}
+ * @param {Number} x
+ * @param {Number} y
+ */
+soya2d.Point = function(x,y){
+	this.x = x || 0;
+    this.y = y || 0;
+};
+soya2d.Point.prototype = {
+    toString:function(){
+        return "{x:"+this.x+",y:"+this.y+"}";
+    },
+    clone:function(){
+        return new soya2d.Point(this.x,this.y);
+    },
+    set:function(x,y){
+        this.x = x;
+        this.y = y;
+        return this;
+    }
+};
+
+/**
+ * 创建一个2*2单位矩阵，该矩阵用来描述2D变换信息
+ * @class 
  */
 soya2d.Matrix2x2 = function(){
     /**
@@ -655,8 +2199,8 @@ soya2d.Matrix2x2.prototype = {
      */
 	set:function(m11,m12,m21,m22){
 		var e = this.e;
-		e[0] = m11||1;e[1] = m12||0;
-		e[2] = m21||0;e[3] = m22||1;
+		e[0] = m11==0?0:m11||1;e[1] = m12||0;
+		e[2] = m21||0;e[3] = m22==0?0:m22||1;
 		return this;
 	},
     /**
@@ -763,11 +2307,10 @@ soya2d.Matrix2x2.prototype = {
 };
 
 /**
- * @classdesc 2D向量。提供向量相关计算。<br/>参数为0时，将构造一个0向量
+ * 2D向量。提供向量相关计算。<br/>参数为0时，将构造一个0向量
  * @class 
  * @param {Number} x
  * @param {Number} y
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Vector = function(x,y){
     /**
@@ -921,429 +2464,706 @@ soya2d.Vector.prototype = {
 };
  
 /**
- * @classdesc 显示对象类是引擎中的所有可见组件类的基类。
- * <br/>该类中包含的属性用来控制一个可见对象的显示效果以及渲染方式。<br/>
- 注意，该类不应直接实例化,应使用该类的子类或继承该类
- * @class 
- * @param {Object} data 定义参数,见类参数定义
- * @author {@link http://weibo.com/soya2d MrSoya}
+ *  物理刚体接口，所有物理引擎需要实现body接口
  */
-soya2d.DisplayObject = function(data){
-    data = data||{};
-		
-	this.__seq = soya2d.__roIndex++;
-    /**
-     * 对父类的引用
-     * @var {soya2d.DisplayObject} soya2d.DisplayObject#_super
-     */
-    
-    /**
-     * 渲染对象id，只读
-     * @type {string}
-     */
-    this.roid = 'roid_' + this.__seq;
-    /**
-     * 名称
-     * @type {string}
-     */
-    this.name = data.name||this.roid;
-    /**
-     * 是否可见<br/>
-     * true:可见
-     * false:不可见
-     * @type boolean
-     * @default true
-     */
-    this.visible = data.visible===false?false:data.visible||true;
-    
-    this.__opacity = data.opacity===0?0:data.opacity||1;
-    this.__x = data.x||0;
-    this.__y = data.y||0;
-    this.__w = data.w||0;
-    this.__h = data.h||0;
-    this.__originX = data.originX === 0?0:(data.originX||'50%');
-    this.__originY = data.originY === 0?0:(data.originY||'50%');
-    this.__rotation = data.rotation||0;
-    this.__scaleX = data.scaleX||1;
-    this.__scaleY = data.scaleY||1;
-    this.__skewX = data.skewX||0;
-    this.__skewY = data.skewY||0;
-    Object.defineProperties(this,{
-        /**
-         * 可见度0-1
-         * 1:不透明
-         * 0:全透明
-         * @type Number
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 1
-         */
-        opacity:{
-            set:function(v){
-                if(v == 0)v = 0;
-                else{
-                    v = parseFloat(v)||1;
-                }
-                this.__opacity = v<0?0:v>1?1:v;
-            },
-            get:function(){
-                return this.__opacity;
-            },
-            enumerable:true
-        },
-        /**
-         * x坐标。使用top-left坐标系
-         * @type Number
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 0
-         */
-        x:{
-            set:function(v){
-                this.__x = v || 0;
-                this.__localChange = true;
-            },
-            get:function(){
-                return this.__x;
-            },
-            enumerable:true
-        },
-        /**
-         * y坐标。使用top-left坐标系
-         * @type Number
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 0
-         */
-        y:{
-            set:function(v){
-                this.__y = v || 0;
-                this.__localChange = true;
-            },
-            get:function(){
-                return this.__y;
-            },
-            enumerable:true
-        },
-        /**
-         * 宽度。和高度一起，标识对象的碰撞区、以及事件触发区<br/>
-         * *originX属性也依赖该属性
-         * @type Number
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 0
-         */
-        w:{
-            set:function(v){
-                this.__w = v;
-                this.__originChange = true;
-            },
-            get:function(){
-                return this.__w;
-            },
-            enumerable:true
-        },
-        /**
-         * 高度。和宽度一起，标识对象的碰撞区、以及事件触发区<br/>
-         * *originY属性也依赖该属性
-         * @type Number
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 0
-         */
-        h:{
-            set:function(v){
-                this.__h = v;
-                this.__originChange = true;
-            },
-            get:function(){
-                return this.__h;
-            },
-            enumerable:true
-        },
-        /**
-         * x轴参考点，对象变形时的原点,可以设置百分比字符串或者数字。
-         * @type {String|Number}
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 50%
-         */
-        originX:{
-            set:function(v){
-                this.__originX = v;
-                this.__originChange = true;
-            },
-            get:function(){
-                return this.__originX;
-            },
-            enumerable:true
-        },
-        /**
-         * y轴参考点，对象变形时的原点,可以设置百分比字符串或者数字。
-         * @type {String|Number}
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 50%
-         */
-        originY:{
-            set:function(v){
-                this.__originY = v;
-                this.__originChange = true;
-            },
-            get:function(){
-                return this.__originY;
-            },
-            enumerable:true
-        },
-        /**
-         * 当前旋转角度
-         * @type {Number}
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 0
-         */
-        rotation:{
-            set:function(v){
-                this.__rotation = v;
-                this.__localChange = true;
-            },
-            get:function(){
-                return this.__rotation;
-            },
-            enumerable:true
-        },
-        /**
-         * x轴缩放比<br/>
-         * 如果大于1，则会把对象横向拉伸<br/>
-         * 如果等于1，不改变<br/>
-         * 如果小于1，则会把对象横向缩短
-         * @type Number
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 1
-         */
-        scaleX:{
-            set:function(v){
-                this.__scaleX = v;
-                this.__localChange = true;
-            },
-            get:function(){
-                return this.__scaleX;
-            },
-            enumerable:true
-        },
-        /**
-         * y轴缩放比<br/>
-         * 如果大于1，则会把对象纵向拉伸<br/>
-         * 如果等于1，不改变<br/>
-         * 如果小于1，则会把对象纵向缩短
-         * @type Number
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 1
-         */
-        scaleY:{
-            set:function(v){
-                this.__scaleY = v;
-                this.__localChange = true;
-            },
-            get:function(){
-                return this.__scaleY;
-            },
-            enumerable:true
-        },
-        /**
-         * x轴偏移角。单位：角度
-         * @type Number
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 0
-         */
-        skewX:{
-            set:function(v){
-                this.__skewX = v;
-                this.__localChange = true;
-            },
-            get:function(){
-                return this.__skewX;
-            },
-            enumerable:true
-        },
-        /**
-         * y轴偏移角。单位：角度
-         * @type Number
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 0
-         */
-        skewY:{
-            set:function(v){
-                this.__skewY = v;
-                this.__localChange = true;
-            },
-            get:function(){
-                return this.__skewY;
-            },
-            enumerable:true
-        }
-    });
-   
-    /**
-     * z坐标。标识对象所属图层，并且引擎会按照z值的大小进行渲染
-     * @type Number
-     * @default 0
-     */
-    this.z = data.z||0;
-    /**
-     * 是否需要本地变换
-     * @type {Boolean}
-     * @private
-     */
-    this.__localChange = true;
-    /**
-     * 是否需要参考点变换
-     * @type {Boolean}
-     * @private
-     */
-    this.__originChange = true;
-    /**
-     * 本地变形
-     * @type {soya2d.Matrix2x2}
-     * @private
-     */
-    this.__localTransform = new soya2d.Matrix2x2();
-    /**
-     * 世界变形，用于渲染
-     * @type {soya2d.Matrix2x2}
-     * @private
-     */
-    this.__worldTransform = new soya2d.Matrix2x2();
-    this.__worldPosition = new soya2d.Vector();
-    this.__originPosition = new soya2d.Vector();
-    /**
-     * 混合方式
-     * @type String
-     * @default soya2d.BLEND_NORMAL
-     * @see soya2d.BLEND_NORMAL
-     */
-    this.blendMode = data.blendMode || 'source-over';
+var Body = soya2d.class("",{
+    extends:Signal,
+    constructor:function(displayObject){
+        this.__signalHandler = new SignalHandler();
+        this.sprite = displayObject;
+        this.rigid = null;//物理刚体
+    },
+    sensor:function(tof) {
+        this.__cbk && this.__cbk.sensor(this.rigid,tof);
+        return this;
+    },
+    moveTo:function(x,y){
+        this.__cbk && this.__cbk.moveTo(this.rigid,x,y);
+        return this;
+    },
+    moveBy:function(x,y){
+        this.__cbk && this.__cbk.moveBy(this.rigid,x,y);
+        return this;
+    },
+    static:function(tof){
+        this.__cbk && this.__cbk.static(this.rigid,tof);
+        return this;
+    },
+    mass:function(v){
+        this.__cbk && this.__cbk.mass(this.rigid,v);
+        return this;
+    },
+    rotateBy:function(v){
+        this.__cbk && this.__cbk.rotateBy(this.rigid,v);
+        return this;
+    },
+    rotateTo:function(v){
+        this.__cbk && this.__cbk.rotateTo(this.rigid,v);
+        return this;
+    },
+    friction:function(v){
+        this.__cbk && this.__cbk.friction(this.rigid,v);
+        return this;
+    },
+    restitution:function(v){
+        this.__cbk && this.__cbk.restitution(this.rigid,v);
+        return this;
+    },
+    velocity:function(x,y){
+        this.__cbk && this.__cbk.velocity(this.rigid,x||0,y||0);
+        return this;
+    },
+    inertia:function(v){
+        this.__cbk && this.__cbk.inertia(this.rigid,v||0);
+        return this;
+    }
+});
 
-    this.__mask = data.mask || null;
-    Object.defineProperties(this,{
-        /**
-         * 遮罩。可以是一个绘制的简单图形比如圆，也可以是包含了多个形状子节点的复合形状。
-         * 被用于遮罩的对象只能同时存在一个需要遮罩的对象上，多次设置只会保留最后一次，
-         * 并且被用于遮罩的对象不会出现在画面上<br/>
-         * *如果需要动态控制遮罩对象，需要把遮罩对象添加到场景中
-         * @type {soya2d.DisplayObject}
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default null; 
-         */
-        mask:{
-            set:function(m){
-                if(m){
-                    if(m.__masker){
-                        m.__masker.__mask = null;
-                    }
-                    this.__mask = m;
-                    m.__masker = this;
-                }
-            },
-            get:function(){
-                return this.__mask;
-            },
-            enumerable:true
-        }
-    });
+/**
+ * 该类是soya中应用物理系统的统一接口
+ */
+var Physics = soya2d.class("",{
+    extends:Signal,
+    constructor:function(game){
+        this.__signalHandler = new SignalHandler();
+        this.running = false;
+    },
     /**
-     * 使用当前对象作为遮罩的对象，如果该属性有值，则不会被渲染
-     * @private
+     * 建立一个物理引擎，并实现相关接口
+     * @param  {Object} opts 
+     * @param {Function} opts.onStart 引擎启动
+     * @param {Function} opts.onUpdate 引擎更新
+     * @param {Function} opts.onBind 引擎启动
      */
-    this.__masker = null;
+    setup:function(opts){
+    	this.__cbk = opts || {};
+    },
     /**
-     * 对象范围，用于拾取测试和物理碰撞
-     * @type {soya2d.Rectangle | soya2d.Circle | soya2d.Polygon}
-     * @default soya2d.Rectangle实例
+     * 启动物理系统,可以传递参数
+     * @param  {[type]} opts [description]
+     * @return {[type]}      [description]
      */
-    this.bounds = data.bounds || new soya2d.Rectangle(0,0,this.__w,this.__h);
-    /**
-     * 存储boundingbox
-     * @private
-     */
-    this.__boundRect = new soya2d.Rectangle(0,0,1,1);
-    /**
-     * 对象在物理世界中的实体
-     * @type {Object}
-     */
-    this.body = null;
-    /**
-     * 对象所属的游戏实例。当对象被添加到一个game上时，该值为game实例的引用。
-     * 当对象被创建或从game实例上删除时，该值为null<br/>
-     * 必须先创建game实例(这样引擎会自动引用该实例)或者显式指定game参数，否则会引起异常
-     * @default null
-     * @readOnly
-     * @type {soya2d.Game}
-     */
-    this.game = data.game || soya2d.games[0];
-    /**
-     * 对象缓存的的内部图形。删除该属性可以取消缓存
-     * @type {HTMLCanvasElement}
-     * @default null 
-     */
-    this.imageCache = null;
-    this.__updateCache = false;
+    start:function(opts){
+    	opts = opts || {};
+    	opts.gravity = opts.gravity || [0,1];
+		opts.gravity[0] = opts.gravity[0] || 0;
+	    opts.gravity[1] = opts.gravity[1] || 1;
+	    opts.enableSleeping = opts.enableSleeping || false;
 
-    //check valid
-    if(!this.game){
-        throw new Error('soya2d.DisplayObject: invalid param [game]; '+this.game);
+		this.__cbk.onStart && this.__cbk.onStart(opts); 
+
+		this.running = true;
+    },
+    stop:function(){
+    	this.__cbk.onStop && this.__cbk.onStop();
+    	this.running = false;
+    },
+    update:function(){
+    	this.__cbk.onUpdate && this.__cbk.onUpdate(); 
+    },
+    bind:function(obj){
+    	var shape;
+    	if(this.__cbk.onBind){
+    		shape = this.__cbk.onBind(obj); 
+    	}
+    	obj.body.rigid = shape;
+    	obj.body.__cbk = this.__cbk.body;
+		shape.__sprite = obj;
+    },
+    unbind:function(obj){
+        var shape = obj.body.rigid;
+        if(!shape)return;
+
+        obj.body.__cbk = null;
+        if(this.__cbk.onUnbind){
+            shape.__sprite = null;
+            this.__cbk.onUnbind(shape);
+        }
+        obj.body = {};
+    },
+    enable:function(objs){
+    	var rs = objs;
+    	if(objs instanceof Array || arguments.length>1){
+    		if(arguments.length>1)rs = arguments;
+    		for(var i=rs.length;i--;){
+    			this.bind(rs[i]);
+    		}
+    	}else {
+    		this.bind(rs);
+    	}
+    }
+});
+
+/**
+ * 事件类型 - 碰撞开始
+ * @type {String}
+ */
+soya2d.EVENT_CONTACTSTART = 'contactstart';
+/**
+ * 事件类型 - 碰撞结束
+ * @type {String}
+ */
+soya2d.EVENT_CONTACTEND = 'contactend';
+/**
+ * 物理事件对象
+ * @type {Object}
+ * @typedef {Object} soya2d.PhysicsEvent
+ * @property {Array} collisionPairs - 碰撞对一维数组[{a:xx,b:xx},{a:yy,b:yy}, ...]
+ * @property {soya2d.DisplayObject} otherCollider - 与当前对象产生碰撞的显示对象
+ */
+
+
+/**
+ * 显示对象工厂提供了一种代理服务，简化了创建soya2d中所有可显示对象的工作，并且会自动加入game.world中.
+ * 同时，该类提供了用于注册自定义显示对象到快捷列表中的方法，这样可以在使用XML构建UI时，使用自定义标签
+ * ```
+ *     game.objects.register('rect',soya2d.Rect);
+ * ```
+ * <rect></rect>
+ * 
+ * @class DisplayObjectFactory
+ */
+function DisplayObjectFactory(game){
+    this.map = {};
+    this.game = game;
+}
+
+DisplayObjectFactory.prototype = {
+    register:function(type,constructor){
+        this.map[type] = constructor;
+        this.game.add[type] = function(data){
+            return this.__newInstance(type,data);
+        }
     }
 };
 /**
- * @name soya2d.DisplayObject#onRender
- * @desc 渲染事件，每帧触法。在该回调中使用绘图对象g进行图像绘制
- * @event
- * @param {soya2d.CanvasGraphics} g 绘图对象，根据渲染器类型不同而不同
+ * 显示对象工厂代理提供用于从显示对象工厂中获取指定类型实例，并自动插入world中
+ * @class 
  */
+function DisplayObjectFactoryProxy(game){
+    this.game = game;
+
+    this.__newInstance = function(type,data){
+    	data.game = this.game;
+    	var instance = new this.game.objects.map[type](data);
+    	// instance.game = this.game;
+    	this.game.world.add(instance);
+    	return instance;
+    }
+}
 /**
- * @name soya2d.DisplayObject#onUpdate
- * @desc 更新事件，每帧触法。在该回调中可以编写更新逻辑
- * @event
- * @param {soya2d.Game} game 当前精灵所在的游戏实例
+ * 显示对象是引擎中的所有可见对象的基类,该类中包含的属性用来控制一个可见对象的显示效果以及渲染方式。<br/>
+ 该类不能被实例化
+ * @class soya2d.DisplayObject
+ * @param {Object} data 定义参数,见类参数定义
+ * @module display
  */
- 
-//扩展方法包装
-soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.prototype */{
+soya2d.class("soya2d.DisplayObject",{
+    extends:Signal,
+    __signalHandler : new SignalHandler(),
+    constructor: function(data){
+        data = data||{};
+        	
+        this.__seq = soya2d.__roIndex++;
+        /**
+         * 对父类的引用
+         * @var {soya2d.DisplayObject} soya2d.DisplayObject#_super
+         */
+
+        /**
+         * 渲染对象id，只读
+         * @type {string}
+         */
+        this.roid = 'roid_' + this.__seq;
+        /**
+         * 名称
+         * @type {string}
+         */
+        this.name = data.name||this.roid;
+        /**
+         * 是否可见<br/>
+         * true:可见
+         * false:不可见
+         * @type boolean
+         * @default true
+         */
+        this.visible = data.visible===false?false:data.visible||true;
+        /**
+         * 布局对象，属性列表如下：
+         * left 当值是百分比时，相对父类的宽度
+         * top  当值是百分比时，相对父类的高度
+         * offsetLeft 当值是百分比时，相对自身的宽度
+         * offsetTop 当值是百分比时，相对自身的高度
+         * 都支持数值和百分比
+         * @type {Object}
+         */
+        this.layout = data.layout;
+
+        this.__opacity = data.opacity===0?0:data.opacity||1;
+        this.__x = data.x||0;
+        this.__y = data.y||0;
+        this.__w = data.w||0;
+        this.__h = data.h||0;
+        this.__anchorX = data.anchorX === 0?0:(data.anchorX||'50%');
+        this.__anchorY = data.anchorY === 0?0:(data.anchorY||'50%');
+        this.__angle = data.angle||0;
+        this.__scaleX = data.scaleX==0?0:data.scaleX||1;
+        this.__scaleY = data.scaleY==0?0:data.scaleY||1;
+        this.__skewX = data.skewX||0;
+        this.__skewY = data.skewY||0;
+
+        Object.defineProperties(this,{
+            /**
+             * 可见度0-1
+             * 1:不透明
+             * 0:全透明
+             * @type Number
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 1
+             */
+            opacity:{
+                set:function(v){
+                    if(v == 0)v = 0;
+                    else{
+                        v = parseFloat(v)||1;
+                    }
+                    this.__opacity = v<0?0:v>1?1:v;
+                },
+                get:function(){
+                    return this.__opacity;
+                },
+                enumerable:true
+            },
+            /**
+             * x坐标。使用top-left坐标系
+             * @type Number
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 0
+             */
+            x:{
+                set:function(v){
+                    this.__x = v || 0;
+                    this.__localChange = true;
+
+                    if(this.game.physics.running){
+                        this.body.moveTo(this.__x,this.__y);
+                    }
+                },
+                get:function(){
+                    return this.__x;
+                },
+                enumerable:true
+            },
+            /**
+             * y坐标。使用top-left坐标系
+             * @type Number
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 0
+             */
+            y:{
+                set:function(v){
+                    this.__y = v || 0;
+                    this.__localChange = true;
+
+                    if(this.game.physics.running){
+                        this.body.moveTo(this.__x,this.__y);
+                    }
+                },
+                get:function(){
+                    return this.__y;
+                },
+                enumerable:true
+            },
+            /**
+             * 宽度。和高度一起，标识对象的碰撞区、以及事件触发区<br/>
+             * *anchorX属性也依赖该属性
+             * @type Number
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 0
+             */
+            w:{
+                set:function(v){
+                    this.__w = v;
+                    this.__anchorChange = true;
+                },
+                get:function(){
+                    return this.__w;
+                },
+                enumerable:true
+            },
+            /**
+             * 高度。和宽度一起，标识对象的碰撞区、以及事件触发区<br/>
+             * *anchorY属性也依赖该属性
+             * @type Number
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 0
+             */
+            h:{
+                set:function(v){
+                    this.__h = v;
+                    this.__anchorChange = true;
+                },
+                get:function(){
+                    return this.__h;
+                },
+                enumerable:true
+            },
+            /**
+             * x轴参考点，对象变形时的原点,可以设置百分比字符串或者数字。
+             * @type {String|Number}
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 0
+             */
+            anchorX:{
+                set:function(v){
+                    this.__anchorX = v;
+                    this.__anchorChange = true;
+                },
+                get:function(){
+                    return this.__anchorX;
+                },
+                enumerable:true
+            },
+            /**
+             * y轴参考点，对象变形时的原点,可以设置百分比字符串或者数字。
+             * @type {String|Number}
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 0
+             */
+            anchorY:{
+                set:function(v){
+                    this.__anchorY = v;
+                    this.__anchorChange = true;
+                },
+                get:function(){
+                    return this.__anchorY;
+                },
+                enumerable:true
+            },
+            /**
+             * 当前旋转角度
+             * @type {Number}
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 0
+             */
+            angle:{
+                set:function(v){
+                    this.__angle = v;
+                    this.__localChange = true;
+
+                    if(this.game.physics.running){
+                        this.body.rotateTo(this.__angle);
+                    }
+                },
+                get:function(){
+                    return this.__angle;
+                },
+                enumerable:true
+            },
+            /**
+             * x轴缩放比<br/>
+             * 如果大于1，则会把对象横向拉伸<br/>
+             * 如果等于1，不改变<br/>
+             * 如果小于1，则会把对象横向缩短
+             * @type Number
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 1
+             */
+            scaleX:{
+                set:function(v){
+                    this.__scaleX = v;
+                    this.__localChange = true;
+                },
+                get:function(){
+                    return this.__scaleX;
+                },
+                enumerable:true
+            },
+            /**
+             * y轴缩放比<br/>
+             * 如果大于1，则会把对象纵向拉伸<br/>
+             * 如果等于1，不改变<br/>
+             * 如果小于1，则会把对象纵向缩短
+             * @type Number
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 1
+             */
+            scaleY:{
+                set:function(v){
+                    this.__scaleY = v;
+                    this.__localChange = true;
+                },
+                get:function(){
+                    return this.__scaleY;
+                },
+                enumerable:true
+            },
+            /**
+             * x轴偏移角。单位：角度
+             * @type Number
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 0
+             */
+            skewX:{
+                set:function(v){
+                    this.__skewX = v;
+                    this.__localChange = true;
+                },
+                get:function(){
+                    return this.__skewX;
+                },
+                enumerable:true
+            },
+            /**
+             * y轴偏移角。单位：角度
+             * @type Number
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 0
+             */
+            skewY:{
+                set:function(v){
+                    this.__skewY = v;
+                    this.__localChange = true;
+                },
+                get:function(){
+                    return this.__skewY;
+                },
+                enumerable:true
+            }
+        });
+
+        /**
+         * z坐标。标识对象所属图层，并且引擎会按照z值的大小进行渲染
+         * @type Number
+         * @default 0
+         */
+        this.z = data.z||0;
+        /**
+         * 是否需要本地变换
+         * @type {Boolean}
+         * @private
+         */
+        this.__localChange = true;
+        /**
+         * 是否需要参考点变换
+         * @type {Boolean}
+         * @private
+         */
+        this.__anchorChange = true;
+        /**
+         * 本地变形
+         * @type {soya2d.Matrix2x2}
+         * @private
+         */
+        this.__localTransform = new soya2d.Matrix2x2();
+        /**
+         * 世界变形，用于渲染
+         * @type {soya2d.Matrix2x2}
+         * @private
+         */
+        this.__worldTransform = new soya2d.Matrix2x2();
+        /**
+         * 世界坐标
+         * @readOnly
+         * @type {soya2d.Point}
+         */
+        this.worldPosition = new soya2d.Point();
+        /**
+         * 锚点坐标
+         * @readOnly
+         * @type {soya2d.Point}
+         */
+        this.anchorPosition = new soya2d.Point();
+        /**
+         * 屏幕坐标
+         * @type {soya2d}
+         */
+        this.__screenPosition = new soya2d.Point();
+        /**
+         * 混合方式
+         * @type String
+         * @default soya2d.BLEND_NORMAL
+         * @see soya2d.BLEND_NORMAL
+         */
+        this.blendMode = data.blendMode || 'source-over';
+
+        this.__mask = data.mask || null;
+        this.__fixedToCamera = data.fixedToCamera || false;
+        Object.defineProperties(this,{
+            /**
+             * 遮罩。可以是一个绘制的简单图形比如圆，也可以是包含了多个形状子节点的复合形状。
+             * 被用于遮罩的对象只能同时存在一个需要遮罩的对象上，多次设置只会保留最后一次，
+             * 并且被用于遮罩的对象不会出现在画面上<br/>
+             * *如果需要动态控制遮罩对象，需要把遮罩对象添加到场景中
+             * @type {soya2d.DisplayObject}
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default null; 
+             */
+            mask:{
+                set:function(m){
+                    if(m){
+                        if(m.__masker){
+                            m.__masker.__mask = null;
+                        }
+                        this.__mask = m;
+                        m.__masker = this;
+                    }
+                },
+                get:function(){
+                    return this.__mask;
+                },
+                enumerable:true
+            },
+            /**
+             * 是否固定到摄像机。如果该属性为true，当摄像机移动时，精灵会固定在摄像机的指定位置
+             * @type {Boolean}
+             */
+            fixedToCamera:{
+                set:function(v){
+                    this.__fixedToCamera = v;
+                    if(v)
+                        this.cameraOffset.set(this.x,this.y);
+                },
+                get:function(){
+                    return this.__fixedToCamera;
+                },
+                enumerable:true
+            }
+        });
+        /**
+         * 使用当前对象作为遮罩的对象，如果该属性有值，则不会被渲染
+         * @private
+         */
+        this.__masker = null;
+        /**
+         * 对象范围，用于拾取测试和物理碰撞
+         * @type {soya2d.Rectangle | soya2d.Circle | soya2d.Polygon}
+         * @default soya2d.Rectangle实例
+         */
+        this.bounds = data.bounds || new soya2d.Rectangle(0,0,this.__w,this.__h);
+        /**
+         * 存储boundingbox
+         * @private
+         */
+        this.__boundRect = new soya2d.Rectangle(0,0,1,1);
+        /**
+         * 对象在物理世界中的实体
+         * @type {Body}
+         */
+        this.body = new Body(this);
+        /**
+         * 对象所属的游戏实例。当对象被添加到一个game上时，该值为game实例的引用。
+         * 当对象被创建或从game实例上删除时，该值为null<br/>
+         * 必须先创建game实例(这样引擎会自动引用该实例)或者显式指定game参数，否则会引起异常
+         * @default null
+         * @readOnly
+         * @type {soya2d.Game}
+         */
+        this.game = data.game || soya2d.games[0];
+        /**
+         * 对象缓存的的内部图形。删除该属性可以取消缓存
+         * @type {HTMLCanvasElement}
+         * @default null 
+         */
+        this.imageCache = null;
+        this.__updateCache = false;
+
+        /**
+         * 相对镜头左上角的偏移对象，默认{x:0,y:0}
+         * @type {Object}
+         */
+        this.cameraOffset = new soya2d.Point();
+
+        //check valid
+        if(!this.game){
+            throw new Error('soya2d.DisplayObject: invalid param [game]; '+this.game);
+        }
+
+        soya2d.ext(this, data);
+
+        this.fixedToCamera = this.__fixedToCamera;
+    },
+    __onAdded:function(){
+        this.centerX = this.w/2;
+        this.centerY = this.h/2;
+        this.setLayout(this.layout);
+
+        //calc camera offset
+        if(this.fixedToCamera && this.layout){
+            this.cameraOffset.set(this.x,this.y);
+        }
+
+        if(this.onAdded)this.onAdded();
+    },
+    setLayout:function(layout){
+        if(!layout)return this;
+        
+        var l = layout.left || 0;
+        var t = layout.top || 0;
+        var w = layout.width;
+        var h = layout.height;
+        var ol = layout.offsetLeft;
+        var ot = layout.offsetTop;
+
+        if(w)
+        this.__w = getXW(w,this.parent)||0;
+        if(h)
+        this.__h = getYH(h,this.parent)||0;
+
+        var offL = 0;
+        var offT = 0;
+        if(ol)offL = getOff(ol,this.__w);
+        if(ot)offT = getOff(ot,this.__h);
+
+        if(l || ol)
+        this.__x = getXW(l,this.parent) + offL;
+        if(t || ot)
+        this.__y = getYH(t,this.parent) + offT;
+
+        return this;
+    },
     toString:function(){
         return '{roid:"'+this.roid+'";name:"'+this.name+'"}';
     },
     /**
-     * 更新本地和世界变形
+     * 更新本地和世界变换
      */
-    updateTransform:function(){
+    transform:function(){
         var x = this.__x,
             y = this.__y;
         if(this.__localChange){
             this.__localTransform.identity();
             this.__localTransform
             .scale(this.__scaleX,this.__scaleY)
-            .rotate(this.__rotation).skew(this.__skewX,this.__skewY);
+            .rotate(this.__angle).skew(this.__skewX,this.__skewY);
         }
 
         var lt = this.__localTransform;
         var wt = this.__worldTransform;
-        var op = this.__originPosition;
+        var ap = this.anchorPosition;
         var le = lt.e;
-        var oe = op.e;
 
-        var ox=oe[0],oy=oe[1];
-        if(this.__originChange){
-            ox = this.__originX,
-            oy = this.__originY;
+        var ox=ap.x,oy=ap.y;
+        if(this.__anchorChange){
+            ox = this.__anchorX,
+            oy = this.__anchorY;
             ox = typeof ox==='number'?ox:parseFloat(ox)/100* this.__w,
             oy = typeof oy==='number'?oy:parseFloat(oy)/100* this.__h;
 
-            op.set(ox,oy);
+            ap.set(ox,oy);
         }
         //css style
         x += ox,
@@ -1354,24 +3174,46 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
         if(this.parent){
             var pt = this.parent.__worldTransform;
             var pte = pt.e;
-            var ppe = this.parent.__worldPosition.e;
-            var poe = this.parent.__originPosition.e;
-            var popx = poe[0]*pte[0]+poe[1]*pte[2],
-                popy = poe[0]*pte[1]+poe[1]*pte[3];
+            var pwp = this.parent.worldPosition;
+            var pap = this.parent.anchorPosition;
+            var popx = pap.x*pte[0]+pap.y*pte[2],
+                popy = pap.x*pte[1]+pap.y*pte[3];
             
 
             var wx = x*pte[0]+y*pte[2],
                 wy = x*pte[1]+y*pte[3];
 
-            x = wx + ppe[0] - popx,
-            y = wy + ppe[1] - popy;
+            x = wx + pwp.x - popx,
+            y = wy + pwp.y - popy;
 
             wt.mul(pt);
         }
-        this.__worldPosition.set(x,y);
+
+
+
+        // if(this.__fixedToCamera){
+        //     var camera = this.game.camera;
+        //     x = camera.x + this.cameraOffset.x;
+        //     y = camera.y + this.cameraOffset.y;
+
+        //     this.__fixedDO = true;
+        // }else if(this.parent && this.parent.__fixedDO){
+        //     this.__fixedDO = true;
+
+        //     x += this.parent.anchorPosition.x;
+        //     y += this.parent.anchorPosition.y;
+        // }
+
+        //physics
+        if(this.body.rigid){
+            x -= ap.x;
+            y -= ap.y;
+        }
+
+        this.worldPosition.set(x,y);
 
         //重置变换标识
-        this.__localChange = this.__originChange = false;
+        this.__localChange = this.__anchorChange = false;
     },
     /**
      * 返回当前对象是否被渲染了
@@ -1382,6 +3224,7 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
         var p = this.parent;
         while(p){
             if(!p.visible || p.opacity===0)return false;
+            if(!p.parent && !(p instanceof Stage))return false;
             p = p.parent;
         }
         return true;
@@ -1402,8 +3245,9 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
             || i==='roid' 
 			|| i==='__localTransform'
             || i==='__worldTransform'
-            || i==='__worldPosition'
-            || i==='__originPosition'
+            || i==='worldPosition'
+            || i==='anchorPosition'
+            || i==='__screenPosition'
 
             )continue;
             if(!isRecur && i==='children')continue;      
@@ -1569,12 +3413,12 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
      * @param {String|Number} y 相对精灵左上角的y坐标偏移,可以设置百分比字符串或者数字
      * @return this
      */
-    originBy:function(x,y){
+    anchorBy:function(x,y){
         var a1 = arguments[0] || 0;
         var a2 = arguments[1]===0?0:arguments[1]|| a1;
 
-        this.originX += a1;
-        this.originY += a2;
+        this.anchorX += a1;
+        this.anchorY += a2;
         return this;
     },
     /**
@@ -1583,17 +3427,17 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
      * @param {String|Number} y 相对精灵左上角的y坐标偏移,可以设置百分比字符串或者数字
      * @return this
      */
-    originTo:function(x,y){
+    anchorTo:function(x,y){
         var a1 = arguments[0] || 0;
         var a2 = arguments[1]===0?0:arguments[1]|| a1;
 
-        this.originX = a1;
-        this.originY = a2;
+        this.anchorX = a1;
+        this.anchorY = a2;
         return this;
     },
     /**
      * 返回该对象当前变形状态的4个顶点<br/>
-     * *该方法依赖对象的[x、y、w、h、originX、originY]6个属性
+     * *该方法依赖对象的[x、y、w、h、anchorX、anchorY]6个属性
      * @return {Array} [ topLeftX,topLeftY,
      *                  topRightX,topRightY,
      *                  bottomRightX,bottomRightY,
@@ -1602,12 +3446,12 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
     getBoundingPoints:function(){
         //加载矩阵
         var e = this.__worldTransform.e;
-        var p = this.__worldPosition.e;
-        var op = this.__originPosition.e;
-        var bx = p[0],by = p[1];
+        var wp = this.worldPosition;
+        var ap = this.anchorPosition;
+        var bx = wp.x,by = wp.y;
         var m11 = e[0],m12 = e[1],
             m21 = e[2],m22 = e[3];
-        var ox = op[0],oy = op[1];
+        var ox = ap.x,oy = ap.y;
 
         //计算原始顶点
         var tl_x = -ox,tl_y = -oy;
@@ -1615,7 +3459,6 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
         var bl_x = -ox,bl_y = this.h-oy;
         var br_x = this.w-ox,br_y = this.h-oy;
         
-
         //计算顶点[x,y,1] * m
         return [tl_x*m11+tl_y*m21+bx,tl_x*m12+tl_y*m22+by,
             tr_x*m11+tr_y*m21+bx,tr_x*m12+tr_y*m22+by,
@@ -1625,7 +3468,7 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
     },
     /**
      * 返回该对象当前变形状态的包围矩形<br/>
-     * *该方法依赖对象的[x、y、w、h、originX、originY]6个属性
+     * *该方法依赖对象的[x、y、w、h、anchorX、anchorY]6个属性
      * @return {soya2d.Rectangle} 矩形几何对象
      */
     getBoundingBox:function(){
@@ -1641,9 +3484,10 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
                 if(xys[i]<minY)minY=xys[i];
             }
         }
-        sx = minX,sy = minY;
-        sw = maxX - minX;
-        sh = maxY - minY;
+        var sx = minX,
+            sy = minY,
+            sw = maxX - minX,
+            sh = maxY - minY;
 
         this.__boundRect.x = sx;
         this.__boundRect.y = sy;
@@ -1660,20 +3504,20 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
      * @see soya2d.DisplayObject#bounds
      */
     hitTest:function(x,y){
-        var p = this.__worldPosition.e;
+        var wp = this.worldPosition;
         if(this.bounds instanceof soya2d.Circle){
-            var dis = Math.abs(soya2d.Math.len2D(p[0],p[1],x,y));
+            var dis = Math.abs(soya2d.Math.len2D(wp.x,wp.y,x,y));
             if(dis <= this.bounds.r)return true;
         }else if(this.bounds instanceof soya2d.Rectangle ||
             this.bounds instanceof soya2d.Polygon){
             var vtx;
             if(this.bounds.vtx){
                 var e = this.__worldTransform.e;
-                var op = this.__originPosition.e;
-                var bx = p[0],by = p[1];
+                var ap = this.anchorPosition;
+                var bx = wp.x,by = wp.y;
                 var m11 = e[0],m12 = e[1],
                     m21 = e[2],m22 = e[3];
-                var ox = op[0],oy = op[1];
+                var ox = ap.x,oy = ap.y;
 
                 //计算原始顶点
                 var tl_x = -ox,tl_y = -oy;
@@ -1715,22 +3559,33 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
 
         return false;
     },
+    /**
+     * 检测两个对象是否相交
+     * @param  {DisplayObject} obj
+     * @return {Boolean}
+     */
+    intersectWith:function(obj) {
+        var sb = this.getBoundingBox();
+        var db = obj.getBoundingBox();
+
+        return sb.intersectWith(db);
+    },
     getAnchorPosition:function(){
         //加载矩阵
         var e = this.__worldTransform.e;
-        var p = this.__worldPosition.e;
-        var op = this.__originPosition.e;
-        var bx = p[0],by = p[1];
+        var wp = this.worldPosition;
+        var ap = this.anchorPosition;
+        var bx = wp.x,by = wp.y;
         var m11 = e[0],m12 = e[1],
             m21 = e[2],m22 = e[3];
-        var ox = op[0],oy = op[1];
+        var ox = ap.x,oy = ap.y;
 
         //计算原始顶点
         var tl_x = -ox,tl_y = -oy;
         
         //计算原始锚点
-        var anchorX = this.w * parseInt(this.originX)/100,
-            anchorY = this.h * parseInt(this.originY)/100;
+        var anchorX = this.w * parseInt(this.anchorX)/100,
+            anchorY = this.h * parseInt(this.anchorY)/100;
         //求出0°时的半径
         var r = Math.sqrt(anchorY*anchorY + anchorX*anchorX);
         //计算出锚点和左上角的夹角
@@ -1756,63 +3611,159 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
         this.imageCache.width = this.__w;
         this.imageCache.height = this.__h;
         //redraw
-        this.updateTransform();
+        this.transform();
         this.__updateCache = true;
         var ctx = this.imageCache.getContext('2d');
         var g = new soya2d.CanvasGraphics(ctx);
-        this.game.getRenderer().renderDO(ctx,this,g,true);
+        this.game.renderer.renderDO(this.game.camera.__view,ctx,this,g,true);
         this.__updateCache = false;
+    },
+    /**
+     * 销毁当前对象，以及所有子对象
+     * @return {[type]} [description]
+     */
+    destroy:function(){
+        game.physics.unbind(this);
+        this.off();//remove all signals
+        if(!this.__seq)return;
+        if(this.children.length>0){
+            this.children.forEach(function(child){
+                child.destroy();
+            });
+        }
+        var ks = Object.keys(this);
+        for(var i=ks.length;i--;){
+            if(ks[i].indexOf('__') < 0)continue;
+            this[ks[i]] = null;
+        }
+        if(this.parent)
+            this.parent.remove(this);
+
+        this.onRender = 
+        this.onUpdate = 
+        this.parent = 
+        this.children = 
+        this.imageCache =
+        this.fillStyle = 
+        this.game = 
+        this.body = null;
     }
 });
+
+function getXW(val,parent){
+    if(/^(-?\d+)%$/.test(val)){
+        var per = parseFloat(RegExp.$1) / 100;
+        return getW(parent,per);
+    }else{
+        return val;
+    }
+}
+function getYH(val,parent){
+    if(/^(-?\d+)%$/.test(val)){
+        var per = parseFloat(RegExp.$1) / 100;
+        return getH(parent,per);
+    }else{
+        return val;
+    }
+}
+
+function getOff(offset,typeVal){
+    if(!isNaN(offset))return parseFloat(offset);
+
+    var off = typeVal;
+    var per = 0;
+    if(/^(-?\d+)%$/.test(offset)){
+        per = parseFloat(RegExp.$1) / 100;
+    }
+    return off*per;
+}
+
+function getW(parent,rate){
+    var pw = parent.w;
+    if(pw === 0 && parent.parent){
+        return getW(parent.parent,rate);
+    }
+    return pw * rate;
+}
+function getH(parent,rate){
+    var ph = parent.h;
+    if(ph === 0 && parent.parent){
+        return getH(parent.parent,rate);
+    }
+    return ph * rate;
+}
+
 /**
- * @class 
- * @extends soya2d.DisplayObject
- * @classdesc 显示对象容器继承自显示对象，是所有显示容器的基类。<br/>
- * 该类用于管理包含子节点的容器相关的方法。<br/>
- 注意，该类不应直接实例化,应使用该类的子类或继承该类
- * @param {Object} data 同父类定义参数
- * @author {@link http://weibo.com/soya2d MrSoya} 
+ * @name soya2d.DisplayObject#onRender
+ * @desc 渲染事件，每帧触法。在该回调中使用绘图对象g进行图像绘制
+ * @event
+ * @param {soya2d.CanvasGraphics} g 绘图对象，根据渲染器类型不同而不同
  */
-soya2d.DisplayObjectContainer = function(data){
-    data = data||{};
-    soya2d.DisplayObject.call(this,data);
-    /**
-     * 子节点数组
-     * @type {Array}
-     * @default []
-     */
-    this.children = [];
-    /**
-     * 父节点引用
-     * @type {soya2d.DisplayObject}
-     * @default null
-     */
-    this.parent = null;
-};
-soya2d.inherits(soya2d.DisplayObjectContainer,soya2d.DisplayObject);
-soya2d.ext(soya2d.DisplayObjectContainer.prototype,/** @lends soya2d.DisplayObjectContainer.prototype */{
+/**
+ * @name soya2d.DisplayObject#onUpdate
+ * @desc 更新事件，每帧触法。在该回调中可以编写更新逻辑
+ * @event
+ * @param {soya2d.Game} game 当前精灵所在的游戏实例
+ */
+
+
+// soya2d.ALIGN_LEFT = 'left';
+// soya2d.ALIGN_CENTER = 'center';
+// soya2d.ALIGN_RIGHT = 'right';
+// soya2d.ALIGN_TOP = 'top';
+// soya2d.ALIGN_MIDDLE = 'middle';
+// soya2d.ALIGN_BOTTOM = 'bottom';
+/**
+ * 显示对象容器继承自显示对象，是所有显示容器的基类。该类提供了用于管理包含子节点的容器相关的方法。<br/>
+ 该类不能被实例化
+ * 
+ * @class soya2d.DisplayObjectContainer
+ * @extends soya2d.DisplayObject
+ * @param {Object} data 同父类定义参数
+ */
+soya2d.class("soya2d.DisplayObjectContainer",{
+    extends:soya2d.DisplayObject,
+    constructor:function(data){
+        /**
+         * 子节点数组
+         * @type {Array}
+         * @default []
+         */
+        this.children = [];
+        /**
+         * 父节点引用
+         * @type {soya2d.DisplayObject}
+         * @default null
+         */
+        this.parent = null;
+    },
     /**
      * 增加子节点
      * @param {...soya2d.DisplayObject} children 一个或者多个可渲染对象，使用逗号分割
      * @return this
      */
-	add:function(){
+    add:function(){
         for(var i=0;i<arguments.length;i++){
             var child = arguments[i];
-            if(child.parent)continue;
 
+            if(child.parent){
+                child.parent.remove(child);
+            }
             this.children.push(child);
             child.parent = this;
+
+            //触发onAdded事件
+            child.__onAdded();
         }
 
         return this;
-	},
+    },
     /**
      * 删除子节点
      * @param {...soya2d.DisplayObject} children 一个或者多个可渲染对象，使用逗号分割
      * @return this
      */
-	remove:function(){
+    remove:function(){
         for(var i=0;i<arguments.length;i++){
             var child = arguments[i];
             var index = this.children.indexOf(child);
@@ -1821,19 +3772,24 @@ soya2d.ext(soya2d.DisplayObjectContainer.prototype,/** @lends soya2d.DisplayObje
             this.children.splice(index,1);
             child.parent = null;
         }
- 		
+        
         return this;
-	},
+    },
     /**
      * 清除所有子节点
      * @return {Array} 子节点
      */
-    clear:function(){
+    clear:function(destroy){
         for(var i=this.children.length;i--;){
             this.children[i].parent = null;
         }
         var rs = this.children;
         this.children = [];
+        if(destroy){
+            for(var i=rs.length;i--;){
+                rs[i].destroy();
+            }
+        }
         return rs;
     },
     /**
@@ -1848,405 +3804,746 @@ soya2d.ext(soya2d.DisplayObjectContainer.prototype,/** @lends soya2d.DisplayObje
         var rs;
         if(isRecur){
             rs = [];
-            //创建递归函数
-            !function(parent){
-                for(var i=parent.children.length;i--;){
-                    var c = parent.children[i];
-                    if(filter(c)){
-                        rs.push(c);
-                    }
-                    if(c.children && c.children.length>0){
-                        arguments.callee(c);
-                    }
-                }
-            }(this);
+            recur(this,filter,rs);
         }else{
             rs = this.children.filter(filter);
         }
         return rs;
     }
 });
+
+function recur(parent,filter,rs){
+    for(var i=parent.children.length;i--;){
+        var c = parent.children[i];
+        if(filter(c)){
+            rs.push(c);
+        }
+        if(c.children && c.children.length>0){
+            recur(c,filter,rs);
+        }
+    }
+}
 /**
- * @classdesc 场景用于组织所有需要在该范围内显示的可渲染单位。<br/>
- * 场景是渲染器接收的参数，其他渲染对象无法直接进行渲染
- * @class 
+ * 舞台对象表现为一个soya2D的渲染窗口，每个game实例都只包含唯一的一个stage。
+ * stage也是渲染树中的顶级对象，stage的大小和渲染窗口一致。
+ * stage是渲染树的顶级节点
+ * stage对象可以用于设置窗口视图规则，包括分辨率适应、窗口事件回调等
+ * @class Stage
  * @extends soya2d.DisplayObjectContainer
  * @param {Object} data 所有父类参数
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
-soya2d.Scene = function(data){
-    data = data||{};
-    soya2d.DisplayObjectContainer.call(this,data);
-    soya2d.ext(this,data);
+var Stage = soya2d.class("",{
+    extends:soya2d.DisplayObjectContainer,
+    constructor:function(data){
+        this.game = data.game;
+        this.__anchorX = this.__anchorY = 0;
+        /**
+         * 缩放最小宽度
+         * @type {Number}
+         * @default 0
+         */
+        this.minWidth = 0;
+        /**
+         * 缩放最小高度
+         * @type {Number}
+         * @default 0
+         */
+        this.minHeight = 0;
+        /**
+         * 缩放最大宽度
+         * @type {Number}
+         * @default 0
+         */
+        this.maxWidth = 0;
+        /**
+         * 缩放最大高度
+         * @type {Number}
+         * @default 0
+         */
+        this.maxHeight = 0;
+        /**
+         * 是否在横竖屏切换、resize窗口时，都进行缩放
+         * @type {boolean}
+         * @default true
+         */
+        this.autoScale = true;
 
-    //更新矩阵
-    function updateMx(ro,queue){
-        ro.updateTransform();
-        //生成renderQueue
-        if(ro.children)
-            for(var i=ro.children.length;i--;){
-                var c = ro.children[i];
-                if(c.opacity>0 && c.visible){
-                    queue.push(c);
-                    updateMx(c,queue);
+        /********************* 行为定义 *********************/
+
+        /**
+         * 视图方向。portrait或者landscape
+         * @type {string}
+         * @default portrait
+         */
+        this.orientation = getOrientation();
+        var that = this;
+        var timer;
+        window.addEventListener("orientationchange", function(e){
+            clearTimeout(timer);
+            timer = setTimeout(function() {
+                that.orientation = getOrientation();
+            }, 500);
+            if(that.autoScale){
+                that.__scan();
+            }
+        }, false);
+        window.addEventListener("resize", function(e){
+            that.orientation = getOrientation();
+            if(that.autoScale){
+                that.__scan();
+            }
+        }, false);
+
+        this.__bg = null;
+        this.__rotat = soya2d.ROTATEMODE_0;
+        var align = soya2d.ALIGNMODE_CENTER;
+        var scaleMode = soya2d.SCALEMODE_SHOWALL;
+        Object.defineProperties(this,{
+            ////////////////////////////舞台相关
+            /**
+             * 缩放类型
+             * @type {int}
+             * @default soya2d.SCALEMODE_SHOWALL
+             */
+            scaleMode : {
+                set:function(){
+                    this.__scan();
+                },
+                get:function(){
+                    return scaleMode;
+                }
+            },
+            /**
+             * 设置或者获取该视图对齐模式。SHOWALL模式下有效
+             * @type  {int} alignMode 对齐模式
+             */
+            alignMode : {
+                set:function(alignMode){
+                    if(alignMode && this.scaleMode === soya2d.SCALEMODE_SHOWALL){
+                        var canvas = this.game.renderer.getCanvas();
+                        align = alignMode;
+                        switch(alignMode){
+                            case soya2d.ALIGNMODE_LEFT:
+                                canvas.style.left = 0;
+                                canvas.style.right = 'auto';
+                                break;
+                            case soya2d.ALIGNMODE_RIGHT:
+                                canvas.style.left = 'auto';
+                                canvas.style.right = 0;
+                                break;
+                            case soya2d.ALIGNMODE_CENTER:
+                            default:
+                                canvas.style.left = 0;
+                                canvas.style.right = 0;
+                                align = soya2d.ALIGNMODE_CENTER;//覆盖错误参数
+                                break;
+                        }
+                        canvas.style.margin = 'auto';
+                    }
+                },
+                get:function(){
+                    return align;
+                }
+            },
+            /**
+             * 设置或者获取该视图旋转模式
+             * @type  {int} rotateMode 旋转模式
+             */
+            rotateMode:{
+                set:function(rotateMode){
+                    this.__rotat = rotateMode;
+                    this.__scan();
+                },
+                get:function(){
+                    return this.__rotat;
                 }
             }
-    }
-
+        });
+    },
     /**
      * 更新矩阵树，并记录可渲染的RO。场景自身不处理
      * @private
      */
-    this.__updateMatrix = function(){
-        this.__renderQueue = [];
-        updateMx(this,this.__renderQueue);
-    };
-
+    __updateMatrix : function(){
+        updateMx(this);
+    },
     /**
      * 更新整个场景
      * @private
      */
-    this.__update = function(game){
+    __update : function(game,d){
         if(this.children)
-            update(this.children,game);
-    }
-
-    function update(list,game){
-        for(var i=list.length;i--;){
-            var c = list[i];
-            if(c._onUpdate){
-                c._onUpdate(game);
-            }
-            if(c.onUpdate){
-                c.onUpdate(game);
-            }
-            if(c.children){
-                update(c.children,game);
-            }
+            update(this.children,game,d);
+    },
+    onRender:function(g){
+        if(this.__bg){
+            g.fillStyle(this.__bg);
+            g.fillRect(0,0,this.w,this.h);
         }
-    }
-
-    /**
-     * 查找当前场景中符合条件的对象
-     * *只在可显示对象(opacity>0 && visible)中查询
-     * @param {Function} filter 过滤函数，接收ro为参数，返回true表示该对象返回
-     * @return {Array} 符合过滤条件的节点数组，如果没有，返回空数组
-     */
-    this.findVisible = function(filter){
-        if(!this.__renderQueue)return [];
-        return this.__renderQueue.filter(filter);
-    }
-};
-soya2d.inherits(soya2d.Scene,soya2d.DisplayObjectContainer);
-
-/**
- * @name soya2d.Scene#onInit
- * @desc 当游戏启动或切换场景时触发
- * @event
- * @param {soya2d.Game} game 游戏实例对象，可以获取当前游戏的尺寸等信息
- */
-/**
- * @classdesc 卷轴精灵，用于实现卷轴效果，允许对内部精灵进行移动，精灵定位等<br/>
- * @class 
- * @extends soya2d.DisplayObjectContainer
- * @param {Object} data 所有父类参数，以及新增参数，如下：
- * @param {soya2d.GeoRect} data.scope 卷轴范围
- * @param {soya2d.GeoRect} data.freezone 自由区范围，相对于卷轴视口。当跟踪目标在自由区内移动时，
- * 视口不会跟随目标进行移动
- * @author {@link http://weibo.com/soya2d MrSoya}
- */
-soya2d.ScrollSprite = function(data) {
-    data = data || {};
-    soya2d.DisplayObjectContainer.call(this, data);
-    soya2d.ext(this, data);
-    
-    /**
-     * 卷轴范围
-     * @type {soya2d.GeoRect}
-     */
-    this.scope = data.scope;
-
-    /**
-     * 视口内限制目标跟踪范围的矩形区域，跟踪目标时有效
-     * @type {soya2d.GeoRect}
-     */
-    this.freezone = data.freezone;
-
-    this.__boundContainer = new soya2d.DisplayObjectContainer();
-
-    this.children.push(this.__boundContainer);
-};
-soya2d.inherits(soya2d.ScrollSprite, soya2d.DisplayObjectContainer);
-soya2d.ext(soya2d.ScrollSprite.prototype, /** @lends soya2d.ScrollSprite.prototype */{
-   /**
-    * @override
-    */
-    add:function(){
-        this.__boundContainer.add.apply(this.__boundContainer,arguments);
-        return this;
     },
     /**
-    * @override
-    */
-    remove:function(){
-        this.__boundContainer.remove.apply(this.__boundContainer,arguments);
-        return this;
-    },
-    /**
-    * @override
-    */
-    clear:function(){
-        return this.__boundContainer.clear();
-    },
-    /**
-    * @override
-    */
-    find:function(filter,isRecur){
-        return this.__boundContainer.find(filter,isRecur);
-    },
-    /**
-     * 设置卷轴视口跟踪一个内部精灵。<br/>一旦设置有效精灵后，视窗将根据freezone设置进行精灵位置跟踪，
-     * 而忽略视窗本身的任何移动方法。
-     * @param  {soya2d.DisplayObject} target 视口跟踪目标，必须是容器内的精灵
-     * @return {soya2d.ScrollSprite} this
+     * 设置背景
+     * @param  {Object} color 根据类型不同，会解析为不同的背景设置<br/>
+     * String 颜色字符串，支持HEX或者RGB
+     * Image  背景图，支持第二个参数设置repeat
+     * Int    渐变方式，支持GRADIENT_LINEAR / GRADIENT_RADIAL，后面参数依次为ratio数组，颜色数组，渐变长度
+     * 
      */
-    follow:function(target){
-        var tmp = this.__boundContainer.find(function(ro){
-            if(target.roid === ro.roid)return true;
-        },true);
-        if(tmp.length<0){
-            soya2d.console.error('soya2d.ScrollSprite: '+target.toString()+' must be a child node of soya2d.ScrollSprite');
+    background:function(color){
+        if(typeof(color) === 'string'){
+            this.__bg = color;
+        }else if(color instanceof self.Image){
+            this.__bg = this.game.renderer.createPattern(color,arguments[1]);
+        }else if(!isNaN(color)){
+            var opt = {};
+            if(arguments[4])
+                soya2d.ext(opt,arguments[4]);
+            opt.type = color;
+            var gradient = this.game.renderer.createGradient(arguments[1],arguments[2],arguments[3]||1,opt);
+            this.__bg = gradient;
         }
-        this.target = target;
-
-        this._onUpdate();
-        return this;
     },
     /**
-     * 取消跟踪
-     */
-    unfollow:function(){
-        this.target = null;
-    },
-	/**
-     * 移动卷轴指定坐标
-     * @param  {number} x x轴坐标
-     * @param  {number} y y轴坐标
-     */
-    scrollTo:function(x,y){
-        if(this.target)return;
-        this.__boundContainer.x = x;
-        this.__boundContainer.y = y;
-        
-        this.__checkBounds();
-    },
-    /**
-     * 移动卷轴指定偏移
-     * @param  {number} offX x轴偏移量
-     * @param  {number} offY y轴偏移量
-     */
-    scrollBy:function(offX,offY){
-        if(this.target)return;
-        this.__boundContainer.x += offX;
-        this.__boundContainer.y += offY;
-        
-        this.__checkBounds();
-    },
-    /**
+     * 扫描是否需要缩放，如果需要，则根据缩放参数进行缩放
      * @private
      */
-    __checkBounds:function(){
-        if(!this.scope)return;
-
-        var left = this.scope.x,
-            top = this.scope.y,
-            right = this.scope.w,
-            bottom = this.scope.h;
-
-        //l & r
-        var bx = this.__boundContainer.x;
-        if(bx > left)this.__boundContainer.x = left;
-        if(right>0 && bx < this.w - right)
-            this.__boundContainer.x = this.w - right;
-        //t & b
-        var by = this.__boundContainer.y;
-        if(by > top)this.__boundContainer.y = top;
-        if(bottom>0 && by < this.h - bottom)
-            this.__boundContainer.y = this.h - bottom;
-    },
-    /**
-     * 设置卷轴范围
-     * @param {soya2d.Rectangle} scope 范围矩形
-     */
-    setScope:function(scope){
-        if(!scope)return;
-        this.scope = scope;
-
-        //容器
-        this.__boundContainer.w = scope.w;
-        this.__boundContainer.h = scope.h;
-    },
-    _onUpdate:function(){
-        if(!this.target)return;
-
-        var tgx,tgy;
-        this.target.updateTransform();
-        var wpe = this.target.__worldPosition.e;
-        tgx = wpe[0],
-        tgy = wpe[1];
-        var tw = this.target.w,
-            th = this.target.h;
-
-        var xys = this.__boundContainer.getBoundingPoints();
-        var cgx = xys[0],
-            cgy = xys[1];
-            
-        var offx = tgx - cgx,
-            offy = tgy - cgy;
-        var vx,vy;
-
-        if(this.freezone){
-            var vox = this.__boundContainer.x * -1,
-                voy = this.__boundContainer.y * -1;
-            var disx = offx - vox,
-                disy = offy - voy;
-            var halfTw = tw/2,
-                halfTh = th/2;
-            var fx = this.freezone.x,
-                fy = this.freezone.y,
-                fw = this.freezone.w,
-                fh = this.freezone.h;
-            if(disx - halfTw < fx){
-                vx = offx - halfTw - fx;
-            }else if(disx + halfTw > fx + fw){
-                vx = offx + halfTw - fx - fw;
-            }
-            if(disy - halfTh < fy){
-                vy = offy - halfTh - fy;
-            }else if(disy + halfTh > fy + fh){
-                vy = offy + halfTh - fy - fh;
-            }
-            if(!vx && !vy)return;
-        }else{
-            vx = offx - this.w/2,
-            vy = offy - this.h/2;
+    __scan : function(){
+        var designWidth = this.game.w;
+        var designHeight = this.game.h;
+        
+        //选择缩放器
+        var scaler;
+        switch(this.scaleMode){
+            case soya2d.SCALEMODE_NOSCALE:break;
+            case soya2d.SCALEMODE_NOBORDER:scaler = NOBORDER;break;
+            case soya2d.SCALEMODE_EXACTFIT:scaler = EXACTFIT;break;
+            case soya2d.SCALEMODE_SHOWALL:
+            default:
+            scaler = SHOWALL;
         }
-        if(vx)
-        this.__boundContainer.x = -vx;
-        if(vy)
-        this.__boundContainer.y = -vy;
+        if(!scaler)return;
+        var renderer = this.game.renderer;
+        var container = renderer.getCanvas().parentNode;
+        //判断设计size是否超过了容器size
+        var cw = container.clientWidth;
+        var ch = container.clientHeight;
+        if(container.tagName === 'BODY'){
+            ch = window.innerHeight;
+        }
+        var wh = scaler(designWidth,designHeight,cw,ch,this.minWidth,this.minHeight,this.maxWidth,this.maxHeight);
+        renderer.resize(wh[0],wh[1]);
 
-        this.__checkBounds();
-    },
-    onRender: function(g) {
-        g.beginPath();
-        g.rect(0, 0, this.w, this.h);
-        g.clip();
+        //rotate
+        rotate(this.scaleMode,this.__rotat,renderer.getCanvas(),renderer,this);
     }
 });
+//更新矩阵
+function updateMx(ro){
+    ro.transform();
+    ro.__renderable = true;
+    if(ro.children)
+        for(var i=ro.children.length;i--;){
+            var c = ro.children[i];
+            if(c.visible){
+                updateMx(c);
+            }
+        }
+}
+
+function update(list,game,delta){
+    for(var i=list.length;i--;){
+        var c = list[i];
+        if(c._onUpdate){
+            c._onUpdate(game,delta);
+        }
+        if(c.onUpdate){
+            c.onUpdate(game,delta);
+        }
+        if(c.children && c.children.length>0){
+            update(c.children,game,delta);
+        }
+    }
+}
+function rotate(scaleMode,rotateMode,canvas,renderer,stage){
+    var rs;
+    switch(rotateMode){
+        case soya2d.ROTATEMODE_90:
+            rs = 'rotate('+90+'deg)';
+            break;
+        case soya2d.ROTATEMODE_180:
+            rs = 'rotate('+180+'deg)';
+            break;
+        case soya2d.ROTATEMODE_270:
+            rs = 'rotate('+270+'deg)';
+            break;
+        case soya2d.ROTATEMODE_0:
+        default:
+            rs = 'rotate('+0+'deg)';
+            stage.__rotat = soya2d.ROTATEMODE_0;
+            break;
+    }
+
+    canvas.style.transform = 
+    canvas.style.webkitTransform = 
+    canvas.style.mozTransform = 
+    canvas.style.msTransform = 
+    canvas.style.oTransform = rs;
+
+    canvas.style.left = canvas.style.top = 0;
+
+    //reset bounds
+    if(rotateMode === soya2d.ROTATEMODE_90 || rotateMode === soya2d.ROTATEMODE_270){
+        var h = canvas.offsetWidth;
+        var w = canvas.offsetHeight;
+
+        if(scaleMode === soya2d.SCALEMODE_NOBORDER){
+            var designWidth = this.game.w;
+            var designHeight = this.game.h;
+            h = h>designHeight?designHeight:h;
+            w = w>designWidth?designWidth:w;
+        }
+        renderer.resize(w,h);
+
+        if(scaleMode === soya2d.SCALEMODE_EXACTFIT){
+            var offLeft = (h - w)/2;
+            offLeft = w%2===0?offLeft:Math.floor(offLeft);
+            var offTop = (w - h)/2;
+            offTop = h%2===0?offTop:Math.floor(offTop);
+            
+            canvas.style.left = offLeft +'px';
+            canvas.style.top = offTop +'px';
+        }
+    }
+}
+function getOrientation(){
+    var w = window.innerWidth;
+    var h = window.innerHeight;
+    var rs;
+    if(w > h){
+        rs = 'landscape';
+    }else{
+        rs = 'portrait';
+    }
+    return rs;
+}
 /**
- * @classdesc 空绘图类，需要实现onRender回调
- * @class
+ * 视图缩放类型，不缩放。游戏默认值
+ */
+soya2d.SCALEMODE_NOSCALE = 0;
+/**
+ * 视图缩放类型，等比缩放，总是显示全部
+ */
+soya2d.SCALEMODE_SHOWALL = 1;
+/**
+ * 视图缩放类型，等比缩放，不一定显示全部
+ */
+soya2d.SCALEMODE_NOBORDER = 2;
+/**
+ * 视图缩放类型，非等比缩放。完全适配容器
+ */
+soya2d.SCALEMODE_EXACTFIT = 3;
+
+/**
+ * 视图对齐类型
+ */
+soya2d.ALIGNMODE_LEFT = 1;
+/**
+ * 视图对齐类型
+ */
+soya2d.ALIGNMODE_CENTER = 2;
+/**
+ * 视图对齐类型
+ */
+soya2d.ALIGNMODE_RIGHT = 3;
+
+/**
+ * 视图旋转类型
+ */
+soya2d.ROTATEMODE_0 = 1;
+/**
+ * 视图旋转类型
+ */
+soya2d.ROTATEMODE_90 = 2;
+/**
+ * 视图旋转类型
+ */
+soya2d.ROTATEMODE_180 = 3;
+/**
+ * 视图旋转类型
+ */
+soya2d.ROTATEMODE_270 = 4;
+
+/********************* 规则定义 *********************/
+function NOBORDER(dw,dh,cw,ch,mw,mh,mxw,mxh){
+    cw = mxw && cw > mxw?mxw:cw;
+    ch = mxh && ch > mxh?mxh:ch;
+
+    var r = Math.max(cw/dw,ch/dh);
+    var w = dw*r,
+        h = dh*r;
+    return [w,h];
+}
+function SHOWALL(dw,dh,cw,ch,mw,mh,mxw,mxh){
+    cw = mxw && cw > mxw?mxw:cw;
+    ch = mxh && ch > mxh?mxh:ch;
+
+    var r = 1;
+    if(dw > cw || dh > ch)
+        r = Math.min(cw/dw,ch/dh);
+
+    var w = dw*r,
+        h = dh*r;
+    return [w,h];
+}
+function EXACTFIT(dw,dh,cw,ch,mw,mh,mxw,mxh){
+    var w,h;
+    if(mw && cw < mw){
+        w = mw;
+    }else if(mxw && cw > mxw){
+        w = mxw;
+    }else{
+        w = cw;
+    }
+    if(mh && ch < mh){
+        h = mh;
+    }else if(mxh && ch > mxh){
+        h = mxh;
+    }else{
+        h = ch;
+    }
+    return [w,h];
+}
+
+/**
+ * 纹理重复类型——REPEAT
+ * @constant
+ */
+soya2d.BG_REPEAT = 'repeat';
+/**
+ * 纹理重复类型——NOREPEAT
+ * @constant
+ */
+soya2d.BG_NOREPEAT = 'no-repeat';
+/**
+ * 纹理重复类型——REPEAT_X
+ * @constant
+ */
+soya2d.BG_REPEAT_X = 'repeat-x';
+/**
+ * 纹理重复类型——REPEAT_Y
+ * @constant
+ */
+soya2d.BG_REPEAT_Y = 'repeat-y';
+/**
+ * World保存了当前所有的活动对象，同时也为这些对象提供物理环境。
+ * 每个game实例只有唯一的world对象
+ * 
+ * @class World
  * @extends soya2d.DisplayObjectContainer
  * @param {Object} data 所有父类参数
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
-soya2d.Shape = function(data){
-    data = data||{};
-    soya2d.DisplayObjectContainer.call(this,data);
-    soya2d.ext(this,data);
-};
-soya2d.inherits(soya2d.Shape,soya2d.DisplayObjectContainer);
+var World = soya2d.class("",{
+    extends:soya2d.DisplayObjectContainer,
+    constructor:function() {
+    	this.__soya_type = 'world';
+    },
+    setBounds:function(w,h){
+    	this.bounds.w = w;
+    	this.bounds.h = h;
+    	this.w = w;
+    	this.h = h;
+    }
+});
+
 /**
- * @classdesc 精灵类。具有绘图功能的容器类<br/>
- * 支持子对象渲染,以及矩阵变换
- * @class
+ * 空绘图类，需要实现onRender回调
+ * @class soya2d.Shape
  * @extends soya2d.DisplayObjectContainer
- * @param {Object} data 所有父类参数，以及新增参数，参数如下：
- * @param {soya2d.Texture | HTMLImageElement | Array} data.textures 纹理对象或者纹理数组
- * @param {int} [data.w] 精灵的宽度,默认纹理宽度
- * @param {int} [data.h] 精灵的高度,默认纹理高度
- * @author {@link http://weibo.com/soya2d MrSoya}
+ * @param {Object} data 所有父类参数
  */
-soya2d.Sprite = function(data){
-    data = data||{};
-    soya2d.DisplayObjectContainer.call(this,data);
-    soya2d.ext(this,data);
-
-    var textures = data.textures;
-
-    this.setTextures(textures);
-    
-    this.w = data.w || this.textures[0].w;
-    this.h = data.h || this.textures[0].h;
-
-    /**
-     * 是否多帧
-     * @type {boolean}
-     */
-    this.multiFrame = this.textures.length>1?true:false;
-    /**
-     * 当前帧序号
-     * @type {Number}
-     * @default 0
-     */
-    this.frameIndex = 0;//当前帧号
-    this.__currTex;//当前使用纹理
-    this.__lastUpdateTime = 0;//上次更新纹理时间
-    /**
+soya2d.class("soya2d.Shape",{
+	extends:soya2d.DisplayObjectContainer
+});
+/**
+ * 动画类。用于保存一个自定义精灵帧序列。并按照指定的间隔和循环标识进行播放。
+ * 通常使用多组动画来表示一个精灵的不同状态
+ */
+function Animation(frames,frameRate,loop) {
+	this.frames = frames;
+	this.index = 0;
+	this.lastUpdateTime = 0;
+	/**
 	 * 纹理切换帧率。单位：帧<br/>
 	 * @type int
 	 * @default 1
 	 */
-    this.frameRate = data.frameRate||10;    
-    /**
+	this.frameRate = frameRate || 10;
+	/**
 	 * 动画是否循环
 	 * @type boolean
 	 * @default true
 	 */
-    this.loop = data.loop===false?false:data.loop||true;
-    /**
-	 * 动画是否自动播放
-	 * @type boolean
-	 * @default false
-	 */
-    this.autoplay = data.autoplay||false;
+	this.loop = loop===false?false:loop||true;
+}
+Animation.prototype.reset = function(){
+	this.index = 0;
+	this.lastUpdateTime = 0;
+}
 
-};
-soya2d.inherits(soya2d.Sprite,soya2d.DisplayObjectContainer);
-soya2d.ext(soya2d.Sprite.prototype,/** @lends soya2d.Sprite.prototype */{
-	clone:function(isRecur){//覆盖超类
+
+var AnimationManager = soya2d.class("",{
+    extends:Signal,
+    __signalHandler : new SignalHandler(),
+    constructor: function(sp,size){
+    	this.map = {};
+    	var frames = [];
+    	for(var i=0;i<size;i++){
+    		frames.push(i);
+    	}
+		this.defaultAnimation = new Animation(frames);
+		this.animation = null;
+		this.playingK = null;
+    },
+    destroy:function(){
+    	this.defaultAnimation = null;
+    	this.animation = null;
+    	this.playingK = null;
+    	this.__signalHandler = null;
+    },
+    add:function(key,frameQ,frameRate,loop){
+		this.map[key] = new Animation(frameQ,frameRate,loop);
+
+		return this;
+	},
+	/**
+	 * 播放指定动画组
+	 * @return this
+	 */
+	play:function(key){
+		if(this.playingK === key)return this;
+
+		this.animation = key?this.map[key]:this.defaultAnimation;
+		this.playingK = key || true;
+
+		return this;
+	},
+	stop:function(key){
+		this.playingK = null;
+		if(this.animation)
+			this.animation.reset();
+		this.animation = null;
+
+		return this;
+	}
+});
+/**
+ * 精灵类。具有绘图功能的容器类<br/>
+ * 支持子对象渲染,以及矩阵变换
+ * 
+ * @class soya2d.Sprite
+ * @extends soya2d.DisplayObjectContainer
+ * @constructor
+ * @param {Object} data 所有父类参数，以及新增参数，参数如下：
+ * @param {String | HTMLImageElement | Array<String> | Array<HTMLImageElement>} images 图像加载时的key/key数组/图形对象/图形对象数组
+ * @param {int} [data.w] 精灵的宽度,默认纹理宽度
+ * @param {int} [data.h] 精灵的高度,默认纹理高度
+ */
+soya2d.class("soya2d.Sprite",{
+	extends:soya2d.DisplayObjectContainer,
+	constructor:function(data){
+
+	    var images = data.images;
+	    if(!images)return;
+
+	     /**
+	     * 动画管理器
+	     * @type {AnimationManager}
+	     */
+	    this.animations = null;
+
+	    this.setImages(images);
+	    
+	    this.w = data.w || this.images[0].width;
+	    this.h = data.h || this.images[0].height;
+
+	    /**
+	     * 当前帧序号
+	     * @type {Number}
+	     * @default 0
+	     */
+	    this.frameIndex = data.frameIndex || 0;//当前帧号
+	    /**
+	     * 对图片进行九宫格缩放
+	     * @type {soya2d.Rectangle}
+	     */
+	    this.__scale9grid = data.scale9grid;
+	    if(this.__scale9grid && (this.__w != this.images[0].width || this.__h != this.images[0].height)){
+	    	this.__parseScale9();
+	    }
+	    Object.defineProperties(this,{
+	    	scale9grid:{
+	    		set:function(v){
+	    			if(!(v instanceof soya2d.Rectangle))return;
+	    			this.__scale9grid = v;
+	    			this.__anchorChange = true;
+	    			this.__parseScale9();
+	    		},
+	    		get:function(){
+                    return this.__scale9grid;
+                },
+                enumerable:true
+	    	}
+	    });
+	},
+	clone:function(isRecur){
 		var copy = new this.constructor({
-			textures:this.textures.concat()
+			images:this.images.concat()
 		});
 		return soya2d.DisplayObject.prototype.clone.call(this,isRecur,copy);
 	},
-    onRender:function(g){
-    	if(this.multiFrame){
-    		if(!this.__lastUpdateTime)this.__lastUpdateTime = new Date().getTime();
-	  	    if(this.autoplay){//自动播放
-	            var now = new Date().getTime();
-	            var delta = now - this.__lastUpdateTime;
-	            //处理跳帧情况
-	            var deltaFrames = delta/(this.frameRate*16.7/*这里转化为ms*/)>>0;
-	            //差值大于帧率，切换帧
-	            if(deltaFrames>0){
-	                this.frameIndex+=deltaFrames;
-	                if(this.frameIndex >= this.textures.length){
-	                    if(this.loop){
-	                        this.frameIndex = 0;
-	                    }else{
-	                        this.frameIndex = this.textures.length-1;
-	                    }
-	                }
+	_onUpdate:function(){
+		if(this.__anchorChange && 
+			this.__scale9grid instanceof soya2d.Rectangle && 
+			(this.__w != this.images[0].width || this.__h != this.images[0].height)){
+			this.cache();
+		}
+	},
+	__parseScale9:function(){
+		var imgW = this.images[0].width;
+		var imgH = this.images[0].height;
+		var by = this.__scale9grid.y + this.__scale9grid.h;
+		var bh = imgH - by;
+		var rx = this.__scale9grid.x + this.__scale9grid.w;
+		var rw = imgW - rx;
 
-	                this.__lastUpdateTime = now;
-	            }
-	        }
-	  	    this.__currTex = this.textures[this.frameIndex];
-			g.map(this.__currTex,0,0,this.w,this.h);
+		var dmw = this.__w - this.__scale9grid.x - rw;
+		var dmh = this.__h - this.__scale9grid.y - bh;
+		var dmx = dmw + this.__scale9grid.x;
+		var dmy = dmh + this.__scale9grid.y;
+
+		var x = this.__scale9grid.x,
+			y = this.__scale9grid.y,
+			w = this.__scale9grid.w,
+			h = this.__scale9grid.h;
+		this.__scale9Data = {
+			t1:{
+				x:0,
+				y:0,
+				w:x,
+				h:y
+			},
+			t2:{
+				x:x,
+				y:0,
+				w:w,
+				h:y,
+				dw:dmw
+			},
+			t3:{
+				x:rx,
+				y:0,
+				w:rw,
+				h:y,
+				dx:dmx
+			},
+			m1:{
+				x:0,
+				y:y,
+				w:x,
+				h:h,
+				dh:dmh
+			},
+			m2:{
+				x:x,
+				y:y,
+				w:w,
+				h:h,
+				dw:dmw,
+				dh:dmh
+			},
+			m3:{
+				x:rx,
+				y:y,
+				w:rw,
+				h:h,
+				dx:dmx,
+				dh:dmh
+			},
+			b1:{
+				x:0,
+				y:by,
+				w:x,
+				h:bh,
+				dy:dmy
+			},
+			b2:{
+				x:x,
+				y:by,
+				w:w,
+				h:bh,
+				dw:dmw,
+				dy:dmy
+			},
+			b3:{
+				x:rx,
+				y:by,
+				w:rw,
+				h:bh,
+				dx:dmx,
+				dy:dmy
+			}
+		}
+	},
+    onRender:function(g){
+    	if(this.animations.playingK){
+    		var ani = this.animations.animation;
+    		if(!ani.lastUpdateTime)ani.lastUpdateTime = new Date().getTime();
+            var now = new Date().getTime();
+            var delta = now - ani.lastUpdateTime;
+            //处理跳帧情况
+            var deltaFrames = delta/(ani.frameRate*16.7)>>0;
+            
+            //差值大于帧率，切换帧
+            if(deltaFrames>0){
+                ani.index += deltaFrames;
+                if(ani.index >= ani.frames.length){
+                    if(ani.loop){
+                        ani.index = 0;
+                    }else{
+                    	var k = this.animations.playingK;
+                        this.animations.stop();
+                        this.animations.emit('stop',k);
+                        return;
+                    }
+                }
+
+                ani.lastUpdateTime = now;
+            }
+	        
+	  	    var frame = ani.frames[ani.index];
+			g.map(this.images[frame],0,0,this.w,this.h);
+    	}else if(this.__scale9grid && this.__updateCache){
+    		var img = this.images[0];
+    		var sd = this.__scale9Data;
+    		var t1 = sd.t1,t2 = sd.t2,t3 = sd.t3,
+    			m1 = sd.m1,m2 = sd.m2,m3 = sd.m3,
+    			b1 = sd.b1,b2 = sd.b2,b3 = sd.b3;
+
+    		//top
+    		g.map(img,t1.x,t1.y,t1.w,t1.h,t1.x,t1.y,t1.w,t1.h);
+    		g.map(img,t2.x,t2.y,t2.dw,t2.h,t2.x,t2.y,t2.w,t2.h);
+    		g.map(img,t3.dx,t3.y,t3.w,t3.h,t3.x,t3.y,t3.w,t3.h);
+    		//middle
+    		g.map(img,m1.x,m1.y,m1.w,m1.dh,m1.x,m1.y,m1.w,m1.h);
+    		g.map(img,m2.x,m2.y,m2.dw,m2.dh,m2.x,m2.y,m2.w,m2.h);
+    		g.map(img,m3.dx,m3.y,m3.w,m3.dh,m3.x,m3.y,m3.w,m3.h);
+    		//bottom
+    		g.map(img,b1.x,b1.dy,b1.w,b1.h,b1.x,b1.y,b1.w,b1.h);
+    		g.map(img,b2.x,b2.dy,b2.dw,b2.h,b2.x,b2.y,b2.w,b2.h);
+    		g.map(img,b3.dx,b3.dy,b3.w,b3.h,b3.x,b3.y,b3.w,b3.h);
+
     	}else{
-    		g.map(this.textures[0],0,0,this.w,this.h);
+    		g.map(this.images[this.frameIndex],0,0,this.w,this.h);
     	}
     },
     /**
@@ -2254,11 +4551,11 @@ soya2d.ext(soya2d.Sprite.prototype,/** @lends soya2d.Sprite.prototype */{
 	 */
 	nextFrame:function(){
 		this.frameIndex++;
-		if(this.frameIndex >= this.textures.length){
+		if(this.frameIndex >= this.images.length){
 			if(this.loop){
 				this.frameIndex = 0;
 			}else{
-				this.frameIndex = this.textures.length-1;
+				this.frameIndex = this.images.length-1;
 			}
 		}
 	},
@@ -2269,7 +4566,7 @@ soya2d.ext(soya2d.Sprite.prototype,/** @lends soya2d.Sprite.prototype */{
 		this.frameIndex--;
 		if(this.frameIndex < 0){
 			if(this.loop){
-				this.frameIndex = this.textures.length-1;
+				this.frameIndex = this.images.length-1;
 			}else{
 				this.frameIndex = 0;
 			}
@@ -2277,82 +4574,98 @@ soya2d.ext(soya2d.Sprite.prototype,/** @lends soya2d.Sprite.prototype */{
 	},
 	/**
 	 * 设置或者更改精灵纹理
-	 * @param {soya2d.Texture | HTMLImageElement | Array} textures 纹理对象或者纹理数组
+	 * @param {String | HTMLImageElement | Array<String> | Array<HTMLImageElement>} images 图像加载时的key/key数组/图形对象/图形对象数组
 	 */
-	setTextures:function(textures){
-		if(textures instanceof soya2d.Texture){
-	        this.textures = [textures];
-	    }else if(textures instanceof self.Image){
-	    	this.textures = [soya2d.Texture.fromImage(textures)];
-	    }else if(textures instanceof Array){
-	    	this.textures = textures;
+	setImages:function(images,changeSize){
+		if(typeof images === 'string'){
+	    	this.images = [this.game.assets.image(images)];
+	    }else if(images instanceof self.Image || (images.getContext && images.nodeType == 1)){
+	    	this.images = [images];
+	    }else if(images instanceof Array){
+	    	var imgs = [];
+	    	images.forEach(function(img){
+	    		if(typeof img === 'string'){
+	    			imgs.push(this.game.assets.image(img));
+	    		}else{
+	    			imgs.push(img);
+	    		}
+	    	},this);
+	    	this.images = imgs;
 	    }else{
-	    	this.textures = [];
+	    	this.images = [];
 	    }
 
-	    if(!this.textures[0]){
-	    	console.error('soya2d.Sprite: invalid param [textures]; '+this.textures[0]);
+	    if(!this.images[0]){
+	    	soya2d.console.error('soya2d.Sprite: invalid param [images]; '+this.images[0]);
 	    }
+	    this.frameIndex = 0;
+
+	    if(changeSize){
+	    	this.w = this.images[0].width;
+	    	this.h = this.images[0].height;
+	    }
+
+	    if(this.animations)
+	    	this.animations.destroy();
+	    this.animations = new AnimationManager(this,this.images.length);
+
+	    return this;
 	}
 });
 /**
- * @classdesc 瓦片精灵，可以让该精灵内部平铺指定的纹理<br/>
- * @class 
+ * 瓦片精灵，可以让该精灵内部平铺指定的纹理<br/>
+ * @class soya2d.TileSprite
  * @extends soya2d.DisplayObjectContainer
+ *
+ * @constructor
  * @param {Object} data 所有父类参数，以及新增参数，如下：
- * @param {soya2d.Texture | soya2d.Sprite | HTMLImageElement} data.sprite 瓦片精灵，必须
+ * @param {soya2d.Sprite | HTMLImageElement | String} data.sprite 瓦片精灵，必须
  * @param {boolean} [data.autoScroll=false] 自动移动瓦片
  * @param {int} data.speed 移动速度,默认1。单位px
- * @param {int} data.angle 移动角度,默认0
- * @author {@link http://weibo.com/soya2d MrSoya}
- * @see {soya2d.Texture}
+ * @param {int} data.scrollAngle 移动角度,默认0
  */
-soya2d.TileSprite = function(data) {
-    data = data || {};
-    soya2d.DisplayObjectContainer.call(this, data);
-    soya2d.ext(this, data);
+soya2d.class("soya2d.TileSprite",{
+    extends:soya2d.DisplayObjectContainer,
+    constructor:function(data) {
+        /**
+         * 瓦片精灵，可以设置该属性的缩放等特性
+         * @type {soya2d.Sprite}
+         */
+        this.sprite = null;
+        
+        if(data.sprite instanceof soya2d.Sprite){
+            this.sprite = data.sprite;
+        }else{
+            this.sprite = new soya2d.Sprite({images:data.sprite});
+        } 
+        
+        //同步为纹理size
+        this.w = data.w || this.sprite.w;
+        this.h = data.h || this.sprite.h;
 
-    /**
-     * 瓦片精灵，可以设置该属性的缩放等特性
-     * @type {soya2d.Sprite}
-     */
-    this.sprite = null;
-    
-    if(data.sprite instanceof soya2d.Texture || data.sprite instanceof self.Image){
-        this.sprite = new soya2d.Sprite({textures:data.sprite});
-    }else if(data.sprite instanceof soya2d.Sprite){
-    	this.sprite = data.sprite;
-    }
-    
-    //同步为纹理size
-    this.w = data.w || this.sprite.w;
-    this.h = data.h || this.sprite.h;
-
-    /**
-     * 是否自动滚动瓦片
-     * @type {Boolean}
-     * @default false
-     */
-    this.autoScroll = data.autoScroll||false;
-    /**
-     * 移动瓦片的速度
-     * @type {Number}
-     * @default 1
-     */
-    this.speed = data.speed||1;
-    /**
-     * 瓦片移动的角度
-     * @type {int}
-     * @default 0
-     */
-    this.angle = data.angle||0;
-    
-    //用于内部移动处理
-    this.__tileOffx = 0;
-    this.__tileOffy = 0;
-};
-soya2d.inherits(soya2d.TileSprite, soya2d.DisplayObjectContainer);
-soya2d.ext(soya2d.TileSprite.prototype, /** @lends soya2d.TileSprite.prototype */{
+        /**
+         * 是否自动滚动瓦片
+         * @type {Boolean}
+         * @default false
+         */
+        this.autoScroll = data.autoScroll||false;
+        /**
+         * 移动瓦片的速度
+         * @type {Number}
+         * @default 1
+         */
+        this.speed = data.speed||1;
+        /**
+         * 瓦片移动的角度
+         * @type {int}
+         * @default 0
+         */
+        this.scrollAngle = data.scrollAngle||0;
+        
+        //用于内部移动处理
+        this.__tileOffx = 0;
+        this.__tileOffy = 0;
+    },
 	/**
      * 滚动tile中的纹理。
      * 滚动速度和方向依赖实例对应参数
@@ -2362,7 +4675,7 @@ soya2d.ext(soya2d.TileSprite.prototype, /** @lends soya2d.TileSprite.prototype *
             this.__tileOffx += x||0;
             this.__tileOffy += y||0;
         }else{
-            var angle = (this.angle>>0)%360;
+            var angle = (this.scrollAngle>>0)%360;
             this.__tileOffx += soya2d.Math.COSTABLE[angle]*this.speed;
             this.__tileOffy += soya2d.Math.SINTABLE[angle]*this.speed;
         }
@@ -2376,7 +4689,7 @@ soya2d.ext(soya2d.TileSprite.prototype, /** @lends soya2d.TileSprite.prototype *
     },
     _onUpdate:function(){
         if(this.autoScroll){
-            var angle = (this.angle>>0)%360;
+            var angle = (this.scrollAngle>>0)%360;
             
             this.__tileOffx += soya2d.Math.COSTABLE[angle]*this.speed;
             this.__tileOffy += soya2d.Math.SINTABLE[angle]*this.speed;
@@ -2411,7 +4724,7 @@ soya2d.ext(soya2d.TileSprite.prototype, /** @lends soya2d.TileSprite.prototype *
             offsetY -= texScaledH;
         }
 
-        var tex = this.sprite.textures[0];
+        var tex = this.sprite.images[0];
 
         for (var i = rowNum;i--;) {
             for (var j = colNum;j--;) {
@@ -2429,7 +4742,7 @@ soya2d.ext(soya2d.TileSprite.prototype, /** @lends soya2d.TileSprite.prototype *
     }
 });
 /**
- * @classdesc 图形类,提供了贴图和矢量绘制的接口。<br/>
+ * 图形类,提供了贴图和矢量绘制的接口。<br/>
  * 注意，该类不应被显示实例化。引擎会在onRender回调中注入该类的实例。<br/>
  * 该图形对象基于Canvas构建。
  * @param ctx CanvasRenderingContext2D的实例
@@ -2917,7 +5230,7 @@ soya2d.CanvasGraphics = function(ctx){
 	/**
      * 
      * 贴图接口
-     * @param {soya2d.Texture} tex 需要绘制的纹理
+     * @param {HTMLImageElement} tex 需要绘制的纹理
      * @param  {int} sx  纹理起始坐标x
      * @param  {int} sy  纹理起始坐标y
      * @param  {int} sw  纹理起始尺寸w
@@ -2928,17 +5241,17 @@ soya2d.CanvasGraphics = function(ctx){
      * @param  {int} dh  纹理目标尺寸h
      * @return this
      */
-	this.map = function(tex,dx,dy,dw,dh,sx,sy,sw,sh){
+	this.map = function(img,dx,dy,dw,dh,sx,sy,sw,sh){
 		sx = sx || 0;
         sy = sy || 0;
-        sw = sw || tex.w;
-        sh = sh || tex.h;
+        sw = sw || img.width;
+        sh = sh || img.height;
 
-        if(sw===0 || sh===0 || dh===0 || dh===0){
+        if(sw===0 || sh===0 || dw===0 || dh===0){
             return;
         }
 
-		this.ctx.drawImage(tex.__data,
+		this.ctx.drawImage(img,
                             sx>>0,sy>>0,sw>>0,sh>>0,
                             dx>>0,dy>>0,dw>>0,dh>>0);
 		return this;
@@ -2978,7 +5291,7 @@ soya2d.CanvasGraphics = function(ctx){
 };
 
 /**
- * @classdesc 渲染器是引擎提供可视化内容展示的底层基础。
+ * 渲染器是引擎提供可视化内容展示的底层基础。
  * 不同的渲染器构建在不同的技术之上比如CSS/WEBGL/CANVAS/SVG等等。<br/>
  * 每个渲染器都和一个soya2d.Game实例绑定，一个应用有且只有一个渲染器。
  * 如果要实现多层渲染，那么你需要创建多个soya2d.Game实例。<br/>
@@ -2992,7 +5305,6 @@ soya2d.CanvasGraphics = function(ctx){
  * @param {boolean} [data.smoothEnable=true] 是否启用对图像边缘的平滑处理
  * @param {boolean} [data.crispEnable=false] 是否启用图像非平滑渲染
  * @class 
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.CanvasRenderer = function(data){
     data = data||{};
@@ -3059,13 +5371,9 @@ soya2d.CanvasRenderer = function(data){
 
     /**
      * 渲染方法。每调用一次，只进行一次渲染
-     * @param {soya2d.Scene} scene 需要渲染的场景实例
      */
-    this.render = function(scene){
-        if(!scene instanceof soya2d.Scene)return;
-        //update matrix——>sort(optional)——>onUpdate(matrix)——>onRender(g)
-
-        scene.__updateMatrix();
+    this.render = function(stage,camera){
+        if(!stage instanceof Stage)return;
 
         //render
         ctx.setTransform(1,0,0,1,0,0);
@@ -3073,7 +5381,9 @@ soya2d.CanvasRenderer = function(data){
             ctx.clearRect(0,0,this.w,this.h);
         }
 
-        render(ctx,scene,g,this.sortEnable,renderStyle);
+        var rect = camera.__view;
+
+        render(rect,ctx,stage,g,this.sortEnable,renderStyle);
     };
 
     var ctxFnMap = {
@@ -3124,12 +5434,12 @@ soya2d.CanvasRenderer = function(data){
     function renderMask(ctx,mask){
         if(mask.onRender){
             var te = mask.__worldTransform.e;
-            var pe = mask.__worldPosition.e;
-            ctx.setTransform(te[0],te[1],te[2],te[3],pe[0],pe[1]);
+            var wp = mask.worldPosition;
+            ctx.setTransform(te[0],te[1],te[2],te[3],wp.x,wp.y);
 
             //css style
-            var oe = mask.__originPosition.e;
-            ctx.translate(-oe[0], -oe[1]);
+            var ap = mask.anchorPosition;
+            ctx.translate(-ap.x, -ap.y);
             mask.onRender(g);
         }//over onRender
         //渲染子节点
@@ -3141,10 +5451,12 @@ soya2d.CanvasRenderer = function(data){
             }
         }
     }
-    function render(ctx,ro,g,sortEnable,rs){
+    function render(cameraRect,ctx,ro,g,sortEnable,rs,inWorld){
         if(ro.opacity===0 
         || !ro.visible
         || ro.__masker)return;
+
+        if(!ro.__renderable)return;
 
         if(ro.mask instanceof soya2d.DisplayObject){
             ctx.save();
@@ -3155,19 +5467,20 @@ soya2d.CanvasRenderer = function(data){
             validCtx(ctx);
             ctx.closePath();
         }
-
-        if(ro instanceof soya2d.ScrollSprite){
-            ctx.save();
-        }
         
         if(ro.onRender){
             var te = ro.__worldTransform.e;
-            var pe = ro.__worldPosition.e;
-            var oe = ro.__originPosition.e;
+            var sp = ro.__screenPosition;
+            var ap = ro.anchorPosition;
             if(ro.__updateCache){
-                ctx.setTransform(1,0,0,1,oe[0]<<1,oe[1]<<1);
+                var x = ap.x,
+                    y = ap.y;
+                ctx.setTransform(1,0,0,1,x,y);
             }else{
-                ctx.setTransform(te[0],te[1],te[2],te[3],pe[0],pe[1]);
+                var x = sp.x,
+                    y = sp.y;
+                
+                ctx.setTransform(te[0],te[1],te[2],te[3],x,y);
             }
 
             //apply alpha
@@ -3182,15 +5495,18 @@ soya2d.CanvasRenderer = function(data){
             }
 
             //css style
-            ctx.translate(-oe[0], -oe[1]);
+            ctx.translate(-ap.x, -ap.y);
             if(ro.imageCache && !ro.__updateCache){
                 ctx.drawImage(ro.imageCache,0,0);
             }else{
                 ro.onRender(g);
             }
+
         }//over onRender
+        //reset render tag
+        ro.__renderable = false;
         //渲染子节点
-        if(ro.children && ro.children.length>0){
+        if(ro.children && ro.children.length>0 && !ro.__updateCache){
             var children = ro.children;
             //排序
             if(sortEnable)children.sort(function(a,b){
@@ -3202,12 +5518,9 @@ soya2d.CanvasRenderer = function(data){
             });
 
             for(var i=0;i<children.length;i++){
-                render(ctx,children[i],g,sortEnable,rs);
+                render(cameraRect,ctx,children[i],g,sortEnable,rs,
+                    children[i].__soya_type != 'world' && !(ro instanceof Stage)?true:false);
             }
-        }
-
-        if(ro instanceof soya2d.ScrollSprite){
-            ctx.restore();
         }
 
         //mask
@@ -3250,7 +5563,6 @@ soya2d.CanvasRenderer = function(data){
     this.smooth = function(enabled){
         if(enabled !== undefined){
             ctx.imageSmoothingEnabled = 
-            ctx.webkitImageSmoothingEnabled = 
             ctx.mozImageSmoothingEnabled = 
             ctx.oImageSmoothingEnabled = 
             ctx.msImageSmoothingEnabled = 
@@ -3312,24 +5624,6 @@ soya2d.CanvasRenderer = function(data){
     };
 
     /**
-     * 获取一个该渲染器的点击测试器
-     * @param {int} type 测试器类型.默认路径检测
-     * @return {soya2d.HitTester} 测试器
-     */
-    this.getHitTester = function(type){
-        switch(type){
-            case 2:return this.__pixelTester;
-            case 1:default:
-            return this.__pathTester;
-        }
-    }
-    //优化为每个渲染器只对应各类型一个检测器
-    this.__pixelTester = new soya2d.__HitPixelTester(this.w,this.h);
-    this.__pathTester = new soya2d.__HitPathTester(this.w,this.h);
-
-
-
-    /**
      * 创建一个图像绘制模式
      * @param {HTMLImageElement|HTMLCanvasElement|HTMLVideoElement} image 图像
      * @param {string} [repetition=soya2d.REPEAT] 重复类型
@@ -3355,12 +5649,12 @@ soya2d.CanvasRenderer = function(data){
      * @see soya2d.GRADIENTTYPE_LINEAR
      */
     this.createGradient = function(ratios,colors,len,opt){
-        var angle=0,x=0,y=0,type=soya2d.GRADIENTTYPE_LINEAR,focalRatio=0,focalRadius=0;
+        var angle=0,x=0,y=0,type=soya2d.GRADIENT_LINEAR,focalRatio=0,focalRadius=0;
         if(opt){
             angle = opt.angle||0,
             x=opt.x||0,
             y=opt.y||0,
-            type=opt.type||soya2d.GRADIENTTYPE_LINEAR,
+            type=opt.type||soya2d.GRADIENT_LINEAR,
             focalRatio=opt.focalRatio||0,
             focalRadius=opt.focalRadius||0;
         }
@@ -3368,13 +5662,13 @@ soya2d.CanvasRenderer = function(data){
         var g,m=soya2d.Math;
         angle = Math.abs((angle||0)>>0);
         switch(type){
-            case soya2d.GRADIENTTYPE_LINEAR:
+            case soya2d.GRADIENT_LINEAR:
                 g = ctx.createLinearGradient(x,y,x+len* m.COSTABLE[angle],y+len* m.SINTABLE[angle]);
                 for(var i=0,l=ratios.length;i<l;i++){
                     g.addColorStop(ratios[i],colors[i]||"RGBA(0,0,0,0)");
                 }
                 break;
-            case soya2d.GRADIENTTYPE_RADIAL:
+            case soya2d.GRADIENT_RADIAL:
                 var fl = len*focalRatio;
                 g = ctx.createRadialGradient(x,y,focalRadius,x+fl* m.COSTABLE[angle],y+fl* m.SINTABLE[angle],len);
                 for(var i=0,l=ratios.length;i<l;i++){
@@ -3413,116 +5707,9 @@ soya2d.CanvasRenderer.prototype.getImageFrom = function(ro,w,h){
     tc = null;
     return img;
 };
-
-/********************点击测试器***********************/
-
-soya2d.__HitPathTester = function(w,h){
-
-    function invalidCtx(ctx) {
-        ctx.stroke = function() {};
-        ctx.fill = function() {};
-        ctx.fillRect = function(x, y, w, h) {
-            ctx.rect(x, y, w, h);
-        };
-        ctx.strokeRect = function(x, y, w, h) {
-            ctx.rect(x, y, w, h);
-        };
-        ctx.drawImage = function(img,sx,sy,sw,sh,dx,dy,dw,dh){
-        	if(arguments.length===3){
-        		ctx.rect(sx,sy,img.width,img.height);
-        	}else if(arguments.length===5){
-        		ctx.rect(sx,sy,sw,sh);
-        	}else if(arguments.length===9){
-        		ctx.rect(dx,dy,dw,dh);
-        	}
-        		
-        };
-        ctx.fillText = function(){};
-        ctx.strokeText = function(){};
-    }
-
-    //创建path检测层
-    var layer = document.createElement('canvas');
-    layer.width = w;layer.height = h;
-
-    var ctx = layer.getContext('2d');
-    var cg = new soya2d.CanvasGraphics(ctx);
-    invalidCtx(ctx);
-
-    this.test = function(ro,x,y){
-        render(ro,ctx,cg);
-        return ctx.isPointInPath(x,y);
-    }
-
-    function render(ro,ctx,cg){
-        var te = ro.__worldTransform.e;
-        var pe = ro.__worldPosition.e;
-        ctx.setTransform(te[0],te[1],te[2],te[3],pe[0],pe[1]);
-        if (ro.onRender) {
-            ctx.beginPath();
-            var oe = ro.__originPosition.e;
-            ctx.translate(-oe[0], -oe[1]);
-            ro.onRender(cg);
-        }
-    }
-};
-
-soya2d.__HitPixelTester = function(w,h){
-    var w,h;
-    //创建pixel检测层
-    var layer = document.createElement('canvas');
-    layer.width = w;layer.height = h;
-    var ctx = layer.getContext('2d');
-    var cg = new soya2d.CanvasGraphics(ctx);
-
-    this.test = function(ro,x,y){
-        render(ro,ctx,cg);
-
-        var d = ctx.getImageData(0,0,w,h).data;
-        return !!d[((w * y) + x) * 4 + 3];
-    };
-
-    function render(ro,ctx,cg){
-        var te = ro.__worldTransform.e;
-        var pe = ro.__worldPosition.e;
-        ctx.setTransform(te[0],te[1],te[2],te[3],pe[0],pe[1]);
-        if (ro.onRender) {
-            ctx.beginPath();
-            var oe = ro.__originPosition.e;
-            ctx.translate(-oe[0], -oe[1]);
-            ro.onRender(cg);
-        }
-    }
-};
-
-/**
- * @classdesc 点击测试器，可以检测2D点是否在绘制图形中，
- * 只适用于基于canvas的2D图形点击检测<br/>
- * 注意，除非你确定需要使用基于canvas2d的检测API，否则应该使用DisplayObject自带的检测函数。<br/>
- * 注意，该类无法直接实例化，只能通过渲染器获取
- * <p>
- * 渲染器有基于路径和像素两种，基于路径的检测器性能更高，但只能检测由path构成的闭合图元。<br/>
- * 如果需要检测一个RO中绘制的非连续图形，比如点状分布的多边形或者像素，则可以使用像素检测
- * 注意：在像素检测中，透明色会被认为无效点击
- * </p>
- * @class 
- * @author {@link http://weibo.com/soya2d MrSoya}
- */
-soya2d.HitTester = function(){
-    /**
-     * 测试渲染对象<br/>
-     * 注意：不要在onRender事件中调用该方法
-     * @param {soya2d.DisplayObject} ro 渲染对象
-     * @param {int} x 相对于场景的坐标
-     * @param {int} y 相对于场景的坐标
-     * @return {Boolean} 指定2D坐标是否在测试的渲染对象内
-     */
-    soya2d.HitTester.prototype.test = function(ro,x,y){};
-};
 /**
  * 引擎当前运行所在设备的信息<br/>
  * @namespace soya2d.Device
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Device = new function(){
   	var userAgent = this.userAgent = self.navigator.userAgent.toLowerCase();
@@ -3617,328 +5804,10 @@ soya2d.Device = new function(){
      */
     this.safari = type.Safari?true:false;
 };
-!function(){
-    /**
-     * 创建视图对象
-     * @classdesc 视图对象用于设置游戏实例的视图规则，包括分辨率适应、窗口事件回调等
-     * @class 
-     * @param {soya2d.Game} game 游戏实例
-     * @author {@link http://weibo.com/soya2d MrSoya}
-     */
-    soya2d.View = function(game){
-        /********************* 属性定义 *********************/
-        this.game = game;
-        /**
-         * 缩放类型
-         * @type {int}
-         * @default soya2d.SCALEMODE_SHOWALL
-         */
-        this.scaleMode = soya2d.SCALEMODE_SHOWALL;
-        /**
-         * 缩放最小宽度
-         * @type {Number}
-         * @default 0
-         */
-        this.minWidth = 0;
-        /**
-         * 缩放最小高度
-         * @type {Number}
-         * @default 0
-         */
-        this.minHeight = 0;
-        /**
-         * 缩放最大宽度
-         * @type {Number}
-         * @default 0
-         */
-        this.maxWidth = 0;
-        /**
-         * 缩放最大高度
-         * @type {Number}
-         * @default 0
-         */
-        this.maxHeight = 0;
-        /**
-         * 是否在横竖屏切换、resize窗口时，都进行缩放
-         * @type {boolean}
-         * @default true
-         */
-        this.autoScale = true;
-
-        /********************* 行为定义 *********************/
-        /**
-         * 扫描是否需要缩放，如果需要，则根据缩放参数进行缩放
-         * @private
-         */
-        this.scan = function(){
-            if(!this.game)return;
-
-            var designWidth = this.game.w;
-            var designHeight = this.game.h;
-            
-            //选择缩放器
-            var scaler;
-            switch(this.scaleMode){
-                case soya2d.SCALEMODE_NOSCALE:break;
-                case soya2d.SCALEMODE_NOBORDER:scaler = NOBORDER;break;
-                case soya2d.SCALEMODE_EXACTFIT:scaler = EXACTFIT;break;
-                case soya2d.SCALEMODE_SHOWALL:
-                default:
-                scaler = SHOWALL;
-            }
-            if(!scaler)return;
-            var renderer = this.game.getRenderer();
-            var container = renderer.getCanvas().parentNode;
-            //判断设计size是否超过了容器size
-            var cw = container.clientWidth;
-            var ch = container.clientHeight;
-            if(container.tagName === 'BODY'){
-                ch = window.innerHeight;
-            }
-            var wh = scaler(designWidth,designHeight,cw,ch,this.minWidth,this.minHeight,this.maxWidth,this.maxHeight);
-            renderer.resize(wh[0],wh[1]);
-            this.w = wh[0];
-            this.h = wh[1];
-
-            //rotate
-            rotate(this.scaleMode,rotation,renderer.getCanvas(),renderer);
-        }
-
-        /**
-         * 视图方向。portrait或者landscape
-         * @type {string}
-         * @default portrait
-         */
-        this.orientation = getOrientation();
-        var that = this;
-        var timer;
-        window.addEventListener("orientationchange", function(e){
-            clearTimeout(timer);
-            timer = setTimeout(function() {
-                that.orientation = getOrientation();
-            }, 500);
-            if(that.autoScale){
-                that.scan();
-            }
-        }, false);
-        window.addEventListener("resize", function(e){
-            that.orientation = getOrientation();
-            if(that.autoScale){
-                that.scan();
-            }
-        }, false);
-
-        function getOrientation(){
-            var w = window.innerWidth;
-            var h = window.innerHeight;
-            var rs;
-            if(w > h){
-                rs = 'landscape';
-            }else{
-                rs = 'portrait';
-            }
-            return rs;
-        }
-
-        var rotation = soya2d.ROTATEMODE_0;
-        /**
-         * 设置或者获取该视图旋转模式
-         * @param  {int} rotateMode 旋转模式
-         * @return {int | this} 返回view或者旋转模式
-         */
-        this.rotate = function(rotateMode){
-            if(!this.game)return;
-            if(rotateMode){
-                
-                rotation = rotateMode;
-                this.scan();
-
-                return this;
-            }else{
-                return rotation;
-            }
-        }
-
-        function rotate(scaleMode,rotateMode,canvas,renderer){
-            switch(rotateMode){
-                case soya2d.ROTATEMODE_90:
-                    rs = 'rotate('+90+'deg)';
-                    break;
-                case soya2d.ROTATEMODE_180:
-                    rs = 'rotate('+180+'deg)';
-                    break;
-                case soya2d.ROTATEMODE_270:
-                    rs = 'rotate('+270+'deg)';
-                    break;
-                case soya2d.ROTATEMODE_0:
-                default:
-                    rs = 'rotate('+0+'deg)';
-                    rotation = soya2d.ROTATEMODE_0;
-                    break;
-            }
-
-            canvas.style.transform = 
-            canvas.style.webkitTransform = 
-            canvas.style.mozTransform = 
-            canvas.style.msTransform = 
-            canvas.style.oTransform = rs;
-
-            canvas.style.left = canvas.style.top = 0;
-
-            //reset bounds
-            if(rotateMode === soya2d.ROTATEMODE_90 || rotateMode === soya2d.ROTATEMODE_270){
-                var h = canvas.offsetWidth;
-                var w = canvas.offsetHeight;
-
-                if(scaleMode === soya2d.SCALEMODE_NOBORDER){
-                    var designWidth = this.game.w;
-                    var designHeight = this.game.h;
-                    h = h>designHeight?designHeight:h;
-                    w = w>designWidth?designWidth:w;
-                }
-                renderer.resize(w,h);
-
-                if(scaleMode === soya2d.SCALEMODE_EXACTFIT){
-                    var offLeft = (h - w)/2;
-                    offLeft = w%2===0?offLeft:Math.floor(offLeft);
-                    var offTop = (w - h)/2;
-                    offTop = h%2===0?offTop:Math.floor(offTop);
-                    
-                    canvas.style.left = offLeft +'px';
-                    canvas.style.top = offTop +'px';
-                }
-            }
-        }
-
-        var align = soya2d.ALIGNMODE_CENTER;
-        /**
-         * 设置或者获取该视图对齐模式。SHOWALL模式下有效
-         * @param  {int} alignMode 对齐模式
-         * @return {int | this} 返回view或者对齐模式
-         */
-        this.align = function(alignMode){
-            if(!this.game)return;
-            if(alignMode && this.scaleMode === soya2d.SCALEMODE_SHOWALL){
-                var canvas = this.game.getRenderer().getCanvas();
-                align = alignMode;
-                switch(alignMode){
-                    case soya2d.ALIGNMODE_LEFT:
-                        canvas.style.left = 0;
-                        canvas.style.right = 'auto';
-                        break;
-                    case soya2d.ALIGNMODE_RIGHT:
-                        canvas.style.left = 'auto';
-                        canvas.style.right = 0;
-                        break;
-                    case soya2d.ALIGNMODE_CENTER:
-                    default:
-                        canvas.style.left = 0;
-                        canvas.style.right = 0;
-                        align = soya2d.ALIGNMODE_CENTER;//覆盖错误参数
-                        break;
-                }
-                canvas.style.margin = 'auto';
-                return this;
-            }else{
-                return align;
-            }
-        }
-        
-    };
-
-    /**
-     * 视图缩放类型，不缩放。游戏默认值
-     */
-    soya2d.SCALEMODE_NOSCALE = 0;
-    /**
-     * 视图缩放类型，等比缩放，总是显示全部
-     */
-    soya2d.SCALEMODE_SHOWALL = 1;
-    /**
-     * 视图缩放类型，等比缩放，不一定显示全部
-     */
-    soya2d.SCALEMODE_NOBORDER = 2;
-    /**
-     * 视图缩放类型，非等比缩放。完全适配容器
-     */
-    soya2d.SCALEMODE_EXACTFIT = 3;
-
-    /**
-     * 视图对齐类型
-     */
-    soya2d.ALIGNMODE_LEFT = 1;
-    /**
-     * 视图对齐类型
-     */
-    soya2d.ALIGNMODE_CENTER = 2;
-    /**
-     * 视图对齐类型
-     */
-    soya2d.ALIGNMODE_RIGHT = 3;
-
-    /**
-     * 视图旋转类型
-     */
-    soya2d.ROTATEMODE_0 = 1;
-    /**
-     * 视图旋转类型
-     */
-    soya2d.ROTATEMODE_90 = 2;
-    /**
-     * 视图旋转类型
-     */
-    soya2d.ROTATEMODE_180 = 3;
-    /**
-     * 视图旋转类型
-     */
-    soya2d.ROTATEMODE_270 = 4;
-
-    /********************* 规则定义 *********************/
-    function NOBORDER(dw,dh,cw,ch,mw,mh,mxw,mxh){
-        cw = mxw && cw > mxw?mxw:cw;
-        ch = mxh && ch > mxh?mxh:ch;
-
-        var r = Math.max(cw/dw,ch/dh);
-        var w = dw*r,
-            h = dh*r;
-        return [w,h];
-    }
-    function SHOWALL(dw,dh,cw,ch,mw,mh,mxw,mxh){
-        cw = mxw && cw > mxw?mxw:cw;
-        ch = mxh && ch > mxh?mxh:ch;
-
-        var r = Math.min(cw/dw,ch/dh);
-        var w = dw*r,
-            h = dh*r;
-        return [w,h];
-    }
-    function EXACTFIT(dw,dh,cw,ch,mw,mh,mxw,mxh){
-        var w,h;
-        if(mw && cw < mw){
-            w = mw;
-        }else if(mxw && cw > mxw){
-            w = mxw;
-        }else{
-            w = cw;
-        }
-        if(mh && ch < mh){
-            h = mh;
-        }else if(mxh && ch > mxh){
-            h = mxh;
-        }else{
-            h = ch;
-        }
-        return [w,h];
-    }
-}();
-
-
-
 /**
- * @classdesc 字体类。用于指定绘制字体的样式、大小等
+ * 字体类。用于指定绘制字体的样式、大小等
  * @class
  * @param {String} desc 字体描述字符串，可以为空。为空时创建默认样式字体:[normal 400 13px/normal sans-serif]<br/>符合W3C[CSSFONTS]规范
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Font = function(desc){
     var fontElement = document.createElement('span');
@@ -4059,11 +5928,10 @@ soya2d.Font = function(desc){
     /**
      * 获取字体宽高
      * @param {String} str 测试字符串
-     * @param {Object} renderer 渲染器
      * @return {Object} 指定字符串在当前字体下的宽高。｛w:w,h:h｝
      */
-    this.getBounds = function(str,renderer){
-        var ctx = renderer.ctx;
+    this.getBounds = function(str){
+        var ctx = this.__game.renderer.ctx;
         ctx.font = this.getDesc();
         var w = ctx.measureText(str).width;
         return {w:w,h:this.fontSize};
@@ -4071,20 +5939,20 @@ soya2d.Font = function(desc){
 };
 
 /**
- * 使用纹理集对象，构建一个图像字体类。
- * @classdesc 图像字体类用于创建一个传递给文本精灵的字体对象，通过图片和映射文件创建。映射文件同精灵表。其实n为需要
+ * 使用图像集对象，构建一个图像字体类。
+ * 图像字体类用于创建一个传递给文本精灵的字体对象，通过图片和映射文件创建。映射文件同精灵表。其实n为需要
  * 替换的字符
  * @class
- * @param {soya2d.TextureAtlas} data 用于字体映射的纹理集对象
- * @author {@link http://weibo.com/soya2d MrSoya}
+ * @param {soya2d.Atlas} data 用于字体映射的图像集对象
+ * @param {Number} size 图像字体大小
  */
-soya2d.ImageFont = function(data){
+soya2d.ImageFont = function(data,size){
     
     this.__fontMap = data;
 
-    var oriFontSize = data.texs[Object.keys(data.texs)[0]].h;
+    var oriFontSize = data.texs[Object.keys(data.texs)[0]].height;
     this.fontSize = oriFontSize;
-    var fontWidth = data.texs[Object.keys(data.texs)[0]].w
+    this.fontWidth = data.texs[Object.keys(data.texs)[0]].width;
     var scaleRate = 1;//缩放比率
     var lineH = 1;
 
@@ -4103,15 +5971,15 @@ soya2d.ImageFont = function(data){
             var offx = 0;
             for(var j=0,k=text.length;j<k;j++){
                 var c = text[j];
-                var tex = this.font.__fontMap.getTexture(c);
+                var tex = this.font.__fontMap.get(c);
                 if(tex){
-                    var w = tex.w*scaleRate;
-                    var h = tex.h*scaleRate
+                    var w = tex.width*scaleRate;
+                    var h = tex.height*scaleRate
                     lastW = w;
                     
                     g.map(tex,
                             offx, offy, w, h,
-                            0, 0, tex.w, tex.h);
+                            0, 0, tex.width, tex.height);
                 }
                 
                 offx += lastW + this.letterSpacing;
@@ -4149,14 +6017,16 @@ soya2d.ImageFont = function(data){
      */
     this.getBounds = function(str){
         var len = str.length;
-        return {w:len*fontWidth*scaleRate,h:this.fontSize};
+        return {w:len*this.fontWidth*scaleRate,h:this.fontSize};
     }
+
+    if(size)this.size(size);
 };
 
 
 /**
  * 创建一个用于渲染文本的实例
- * @classdesc 文本类用于显示指定的文本内容，支持多行文本显示。
+ * 文本类用于显示指定的文本内容，支持多行文本显示。
  * 文本渲染效果取决于所指定的font，默认为普通字体soya2d.Font。<br/>
  * 注意，需要显示的指定实例的w属性，来让引擎知道文本是否需要分行显示
  * @class 
@@ -4164,53 +6034,58 @@ soya2d.ImageFont = function(data){
  * @param {Object} data 所有父类参数
  * @see soya2d.Font
  * @see soya2d.ImageFont
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
-soya2d.Text = function(data){
-	data = data||{};
-    soya2d.DisplayObjectContainer.call(this,data);
-    soya2d.ext(this,data);
+soya2d.class("soya2d.Text",{
+    extends:soya2d.DisplayObjectContainer,
+    constructor:function(data) {
+        /**
+         * 文本内容
+         * *注意，直接设置该属性后，需要手动刷新才会更新显示内容。如果不想手动刷新，可以使用setText函数来更新内容
+         * @see soya2d.Text.refresh
+         * @type {String}
+         */
+        this.text = data.text||'';
+        /**
+         * 字符间距
+         * @type {int}
+         * @default 1
+         */
+        this.letterSpacing = data.letterSpacing || 0;
+        /**
+         * 行间距
+         * @type {int}
+         * @default 5
+         */
+        this.lineSpacing = data.lineSpacing||0;
 
-    /**
-     * 文本内容
-     * *注意，直接设置该属性后，需要手动刷新才会更新显示内容。如果不想手动刷新，可以使用setText函数来更新内容
-     * @see soya2d.Text.refresh
-     * @type {String}
-     */
-    this.text = data.text||'';
-    /**
-     * 字符间距
-     * @type {int}
-     * @default 1
-     */
-    this.letterSpacing = data.letterSpacing || 0;
-    /**
-     * 行间距
-     * @type {int}
-     * @default 5
-     */
-    this.lineSpacing = data.lineSpacing||0;
-    /**
-     * 字体对象
-     * @type {String | soya2d.Font | soya2d.ImageFont}
-     * @default soya2d.Font
-     * @see soya2d.Font
-     */
-    this.font = data.font;
-    if(typeof this.font === 'string'){
-        this.font = new soya2d.Font(this.font);
-    }
-    var font = this.font||new soya2d.Font();
-    this.font = font;
+        //data.size 用于图像字体的初始大小
 
-    this.__changed = true;//默认需要修改
-    this.__lines;//分行内容
+        /**
+         * 字体对象
+         * @type {String | soya2d.Font | soya2d.ImageFont | soya2d.Atlas}
+         * @default soya2d.Font
+         * @see soya2d.Font
+         */
+        this.font = data.font;
+        if(typeof this.font === 'string'){
+            this.font = new soya2d.Font(this.font);
+        }else if(this.font instanceof soya2d.Atlas){
+            this.font = new soya2d.ImageFont(this.font,data.size);
+        }
+        var font = this.font||new soya2d.Font();
+        this.font = font;
+        this.font.__game = this.game;
 
-    this.__renderer = this.font.__renderText;//绑定渲染
-};
-soya2d.inherits(soya2d.Text,soya2d.DisplayObjectContainer);
+        this.__changed = true;//默认需要修改
+        this.__lines;//分行内容
 
-soya2d.ext(soya2d.Text.prototype,{
+        this.__renderer = this.font.__renderText;//绑定渲染
+
+        this.fillStyle = data.fillStyle || '#000';
+
+        if(!this.w)this.w = this.font.getBounds(this.text).w;
+        if(!this.h)this.h = this.font.fontSize;
+    },
     onRender:function(g){
         this.__renderer(g);
     },
@@ -4233,20 +6108,25 @@ soya2d.ext(soya2d.Text.prototype,{
     /**
      * 设置文本内容，并刷新
      * @param {string} txt 文本内容
+     * @param {Boolean} changeW 是否自动改变宽度
      */
-	setText:function(txt){
+	setText:function(txt,changeW){
 		this.text = txt+'';
 		this.refresh();
+        if(changeW){
+            this.w = this.font.getBounds(this.text).w;
+        }
+        return this;
 	},
     _onUpdate:function(game){
         if(!this.__lh){//init basic size
-            var bounds_en = this.font.getBounds("s",game.getRenderer());
-            var bounds_zh = this.font.getBounds("豆",game.getRenderer());
+            var bounds_en = this.font.getBounds("s",game.renderer);
+            var bounds_zh = this.font.getBounds("豆",game.renderer);
             this.__lh = (bounds_en.h+bounds_zh.h)/2>>0;//行高
             this.__uw = (bounds_en.w+bounds_zh.w)/2>>0;//单字宽度
         }
         if(this.__changed){
-            this.__lines = this.__calc(game.getRenderer());
+            this.__lines = this.__calc(game.renderer);
             this.__changed = false;
         }
     },
@@ -4316,845 +6196,9 @@ soya2d.ext(soya2d.Text.prototype,{
     }
 });
 /**
- * 创建一个纹理对象
- * @classdesc 纹理是用来储存展示图像的矩形。它不能直接被渲染，必须映射到一个显示对象上。比如Image。
- * 在纹理生成后，可以释放image对象。纹理则需要单独释放
- * @class 
- * @param {Image | HTMLCanvasElement} data 图形对象
- * @param {int} [w] 图像的宽度
- * @param {int} [h] 图像的高度
- * @author {@link http://weibo.com/soya2d MrSoya}
- */
-soya2d.Texture = function(data,w,h){
-	/**
-	 * 纹理数据，可能是image或者canvas,根据引擎来决定
-	 * @private
-     */
-	this.__data = data;
-	/**
-	 * 纹理宽度,只读
-	 * @type int 
-     */
-	this.w = parseInt(w) || data.width;
-	/**
-	 * 纹理高度,只读
-	 * @type int 
-     */
-	this.h = parseInt(h) || data.height;
-};
-
-soya2d.ext(soya2d.Texture,/** @lends soya2d.Texture */{
-	/**
-	* 通过图片来创建一个纹理
-	* @param {Image | HTMLCanvasElement} data 图形对象
-	*/
-	fromImage:function(img){
-		return new soya2d.Texture(img,img.width,img.height);
-	},
-	//创建一个指定大小和颜色的纹理，color可以是渐变对象
-	/**
-   * 通过指定大小和颜色来创建一个纹理
-   * @param {int} w 纹理宽度
-   * @param {int} h 纹理高度
-   * @param {String} color 命名色彩/RGB色彩/Hex色彩
-   * @param {CanvasGradient} color 线性渐变/径向渐变
-   * @param {CanvasPattern} color 图案
-   * @param {Array} color 顶点颜色数组,内容可以是任意合法颜色字符串,按照0-1-2-3的顺序,如果数组颜色不足4个，使用#000000代替
-   * 0---1
-   * |   |
-   * 2---3
-   * @see soya2d.CanvasRenderer.createGradient
-   * @see soya2d.CanvasRenderer.createPattern
-   */
-	fromColor:function(w,h,color){
-		var data = document.createElement('canvas');
-		data.width = w;
-		data.height = h;
-		var ctx = data.getContext('2d');
-		
-		if(color instanceof Array){
-			var c1 = soya2d.RGBColor.parse(color[0]||'#000000');
-			var c2 = soya2d.RGBColor.parse(color[1]||'#000000');
-			var c3 = soya2d.RGBColor.parse(color[2]||'#000000');
-			var c4 = soya2d.RGBColor.parse(color[3]||'#000000');
-			
-			var hsl0 = new soya2d.HSLColor(c1[0],c1[1],c1[2]);
-			var baseLight0 = hsl0.l;
-			
-			var hsl1 = new soya2d.HSLColor(c2[0],c2[1],c2[2]);
-			var baseLight1 = hsl1.l;
-			
-			var hsl2 = new soya2d.HSLColor(c3[0],c3[1],c3[2]);
-			var baseLight2 = hsl2.l;
-			
-			var hsl3 = new soya2d.HSLColor(c4[0],c4[1],c4[2]);
-			var baseLight3 = hsl3.l;
-			
-		  var texData = ctx.createImageData(w,h);
-			var tdd = texData.data;
-			for(var i =0,len = tdd.length; i<len;i+=4){
-				var x = i/4%w;
-				var y = i/4/w>>0;
-				
-				/************ 顶点0 ************/
-				var u = (w-x)/w;
-				var v = (h-y)/h;
-				var delta = u*v;
-				hsl0.lighteness(delta*baseLight0);
-				var rgb0 = hsl0.getRGB();
-				
-				/************ 顶点1 ************/
-				u = (x)/w;
-				v = (h-y)/h;
-				delta = u*v;
-				hsl1.lighteness(delta*baseLight1);
-				var rgb1 = hsl1.getRGB();
-				
-				/************ 顶点2 ************/
-				u = (w-x)/w;
-				v = (y)/h;
-				delta = u*v;
-				hsl2.lighteness(delta*baseLight2);
-				var rgb2 = hsl2.getRGB();
-				
-				/************ 顶点3 ************/
-				u = (x)/w;
-				v = (y)/h;
-				delta = u*v;
-				hsl3.lighteness(delta*baseLight3);
-				var rgb3 = hsl3.getRGB();
-				/*
-				tdd[i] = (rgb0[0]^rgb1[0]^rgb2[0]^rgb3[0])/1;
-				tdd[i+1] = (rgb0[1]^rgb1[1]^rgb2[1]^rgb3[1])/1;
-				tdd[i+2] = (rgb0[2]^rgb1[2]^rgb2[2]^rgb3[2])/1;
-				//*/
-				tdd[i] = rgb0[0]+rgb1[0]+rgb2[0]+rgb3[0];
-				tdd[i+1] = rgb0[1]+rgb1[1]+rgb2[1]+rgb3[1];
-				tdd[i+2] = rgb0[2]+rgb1[2]+rgb2[2]+rgb3[2];
-				
-				tdd[i+3] = 255;
-			}
-			
-			ctx.putImageData(texData,0,0);
-		}else{
-			ctx.fillStyle = color;
-			ctx.fillRect(0,0,w,h);
-		}
-		
-		return new soya2d.Texture(data,w,h);
-	}
-});
-
-soya2d.Texture.prototype = {
-	/**
-	 * 释放纹理数据
-	 */
-	dispose:function(){
-		this.__data = null;
-	}
-};
-
-
-
-
-/**
- * @classdesc 纹理集是一个将许多小的纹理整合到一张大图中，可以从纹理集中快速的读取指定部分的纹理，从而加速动画的渲染。
- * ssheet格式为<br/>
- * <pre>
- * [
- 		{n:'hero_001.png',x:0,y:0,w:50,h:50,r:90},//ssheet unit
- 		{n:'hero_002.png',x:50,y:50,w:50,h:50,r:180},
- 		...
- 	]
- 	</pre>
- * r:将指定部分资源旋转指定角度后，形成新纹理
- * @class 
- * @param {soya2d.Texture} tex 大图纹理
- * @param {json} ssheet 纹理集描述
- * @author {@link http://weibo.com/soya2d MrSoya}
- */
-soya2d.TextureAtlas = function(tex,ssheet){
-	this.texs = {};//纹理集
-	ssheet.forEach(function(desc){
-		var data = document.createElement('canvas');
-		data.width = desc.w;
-		data.height = desc.h;
-		var ctx = data.getContext('2d');
-		ctx.translate(desc.w/2,desc.h/2);
-		ctx.rotate((desc.r||0)*Math.PI/180);
-
-		var descW = desc.w>>0,
-			descH = desc.h>>0;
-		if(descW===0 || descH===0){
-			console.error('soya2d.TextureAtlas: invalid ssheet unit，w/h must be a positive;[w:'+descW+',h:'+descH+'] ');
-			return;
-		}
-		ctx.drawImage(tex.__data,
-						desc.x>>0,desc.y>>0,descW,descH,
-						-descW/2>>0,-descH/2>>0,descW,descH);
-		this.texs[desc.n] = new soya2d.Texture(data,descW,descH);
-	},this);
-};
-
-soya2d.TextureAtlas.prototype = {
-	/**
-	 * 返回由一个指定的字符串开始按字母排序的所有纹理
-	 */
-	getTextures:function(prefix){
-		var rs = [];
-		for(var i in this.texs){
-			if(i.indexOf(prefix)===0)rs.push(this.texs[i]);
-		}
-		return rs;
-	},
-	getTexture:function(name){
-		return this.texs[name];
-	},
-	/**
-	 * 释放纹理集数据
-	 */
-	dispose:function(){
-		for(var i in this.texs){
-			this.texs[i].dispose();
-		}
-		this.texs = null;
-	}
-};
-
-
-
-
-/**
- * 创建一个纹理管理器对象
- * @classdesc 纹理集管理器用来管理所绑定game实例中的所有纹理集，用于获取，创建，删除纹理集。<br/>
- * 该类无需显式创建，引擎会自动绑定到game实例属性中。
- * @extends soya2d.ResourceManager
- * @class 
- * @author {@link http://weibo.com/soya2d MrSoya}
- */
-soya2d.TextureAtlasManager = function(){
-    //继承
-    soya2d.ResourceManager.call(this);
-
-    this._add = function(tag,res){
-        this.urlMap[tag] = res;
-    };
-};
-soya2d.inherits(soya2d.TextureAtlasManager,soya2d.ResourceManager);
-/**
- * 创建一个纹理管理器对象
- * @classdesc 纹理管理器用来管理所绑定game实例中的所有纹理，用于获取，创建，删除纹理。<br/>
- * 该类无需显式创建，引擎会自动绑定到game实例属性中。
- * @extends soya2d.ResourceManager
- * @class 
- * @author {@link http://weibo.com/soya2d MrSoya}
- */
-soya2d.TextureManager = function(){
-    //继承
-    soya2d.ResourceManager.call(this);
-
-    //添加纹理到管理器，用于loader
-    this._add = function(src,res){
-        this.urlMap[src] = res;
-    };
-};
-soya2d.inherits(soya2d.TextureManager,soya2d.ResourceManager);
-/**
- * 异步加载类
- * @namespace soya2d.AJAXLoader
- * @author {@link http://weibo.com/soya2d MrSoya}
- */
-soya2d.AJAXLoader = new function(){
-
-    var timeout = 5000;
-    function obj2str(obj){
-        var rs = '';
-        for(var i in obj){
-            rs += '&'+i+'='+ escape(obj[i]);
-        }
-        return rs.substr(1);
-    }
-
-    function downloadRequest(type,url,async,onload,onprogress,ontimeout,onerror,t,data,contentType){
-        var xhr = new XMLHttpRequest();
-        type = type||"get";
-        if(type === 'get'){//转换参数
-            data = typeof(data)==='string'?data:obj2str(data);
-            if(url.indexOf('?') > -1){
-                url = url.replace(/&$/,'');
-                url += '&' + data.replace(/^&/,'');
-            }else{
-                url += '?' + data.replace(/^&/,'');
-            }
-            data = null;
-        }
-
-        xhr.open(type,url, async===false?false:true);
-        if(async)xhr.timeout = t || timeout;
-        xhr.ontimeout = ontimeout;
-        xhr.onerror = onerror;
-        if(xhr.onload === null){
-            xhr.onload = function(){
-                if(xhr.status===0 || //native
-                    (xhr.status >= 200 && xhr.status <300) || xhr.status === 304){
-                    onload(xhr);
-                }
-            }
-            xhr.onprogress=function(e){
-                if(onprogress && e.lengthComputable)onprogress(xhr,e.loaded,e.total);
-            }
-        }else{
-            xhr.onreadystatechange = function () {
-                if(xhr.status===0 || //native
-                    ((xhr.status >= 200 && xhr.status <300) || xhr.status === 304) && xhr.readyState === 4){
-                    onload(xhr);
-                }
-            };
-        }
-        if(type === 'post'){
-            data = typeof(data)==='string'?data:obj2str(data);
-            xhr.setRequestHeader("Content-Type",contentType||'application/x-www-form-urlencoded');
-        }
-        xhr.send(data);
-    }
-
-    function uploadRequest(type,url,async,onload,onprogress,ontimeout,onerror,t,data,contentType){
-        var xhr = new XMLHttpRequest();
-        xhr.open('post',url, async===false?false:true);
-        if(async)xhr.timeout = t || timeout;
-        xhr.ontimeout = ontimeout;
-        if(xhr.upload){
-            xhr.upload.addEventListener("progress",function(e){
-                if(onprogress && e.lengthComputable) {
-                    var percentComplete = e.loaded / e.total;
-                    onprogress(xhr,e.loaded,e.total);
-                }
-            }, false);
-            xhr.upload.addEventListener("error", onerror, false);
-        }
-        if(xhr.onload === null){
-            xhr.onload = function(){
-                if(xhr.status===0 || //native
-                    (xhr.status >= 200 && xhr.status <300) || xhr.status === 304){
-                    onload(xhr);
-                }
-            }
-        }else{
-            xhr.onreadystatechange = function () {
-                if(xhr.status===0 || //native
-                    ((xhr.status >= 200 && xhr.status <300) || xhr.status === 304) && xhr.readyState === 4){
-                    onload(xhr);
-                }
-            };
-        }
-        xhr.setRequestHeader("Content-Type",contentType||'application/x-www-form-urlencoded');
-        data = typeof(data)==='string'?data:obj2str(data);
-        xhr.send(data);
-    }
-
-    /**
-     * 加载文本信息
-     * @param {Object} opts 参数对象
-     * @param  {string} opts.data 请求数据
-     * @param  {string} opts.url 请求地址
-     * @param  {string} [opts.type=get] 请求类型
-     * @param  {boolean} [opts.async=true] 是否异步
-     * @param  {Function} [opts.onLoad] 回调函数，参数为文本
-     * @param  {Function} [opts.onProgress] 回调函数
-     * @param  {Function} [opts.onTimeout] 回调函数
-     * @param  {Function} [opts.onError] 回调函数
-     * @param  {int} [opts.timeout=5000] 超时上限，毫秒数
-     */
-	this.loadText = function(opts){
-        if(!opts)return;
-        if(!(opts.onLoad instanceof Function))return;
-
-        downloadRequest(opts.type,opts.url,opts.async,function(xhr){
-            opts.onLoad(xhr.responseText);
-        },opts.onProgress,opts.onTimeout,opts.onError,opts.timeout,opts.data);
-    };
-
-    /**
-     * 加载json对象
-     * @param {Object} opts 参数对象
-     * @param  {string} opts.data 请求数据
-     * @param  {string} opts.url 请求地址
-     * @param  {string} [opts.type=get] 请求类型
-     * @param  {boolean} [opts.async=true] 是否异步
-     * @param  {Function} [opts.onLoad] 回调函数，参数为json对象;如果json解析失败，返回错误对象
-     * @param  {Function} [opts.onProgress] 回调函数
-     * @param  {Function} [opts.onTimeout] 回调函数
-     * @param  {Function} [opts.onError] 回调函数
-     * @param  {int} [opts.timeout=5000] 超时上限，毫秒数
-     */
-    this.loadJSON = function(opts){
-        if(!opts)return;
-        if(!(opts.onLoad instanceof Function))return;
-
-        downloadRequest(opts.type,opts.url,opts.async,function(xhr){
-            var json;
-            try{
-                json = new Function('return '+xhr.responseText)();
-            }catch(e){
-                json = e;
-            }
-            opts.onLoad(json);
-        },opts.onProgress,opts.onTimeout,opts.onError,opts.timeout,opts.data);
-    };
-
-    /**
-     * 上传文本
-     * @param {Object} opts 参数对象
-     * @param  {string} opts.data 上传的文本数据
-     * @param  {string} opts.url 请求地址
-     * @param  {string} [opts.type=get] 请求类型
-     * @param  {boolean} [opts.async=true] 是否异步
-     * @param  {Function} [opts.onLoad] 回调函数，参数为文本
-     * @param  {Function} [opts.onProgress] 回调函数
-     * @param  {Function} [opts.onTimeout] 回调函数
-     * @param  {Function} [opts.onError] 回调函数
-     * @param  {int} [opts.timeout=5000] 超时上限，毫秒数
-     */
-    this.uploadText = function(opts){
-        if(!opts)return;
-        if(!(opts.onLoad instanceof Function))return;
-
-        uploadRequest(opts.type,opts.url,opts.async,function(xhr){
-            opts.onLoad(xhr.responseText);
-        },opts.onProgress,opts.onTimeout,opts.onError,opts.timeout,opts.data+'');
-    };
-};
-/**
- *  资源加载类<br/>
- *  除脚本支持不同加载方式外，其他资源都是并行加载。
- *  调用者应该注意，在并行请求过多时，可能导致请求失败，需要控制请求并发数
- * @namespace soya2d.Loader
- * @author {@link http://weibo.com/soya2d MrSoya}
- */
-soya2d.Loader = new function(){
-	/**
-	 * 加载图像,如果成功，返回纹理soya2d.Texture
-     * @param {Object} cfg 参数
-     * @param {Array} cfg.urls 图像路径数组。['1.jpg','2.png','3.gif']
-	 * @param {Function} cfg.onLoad 单个图像加载成功事件,可选  回调参数[texture,url]
-	 * @param {Function} cfg.onEnd 全部图像加载完成事件,可选 回调参数[texture数组]
-     * @param {Function} cfg.onError 单个图像加载错误事件,可选 回调参数[url]
-     * @param {Function} cfg.onTimeout 单个图像加载超时事件,可选 回调参数[url]
-     * @param {int} cfg.timeout 每个图像加载超时时间,默认5000ms
-     * @param {String} cfg.crossOrigin 跨域标识
-	 * @see soya2d.Texture
-     * @return this
-     */
-	this.loadTextures = function(cfg){
-        var loaded = cfg.urls.length;
-        var onLoad = cfg.onLoad;
-        var onEnd = cfg.onEnd;
-        var onError = cfg.onError;
-        var onTimeout = cfg.onTimeout;
-        var timeout = cfg.timeout||soya2d.TIMEOUT;
-        var crossOrigin = cfg.crossOrigin;
-        var rs = new Array(loaded);
-        
-        for(var i=cfg.urls.length;i--;){
-            var img = new Image();
-            if(crossOrigin !== undefined)img.crossOrigin = crossOrigin;
-            img.i = i;
-            img.path = cfg.urls[i];
-            img.onload=function(){
-                var tex = new soya2d.Texture.fromImage(this);
-                rs[this.i] = tex;
-                delete this.i;
-                if(onLoad && onLoad.call){
-                    onLoad(tex,this.path);
-                }
-
-                loaded--;
-                if(!loaded && onEnd && onEnd.call){
-                    onEnd(rs);
-                }
-                this.onerror = null;
-                this.onload = null;
-            }
-            img.onerror=function(){
-                if(onError && onError.call){
-                    onError(this.src);
-                }
-                loaded--;
-                if(!loaded && onEnd && onEnd.call){
-                    onEnd();
-                }
-                this.onerror = null;
-                this.onload = null;
-            }
-            img.src = cfg.urls[i];
-            if(img.complete){
-                img.onload();
-            }
-        }
-        return this;
-	}
-	
-	function loadScript(src,loaded,onLoad,onError,onEnd){
-		var script = document.createElement("script");
-		script.onload=function(){
-            this.onerror = null;
-            this.onload = null;
-            document.body.removeChild(this);
-			if(onLoad && onLoad.call){
-                onLoad(this.src);
-			}
-            loaded--;
-            
-            if(!loaded){
-                if(onEnd && onEnd.call){
-		                onEnd();
-
-		            }
-                return;
-            }
-            loadScript(src,loaded,onLoad,onError,onEnd);
-		}
-		script.onerror=function(){
-            this.onerror = null;
-            this.onload = null;
-            document.body.removeChild(this);
-            if(onError && onError.call){
-                onError(this.src);
-            }
-            loaded--;
-            if(!loaded){
-                if(onEnd && onEnd.call){
-		                onEnd();
-		            }
-                return;
-            }
-            loadScript(src,loaded,onLoad,onError,onEnd);
-		}
-        script.src = src.shift();
-		document.body.appendChild(script);
-	}
-	/**
-	 * 加载脚本
-     * @param {Object} cfg 参数
-     * @param {Array} cfg.urls 脚本路径数组。['/lib/a.js','/lib/b.js','/lib/c.js']
-     * @param {int} cfg.mode 脚本加载方式，默认为串行加载soya2d.LOADMODE_SEQU
-     * @param {Function} cfg.onLoad 单个脚本加载成功事件,可选   回调参数[src]
-     * @param {Function} cfg.onEnd 全部脚本加载完成事件,可选
-     * @param {Function} cfg.onError 单个脚本加载失败事件,可选
-     * @return this
-     */
-	this.loadScripts = function(cfg){
-        var loaded = cfg.urls.length;
-        var onLoad = cfg.onLoad;
-        var onEnd = cfg.onEnd;
-        var onError = cfg.onError;
-        var d = document;
-        var b = document.body;
-        var mode = cfg.mode||soya2d.LOADMODE_SEQU;
-        if(mode===soya2d.LOADMODE_SEQU)
-		    loadScript(cfg.urls.concat(),loaded,onLoad,onError,onEnd);
-        else{
-            for(var i=cfg.urls.length;i--;){
-                var s = d.createElement("script");//指定src时，类型必须是javascript或者空，无法加载文本资源
-                if(!s.async)s.defer = true;
-                s.onload = function () {
-                    this.onerror = null;
-                    this.onload = null;
-                    document.body.removeChild(this);
-                    if(onLoad && onLoad.call){
-                        onLoad(this.src);
-                    }
-                    loaded--;
-                    if(!loaded && onEnd && onEnd.call){
-                        onEnd();
-                    }
-                }
-                s.onerror=function(){
-                    this.onerror = null;
-                    this.onload = null;
-                    document.body.removeChild(this);
-                    if(onError && onError.call){
-                        onError(this.src);
-                    }
-                    loaded--;
-                    if(!loaded && onEnd && onEnd.call){
-                        onEnd();
-                    }
-                }
-                s.src = cfg.urls[i];
-                b.appendChild(s);
-            }
-        }
-        return this;
-	}
-	/**
-	 * 加载器声音数据
-     * @param {Object} cfg 参数
-     * @param {Array} cfg.urls 声音路径数组,支持跨平台定义。['a.wav',['b.mp3','b.m4a','b.ogg'],'c.ogg']，子数组内为一个声音的不同格式，引擎会自动加载平台支持的第一个
-     * @param {Function} cfg.onLoad 单个声音加载成功事件,可选   回调参数[sound,url]
-     * @param {Function} cfg.onEnd 全部声音加载完成事件,可选    回调参数[sound数组]
-     * @param {Function} cfg.onError 单个声音加载失败事件,可选 回调参数[errorCode,url]
-	 * @see soya2d.MEDIA_ERR_ABORTED
-     * @see soya2d.Sound
-	 */
-	this.loadSounds = function(cfg){
-        var loaded = cfg.urls.length;
-        var onLoad = cfg.onLoad;
-        var onEnd = cfg.onEnd;
-        var onError = cfg.onError;
-        var d = document;
-        var rs = [];
-        
-        for(var i=cfg.urls.length;i--;){
-            var urls = cfg.urls[i];
-            var handler = new Howl({
-                src: urls instanceof Array?urls:[urls],
-                onload:function(){
-                    if(onLoad && onLoad.call){
-                        var sound = new soya2d.Sound();
-                        sound.__handler = this;
-                        rs.push(sound);
-                        onLoad(sound,this._src);
-                    }
-                    loaded--;
-                    if(!loaded && onEnd && onEnd.call){
-                        onEnd(rs);
-                    }
-                },
-                onloaderror:function(error){
-                    if(onError && onError.call){
-                        var errorType = soya2d.MEDIA_ERR_DECODE;
-                        if(error){
-                            errorType = error.type;
-                        }
-                        onError(errorType,this._src);
-                    }
-                    loaded--;
-                    if(!loaded && onEnd && onEnd.call){
-                        onEnd(rs);
-                    }
-                }
-            });
-        }
-        return this;
-	}
-
-    //加载单个字体
-    function loadFont(rs,font,onLoad,onTimeout,onEnd,timeout){
-        var originFamily = ['serif','sans-serif'];
-        var originCSS = "border:none;position:absolute;top:-999px;left:-999px;" +
-                        "font-size:100px;width:auto;height:auto;line-height:normal;margin:0;" +
-                        "padding:0;font-variant:normal;white-space:nowrap;font-family:";
-        var originWidth = {};
-        var originHeight = {};
-        var originSpan = {};
-        for(var i=originFamily.length;i--;){
-            var span = document.createElement('div');
-            span.style.cssText = originCSS+"'"+originFamily[i]+"'";
-            span.innerHTML = font.family;
-            document.body.appendChild(span);
-            originSpan[originFamily[i]] = span;
-            //获取原始size
-            originWidth[originFamily[i]] = span.offsetWidth;
-            originHeight[originFamily[i]] = span.offsetHeight;
-        }
-        //开始加载样式
-        var style = document.createElement('style');
-        style.id = 'FontLoader_'+new Date().getTime();
-        style.innerHTML =  "@font-face {" +
-                        "font-family: '" + font.family + "';" +
-                        "src: url(" + font.url + ")" +
-                        "}";
-        document.head.appendChild(style);
-        for(var i in originSpan){
-            originSpan[i].style.fontFamily = font.family+','+originSpan[i].style.fontFamily;
-        }
-        //监控器启动扫描
-        var startTime = new Date().getTime();
-        setTimeout(function(){
-            fontScan(rs,startTime,timeout,originSpan,originWidth,originHeight,onLoad,onEnd,onTimeout,font.family);
-        },100);//100ms用于浏览器识别非法字体，然后还原并使用次等匹配字体
-    }
-    var fontLoaded=0;
-    //扫描字体是否加载OK
-    function fontScan(rs,startTime,timeout,originSpan,originWidth,originHeight,onLoad,onEnd,onTimeout,family){
-        setTimeout(function(){
-            if(new Date().getTime() - startTime > timeout){
-                //超时
-                if(onTimeout && onTimeout.call){
-                    onTimeout(family);
-                }
-                fontLoaded--;
-                if(!fontLoaded && onEnd && onEnd.call){
-                    onEnd();
-                }
-                return;
-            }
-            //检查originSpan的宽度是否发生了变化
-            for(var i in originSpan){
-                originSpan[i].style.left = '-1000px';
-                var w = originSpan[i].offsetWidth;
-                var h = originSpan[i].offsetHeight;
-                if(w !== originWidth[i] || h !== originHeight[i]){//发生了改变
-                    //document.body.removeChild(originSpan[i]);
-                    var font;
-                    if(onLoad && onLoad.call){
-                        font = new soya2d.Font().family(family);
-                        onLoad(font,family);
-                    }
-                    rs[fontLoaded--] = font;
-                    if(!fontLoaded && onEnd && onEnd.call){
-                        onEnd(rs);
-                    }
-                    return;
-                }
-            }
-            //没有改变，继续扫描
-            fontScan(rs,startTime,timeout,originSpan,originWidth,originHeight,onLoad,onEnd,onTimeout,family);
-        },20);
-    }
-    /**
-     * 加载外部字体文件
-     * @param {Object} cfg 参数
-     * @param {Array} cfg.urls 字体描述数组。[{family:'myfont',url:'a/b/c.ttf'},...]
-     * @param {Function} cfg.onLoad 单个字体加载成功事件,可选   回调参数 [font对象,family]
-     * @param {Function} cfg.onEnd 全部字体加载完成事件,可选    回调参数 [font对象数组]
-     * @param {Function} cfg.onTimeout 单个字体加载超时事件,可选 回调参数[family]
-     * @param {int} cfg.timeout 每个字体加载超时时间,默认5000ms
-     */
-    this.loadFonts = function(cfg){
-        var loaded = cfg.urls.length;
-        var onLoad = cfg.onLoad;
-        var onEnd = cfg.onEnd;
-        var onTimeout = cfg.onTimeout;
-        var timeout = cfg.timeout||soya2d.TIMEOUT;
-        var rs = new Array(loaded);
-
-        fontLoaded = loaded;
-        //加载字体
-        for(var i=cfg.urls.length;i--;){
-            loadFont(rs,cfg.urls[i],onLoad,onTimeout,onEnd,timeout);
-        }
-    }
-
-    /**
-     * 加载纹理集
-     * @param {Object} cfg 参数
-     * @param {Array} cfg.urls 纹理集描述数组。[{ssheet:'a/b/c.ssheet',image:'a/b/c.png'},...]
-     * @param {Function} cfg.onLoad 单个纹理集加载成功事件,可选   回调参数 [纹理集对象,纹理对象，精灵表对象]
-     * @param {Function} cfg.onEnd 全部纹理集加载完成事件,可选    回调参数 [纹理集对象数组]
-     * @param {Function} cfg.onError 单个纹理集加载失败事件,可选  回调参数 [ssheet,image]
-     */
-    this.loadTexAtlas = function(cfg){
-        var loaded = cfg.urls.length;
-        var onLoad = cfg.onLoad;
-        var onEnd = cfg.onEnd;
-        var onError = cfg.onError;
-
-        var imgUrls = [];
-        var map = {};
-        for(var i=loaded;i--;){
-            imgUrls.push(cfg.urls[i].image);
-            map[cfg.urls[i].image] = cfg.urls[i].ssheet;
-        }
-        
-        var rs = [];
-
-        //loadTextures
-        this.loadTextures({
-            urls:imgUrls,
-            onLoad:function(tex,url){
-                soya2d.AJAXLoader.loadJSON(
-                    {
-                        url:map[url],
-                        onLoad:function(ssheet){
-                            var atlas = new soya2d.TextureAtlas(tex,ssheet);
-                            if(onLoad){
-                                onLoad(atlas,tex,ssheet,url,map[url]);
-                            }
-                            rs.push(atlas);
-
-                            if(--loaded===0){
-                                if(onEnd){
-                                    onEnd(rs);
-                                }
-                            }
-                        },
-                        onError:function(){
-                            loaded--;
-                            if(onError){
-                                onError(url,map[url]);
-                            }
-                        }
-                    }
-                );
-            },
-            onError:function(url){
-                loaded--;
-                if(onError){
-                    onError(url,map[url]);
-                }
-            }
-        });
-    }
-};
-/**
- * 默认超时时间，5000ms
- */
-soya2d.TIMEOUT = 5000;
-
-
-/**
- * 媒体加载错误类型——MEDIA_ERR_UNCERTAIN<br/>
- * 未知错误
- * @constant
- */
-soya2d.MEDIA_ERR_UNCERTAIN = -1;
-/**
- * 媒体加载错误类型——MEDIA_ERR_ABORTED<br/>
- * 加载被中断
- * @constant
- */
-soya2d.MEDIA_ERR_ABORTED = 1;
-/**
- * 媒体加载错误类型——MEDIA_ERR_NETWORK<br/>
- * 网络异常
- * @constant
- */
-soya2d.MEDIA_ERR_NETWORK = 2;
-/**
- * 媒体加载错误类型——MEDIA_ERR_DECODE<br/>
- * 无法解码
- * @constant
- */
-soya2d.MEDIA_ERR_DECODE = 3;
-/**
- * 媒体加载错误类型——MEDIA_ERR_SRC_NOT_SUPPORTED<br/>
- * 类型不支持
- * @constant
- */
-soya2d.MEDIA_ERR_SRC_NOT_SUPPORTED = 4;
-/**
- * 媒体加载错误类型——MEDIA_ERR_SRC_NOT_FORTHCOMING<br/>
- * 无法获取资源数据
- * @constant
- */
-soya2d.MEDIA_ERR_SRC_NOT_FORTHCOMING = 101;
-
-/**
- * 加载类型——并行
- * @constant
- */
-soya2d.LOADMODE_PARA = 1;
-/**
- * 加载类型——串行
- * @constant
- */
-soya2d.LOADMODE_SEQU = 2;
-/**
- * @classdesc 游戏对象是构建soya2d应用的入口类，用于构建和启动一个soya2d应用。
+ * 游戏对象是构建soya2d应用的入口类，用于构建和启动一个soya2d应用。
  * 一个页面可以同时运行多个游戏对象，并且拥有不同的FPS和场景
- * @class 
+ * @class soya2d.Game
  * @param {Object} opts 构造参数对象，参数如下：
  * @param {string | HTMLElement} opts.container 游戏渲染的容器，可以是一个选择器字符串或者节点对象
  * @param {int} opts.rendererType 渲染器类型，目前只支持canvas
@@ -5162,7 +6206,6 @@ soya2d.LOADMODE_SEQU = 2;
  * @param {int} opts.h 游戏的高度
  * @param {boolean} opts.autoClear 自动清除背景
  * @param {boolean} opts.smoothEnable 是否平滑处理
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Game = function(opts){
 	opts = opts || {};
@@ -5189,193 +6232,74 @@ soya2d.Game = function(opts){
 	//}
 
 	soya2d.ext(this,opts);
-
-	/**
-	 * 当前场景
-	 * @type {soya2d.Scene}
-	 */
-	this.scene = null;
-
 	/********** 外部接口 ***********/
 
-	/**
-	 * 获取渲染器
-	 * @return {Object} 渲染器实例
-	 */
-	this.getRenderer = function(){
-		return renderer;
-	};
-
-	/**
-	 * 默认视图
-	 * @type {soya2d.View}
-	 */
-	this.view = new soya2d.View(this);
-
-	/**
-	 * 纹理管理器
-	 * @type {soya2d.TextureManager}
-	 */
-	this.textureManager = new soya2d.TextureManager();
-
-	/**
-	 * 纹理集管理器
-	 * @type {soya2d.TextureAtlasManager}
-	 */
-	this.texAtlasManager = new soya2d.TextureAtlasManager();
-
-	/**
-     * 加载资源
-     * @param {Object} opts 参数对象
-     * @param {Array} opts.textures 需要加载的纹理数组，比如：[url1,url2,...]
-     * @param {Array} opts.texAtlas 需要加载的纹理集数组，比如：[{id:'xxx',ssheet:'a/b/c.ssheet',image:'a/b/c.png'},...]
-     * @param {Array} opts.sounds 需要加载的声音路径数组,支持跨平台定义。['a.wav',['b.mp3','b.m4a','b.ogg'],'c.ogg']，子数组内为一个声音的不同格式，引擎会自动加载平台支持的第一个
-     * @param {Array} opts.fonts 需要加载的字体数组，比如：[{url:xxx,family:xxx},...]
-     * @param {Array} opts.scripts 需要加载的脚本数组，比如：[url1,url2,...]
-     * @param {String} opts.crossOrigin 跨域加载资源标识，如果设置该标识，则资源按照该标识方式来加载
-     * @param {Function} opts.onLoad 回调函数，加载完成、超时、错误时触发
-     * @param {Function} opts.onEnd 回调函数，所有资源加载完成时触发
+    /**
+     * 渲染器
      */
-	this.loadRes = function(opts){
-		var textures = opts.textures||[];
-		var texAtlas = opts.texAtlas||[];
-        var fonts = opts.fonts||[];
-        var sounds = opts.sounds||[];
-        var scripts = opts.scripts||[];
-        var onload = opts.onLoad||function(){};
-        var onend = opts.onEnd||function(){};
-        var crossOrigin = opts.crossOrigin;
-        var loader = soya2d.Loader;
-                
-        //创建加载队列
-        var loaders = [];
-        if(textures.length>0)loaders.push([loadTextures,textures]);
-        if(texAtlas.length>0)loaders.push([loadTexAtlas,texAtlas]);
-        if(soya2d.Sound && sounds.length>0)loaders.push([loadSounds,sounds]);
-        if(fonts.length>0)loaders.push([loadFonts,fonts]);
-        if(scripts.length>0)loaders.push([loadScripts,scripts]);
-        
-        var llen = loaders.length;
-        //开始加载
-        if(llen>0)
-            loaders[0][0](crossOrigin,loader,loaders[0][1],onload,function(){
-                if(llen>1)
-                loaders[1][0](crossOrigin,loader,loaders[1][1],onload,function(){
-                	if(llen>2)
-    		            loaders[2][0](crossOrigin,loader,loaders[2][1],onload,function(){
-    		                if(llen>3)
-    		                    loaders[3][0](crossOrigin,loader,loaders[3][1],onload,function(){
-    		                        if(llen>4)
-    		                            loaders[4][0](crossOrigin,loader,loaders[4][1],onload,onend);
-    		                        else{onend();}
-    		                    });
-    		                    else{onend();}
-    		            });
-    		            else{onend();}
-                });
-                else{onend();}
-            });
-        else{
-            soya2d.console.warn('empty resources be loaded...');
-            onend();
-        }
-	};
-	/*********** 加载资源 ************/
-	function loadTexAtlas(crossOrigin,loader,urls,onload,onEnd){
-        "use strict";
-
-        var map = {};
-        for(var i=urls.length;i--;){
-            map[urls[i].image+'/'+urls[i].ssheet] = urls[i].id;
-        }
-
-        loader.loadTexAtlas({
-            crossOrigin:crossOrigin,
-            urls:urls,
-            onLoad:function(atlas,tex,ssheet,texUrl,ssheetUrl){
-            	thisGame.textureManager._add(texUrl,tex);
-            	var id = map[texUrl+'/'+ssheetUrl];
-            	thisGame.texAtlasManager._add(id,atlas);
-                onload(atlas,tex,ssheet);
-            },
-            onError:function(image,ssheet){
-                onload(image,ssheet);
-            },
-            onEnd:function(){
-                onEnd();
-            }
-        });
-    }
-    function loadScripts(crossOrigin,loader,urls,onload,onEnd){
-        "use strict";
-        //加载脚本
-        loader.loadScripts({
-            crossOrigin:crossOrigin,
-            urls:urls,
-            onLoad:function(src){
-                onload(src);
-            },
-            onError:function(src){
-                onload(src);
-            },
-            onEnd:function(){
-                onEnd();
-            }
-        });
-    }
-    var thisGame = this;
-    function loadSounds(crossOrigin,loader,urls,onload,onEnd){
-        "use strict";
-        //加载音频
-        loader.loadSounds({
-            urls:urls,
-            onLoad:function(sound,src){
-                thisGame.soundManager._add(src,sound);
-                onload(src);
-            },
-            onError:function(code,src){
-                onload(src);
-            },
-            onEnd:function(sounds){
-                onEnd(sounds);
-            }
-        });
-    }
-    function loadTextures(crossOrigin,loader,urls,onload,onEnd){
-        "use strict";
-        //加载纹理
-        loader.loadTextures({
-            crossOrigin:crossOrigin,
-            urls:urls,
-            onLoad:function(tex,url){
-            	thisGame.textureManager._add(url,tex);
-                onload();
-            },
-            onError:function(url){
-                onload(url);
-            },
-            onEnd:function(texs){
-                onEnd();
-            }
-        });
-    }
-    function loadFonts(crossOrigin,loader,urls,onload,onEnd){
-        "use strict";
-        loader.loadFonts({
-            urls:urls,
-            timeout:1000,
-            onLoad:function(font,family){
-                onload(font,family);
-            },
-            onTimeout:function(family){
-                onload(family);
-            },
-            onEnd:function(){
-                onEnd();
-            }
-        });
-    }
-
+    this.renderer = renderer;
+    /**
+     * 对象工厂，用来注册新的显示对象类型
+     * @type {DisplayObjectFactory}
+     */
+    this.objects = new DisplayObjectFactory(this);
+    /**
+     * 对象工厂，用来注册新的显示对象类型
+     * @type {DisplayObjectFactoryProxy}
+     */
+    this.add = new DisplayObjectFactoryProxy(this);
+    /**
+     * 全局事件监听器，包括DOM事件和自定义事件
+     * @type {Signal}
+     */
+    this.events = new Signal();
+    this.events.__signalHandler = new SignalHandler();
+    /**
+     * 场景管理器
+     * @type {SceneManager}
+     */
+    this.scene = new SceneManager(this);
+	/**
+	 * 舞台
+	 * @type {soya2d.Stage}
+	 */
+	this.stage = new Stage({game:this,w:renderer.w,h:renderer.h});
+    /**
+     * 世界
+     * @type {soya2d.World}
+     */
+    this.world = new World({game:this,w:renderer.w,h:renderer.h});
+    this.stage.add(this.world);
+    /**
+     * 每个game实例只存在唯一的一个摄像机，摄像机展示了世界中的内容
+     * @type {Camera}
+     */
+    this.camera = new Camera(renderer.w,renderer.h,this);
+	/**
+	 * 资源管理器
+	 * @type {Assets}
+	 */
+	this.assets = new Assets();
+	/**
+     * 加载器
+     * @type {Loader}
+     */
+	this.load = new Loader(this);
+    /**
+     * 定时器
+     * @type {Timer}
+     */
+    this.timer = new Timer();
+    /**
+     * 物理系统
+     * @type {Physics}
+     */
+    this.physics = new Physics();
+    /**
+     * 瓦片地图管理器
+     * @type {TilemapManager}
+     */
+    this.tilemap = new TilemapManager(this);
 	/**
 	 * 当前游戏的宽度
 	 * @type {int}
@@ -5401,21 +6325,12 @@ soya2d.Game = function(opts){
 	 * @param {soya2d.Scene} scene 启动场景
      * @return this
 	 */
-	this.start = function(scene){
+	this.start = function(){
 		if(this.running)return;
 		this.running = true;
-        if(!this.scene){
-		  this.cutTo(scene);
-        }
 
-        soya2d.console.info('game starting...');
-        if(scene.children.length < 1){
-            soya2d.console.warn('empty scene be showing...');
-        }
-
-		//scan view
-		this.view.scan(this.w,this.h,container,renderer);
-		this.view.align(this.view.align());
+		//scan stage
+		this.stage.__scan(this.w,this.h,container,renderer);
 
 		//start modules
 		var modules = soya2d.module._getAll();
@@ -5427,53 +6342,73 @@ soya2d.Game = function(opts){
 		for(var k in modules){
 			if(modules[k].onStart)modules[k].onStart(this);
 
-            if(modules[k].onBeforeUpdate)beforeUpdates.push(modules[k].onBeforeUpdate);
-			if(modules[k].onUpdate)onUpdates.push(modules[k].onUpdate);
-            if(modules[k].onAfterUpdate)afterUpdates.push(modules[k].onAfterUpdate);
-            if(modules[k].onBeforeRender)beforeRenders.push(modules[k].onBeforeRender);
-            if(modules[k].onAfterRender)afterRenders.push(modules[k].onAfterRender);
+            if(modules[k].onBeforeUpdate)beforeUpdates.push([modules[k],modules[k].onBeforeUpdate]);
+			if(modules[k].onUpdate)onUpdates.push([modules[k],modules[k].onUpdate]);
+            if(modules[k].onAfterUpdate)afterUpdates.push([modules[k],modules[k].onAfterUpdate]);
+            if(modules[k].onBeforeRender)beforeRenders.push([modules[k],modules[k].onBeforeRender]);
+            if(modules[k].onAfterRender)afterRenders.push([modules[k],modules[k].onAfterRender]);
 		}
 		
 		//start
 		threshold = 1000 / currFPS;
 		run(function(now,d){
-
             //before updates
             beforeUpdates.forEach(function(cbk){
-                cbk(thisGame,now,d);
+                cbk[1].call(cbk[0],thisGame,now,d);
             });
-			//update modules
+            //update modules
             if(onUpdates.length>0){
                 now = Date.now();
                 onUpdates.forEach(function(cbk){
-                    cbk(thisGame,now,d);
+                    cbk[1].call(cbk[0],thisGame,now,d);
                 });
             }
+
+            //physics
+            if(thisGame.physics.running)game.physics.update();
+
+            //calc camera rect
+            thisGame.camera.__onUpdate();
+
             //update entities
-            thisGame.scene.__update(thisGame);
+            //update matrix——>sort(optional)——>onUpdate(matrix)——>onRender(g)
+            
+            thisGame.timer.__scan(d);
+
+            thisGame.stage.__updateMatrix();
+            thisGame.stage.__update(thisGame,d);
+            
+            
+            if(thisGame.currentScene.onUpdate)
+                thisGame.currentScene.onUpdate(thisGame,d);
             //after updates
             if(afterUpdates.length>0){
                 now = Date.now();
                 afterUpdates.forEach(function(cbk){
-                    cbk(thisGame,now,d);
+                    cbk[1].call(cbk[0],thisGame,now,d);
                 });
             }
-            
 
+            
+            thisGame.camera.__cull(thisGame.stage);
+
+            thisGame.camera.__viewport(thisGame.world);
+            
             //before render
             if(beforeRenders.length>0){
                 now = Date.now();
                 beforeRenders.forEach(function(cbk){
-                    cbk(thisGame,now,d);
+                    cbk[1].call(cbk[0],thisGame,now,d);
                 });
             }
             //render
-            renderer.render(thisGame.scene);
+            renderer.render(thisGame.stage,thisGame.camera);
+            
             //after render
             if(afterRenders.length>0){
                 now = Date.now();
                 afterRenders.forEach(function(cbk){
-                    cbk(thisGame,now,d);
+                    cbk[1].call(cbk[0],thisGame,now,d);
                 });
             }
 		});
@@ -5481,6 +6416,7 @@ soya2d.Game = function(opts){
 		return this;
 	};
 
+    var thisGame = this;
 	var lastCountTime=0;
 	var maxFPS = 60;
     var currFPS = 60;
@@ -5537,36 +6473,6 @@ soya2d.Game = function(opts){
 		return this;
 	};
 
-	/**
-	 * 跳转场景
-	 * @param {soya2d.Scene} scene 需要跳转到的场景
-     * @return this
-	 */
-	this.cutTo = function(scene){
-		if(!scene)return;
-        var fireModuleCbk = false;
-        if(this.scene){
-            fireModuleCbk = true;
-            //clear old scene
-            this.scene.clear();
-        }
-		this.scene = scene;
-		this.scene.game = this;
-		//初始化场景
-		if(this.scene.onInit && this.scene.onInit.call){
-			this.scene.onInit(this);
-		}
-
-        if(fireModuleCbk){
-            var modules = soya2d.module._getAll();
-            for(var k in modules){
-                if(modules[k].onSceneChange)modules[k].onSceneChange(this,scene);
-            }   
-        }
-
-		return this;
-	};
-
 	//init modules
 	var modules = soya2d.module._getAll();
     var ms = 0;
@@ -5574,6 +6480,13 @@ soya2d.Game = function(opts){
 		if(modules[k].onInit)modules[k].onInit(this);
         ms++;
 	}
+
+    //init DOF
+    this.objects.register('shape',soya2d.Shape);
+    this.objects.register('sprite',soya2d.Sprite);
+    this.objects.register('tileSprite',soya2d.TileSprite);
+    this.objects.register('group',soya2d.DisplayObjectContainer);
+    this.objects.register('text',soya2d.Text);
 
     var t1 = 'soya2d Game instance created...';
     var t2 = ms + ' plugins loaded...';
@@ -5610,475 +6523,346 @@ soya2d.RENDERER_TYPE_CANVAS = 2;
  * 引擎会使用webgl方式进行渲染
  */
 soya2d.RENDERER_TYPE_WEBGL = 3;
-/**
- * @classdesc 资源加载场景合并了资源加载和进度显示功能。
- * 提供了默认的加载进度效果。如果需要自定义加载效果，请重写onStart和onProgress函数
- * @class 
- * @extends soya2d.Scene
- * @param {Object} data 所有父类参数，以及新增参数，如下：
- * @param {soya2d.Scene} [data.nextScene] 加载完成后需要跳转的场景，如果为空需要手动切换场景
- * @param {Array} data.textures 需要加载的纹理数组
- * @param {Array} data.texAtlas 需要加载的纹理集数组
- * @param {Array} data.sounds 需要加载的声音数组
- * @param {Array} data.scripts 需要加载的脚本数组
- * @param {Array} data.fonts 需要加载的字体数组
- * @param {function} [data.onStart] 开始加载回调,回调参数[game,length]
- * @param {function} [data.onProgress] 加载时回调,回调参数[game,length,index]
- * @param {function} [data.onEnd] 加载结束时回调,回调参数[game,length]
- * @author {@link http://weibo.com/soya2d MrSoya}
- */
-soya2d.LoaderScene = function(data){
-    data = data||{};
-    soya2d.Scene.call(this,data);
-    soya2d.ext(this,data);
-    
-    this.nextScene = data.nextScene;
-    this.textures = data.textures||[];
-    this.texAtlas = data.texAtlas||[];
-    this.sounds = data.sounds||[];
-    this.scripts = data.scripts||[];
-    this.fonts = data.fonts||[];
+!function(){
+    soya2d.class("soya2d.Tween",{
+        extends:Signal,
+        constructor:function(target){
+            this.__signalHandler = new SignalHandler();
 
-    var startCbk = data.onStart;
-    var progressCbk = data.onProgress;
-    var endCbk = data.onEnd;
-    
-    this.onInit = function(game){
-        //初始化时启动
-        var index = 0;
-        //资源总数
-        var allSize = this.textures.length +this.texAtlas.length +this.sounds.length +this.scripts.length +this.fonts.length;
-        if(allSize<1){
-            soya2d.console.warn('empty resources be loaded...');
-            if(this.onEnd)this.onEnd(game,allSize);
-            if(endCbk instanceof Function)endCbk.call(this,game,allSize);
-            if(this.nextScene)game.cutTo(this.nextScene);
-            return;
-        }
-    
-        if(this.onStart)this.onStart(game,allSize);
-        if(startCbk instanceof Function)startCbk.call(this,game,allSize);            
-        
-        var loader = this;
-        game.loadRes({
-            textures: this.textures,
-            texAtlas:this.texAtlas,
-            sounds: this.sounds,
-            fonts: this.fonts,
-            scripts: this.scripts,
-            onLoad: function() {
-                if(loader.onProgress)loader.onProgress(game,allSize,++index);
-                if(progressCbk instanceof Function)progressCbk.call(loader,game,allSize,index);
-            },
-            onEnd: function() {
-                if(loader.onEnd)loader.onEnd(game,allSize);
-                if(endCbk instanceof Function)endCbk.call(loader,game,allSize);
-                if(loader.nextScene)
-                game.cutTo(loader.nextScene);
-            }
-        });
-        
-    };
+            this.target = target;
+            this.__tds = {};
+            this.__startTimes = [];
+            this.__long = 0;
 
+            this.position = 0;
+            this.__reversed = false;
+            this.__paused = false;
+            this.__infinite = false;
 
-    /**
-     * 资源开始加载时调用
-     * 如果需要修改加载样式，请重写该函数
-     * @abstract
-     * @param  {soya2d.Game} game  游戏实例
-     * @param  {int} length 资源总数
-     */
-    this.onStart = function(game,length) {
-        var logo = new soya2d.Shape({
-            x: game.w/2 - 11,
-            y: game.h/2 - 30 - 20
-        });
-        var p1 = new soya2d.Shape({
-            w:23,h:20,
-            skewY:-30,
-            fillStyle:'#69CA14',
-            onRender:function(g){
-                g.beginPath();
-                g.fillStyle(this.fillStyle);
-                g.rect(0,0,this.w,this.h);
-                g.fill();
-                g.closePath();
-            }
-        });
-        var p2 = new soya2d.Shape({
-            w:23,h:20,
-            skewY:30,
-            y:13,
-            opacity:.9,
-            fillStyle:'#2A5909',
-            onRender:function(g){
-                g.beginPath();
-                g.fillStyle(this.fillStyle);
-                g.rect(0,0,this.w,this.h);
-                g.fill();
-                g.closePath();
-            }
-        });
-        var p3 = new soya2d.Shape({
-            w:23,h:20,
-            skewY:-30,
-            y:28,
-            blendMode:soya2d.BLEND_LIGHTER,
-            fillStyle:'#69CA14',
-            onRender:function(g){
-                g.beginPath();
-                g.fillStyle(this.fillStyle);
-                g.rect(0,0,this.w,this.h);
-                g.fill();
-                g.closePath();
-            }
-        });
-        logo.add(p1,p2,p3);
-        this.add(logo);
+            this.__state = {};
 
-        var font = new soya2d.Font('normal 400 23px/normal Arial,Helvetica,sans-serif');
-        this.tip = new soya2d.Text({
-            x: logo.x - 70,
-            y: logo.y + 60 + 10,
-            font:font,
-            text:'Loading... 0/0',
-            w:200,
-            fillStyle: this.fillStyle || '#fff'
-        });
-        this.add(this.tip);
-    };
-    /**
-     * 资源加载时调用,默认显示loading...字符。如果需要修改加载样式，请重写该函数
-     * @abstract
-     * @param  {soya2d.Game} game  游戏实例
-     * @param  {int} length 资源总数
-     * @param  {int} index  当前加载索引
-     */
-    this.onProgress = function(game,length,index) {
-        if(this.tip)
-        this.tip.setText('Loading... '+index+'/'+length);
-    };
-    /**
-     * 资源结束加载时调用
-     * 如果需要修改加载样式，请重写该函数
-     * @abstract
-     * @param  {soya2d.Game} game  游戏实例
-     * @param  {int} length 资源总数
-     */
-    this.onEnd = function(game,length) {};
-};
-soya2d.inherits(soya2d.LoaderScene,soya2d.Scene);
-/**
-    * @classdesc 补间类，用于创建动画<br/>
-    * 该类提供了在周期时间内，按照指定补间类型进行“补间目标”属性的计算，并提供反馈的过程<br/>
-    * 补间目标可以是一个可渲染对象，比如sprite，也可以是它的对象属性，比如
-    * @example
-var MrSoya = new soya2d.Text({
-    text:"Hi~~,i'm MrSoya"
-});
-var tween1 = new soya2d.Tween(MrSoya,
-        {opacity:1,scaleX:1},
-        1000,{easing:soya2d.Tween.Expo.Out,
-        cacheable:true,
-        onUpdate:function(target,ratio){
-            target.sclaeY = ratio;
-        }
-});
-var tween2 = new soya2d.Tween(MrSoya.bounds,
-        {w:100,h:200},
-        1000,
-        {easing:soya2d.Tween.Expo.Out,cacheable:false
-});
-    * @param {Object} target 需要进行对象
-    * @param {Object} attris 补间目标属性
-    * @param {int} duration 补间周期(ms)
-    * @param {Object} [opts] 补间属性
-    * @param {function} [opts.easing=soya2d.Tween.Linear] 补间类型
-    * @param {boolean} [opts.cacheable=false] 是否缓存，启用缓存可以提高动画性能，但是动画过程会有些许误差
-    * @param {int} [opts.iteration=0] 循环播放次数，-1为无限
-    * @param {boolean} [opts.alternate=false] 是否交替反向播放动画，只在循环启用时生效
-    * @param {function} [opts.onUpdate] 补间更新事件
-    * @param {function} [opts.onEnd] 补间结束事件
-    * @class
-    * @see {soya2d.Tween.Linear}
-    * @author {@link http://weibo.com/soya2d MrSoya}
-    */
-soya2d.Tween = function(target,attris,duration,opts){
+            this.__status = 'paused';
 
-    //用来保存每个属性的，变化值，补间值
-    this.__attr = {};
-    this.__attr_inverse = {};
-    this.__attriNames;
-    this.attris = attris;
-    this.target = target;
-    this.duration = duration;
+            this.__runningTD;
 
-    opts = opts||{};
-    this.easing = opts.easing||soya2d.Tween.Linear;
-    this.iteration = opts.iteration||0;
-    this.alternate = opts.alternate||false;
+            this.__changeTimes = 0;
+            this.__lastChangeTD;
+        },
+        __calc:function(attris,duration,easing){
+            var keys = Object.keys(attris);
+            var attr = {},
+                cacheRatio = {};//用于传递给onupdate
+            //初始化指定属性的step
+            for(var i=keys.length;i--;){//遍历引擎clone的对象，不包括引擎属性
+                var k = keys[i];
 
-    /**
-     * @name soya2d.Tween#onUpdate
-     * @desc  补间每运行一次时触发，this指向补间器
-     * @param {Object} target 补间目标，可能为null
-     * @param {Number} ratio 补间系数。当补间器运行时，会回传0-1之间的补间系数，
-     * 系数个数为补间帧数，系数值根据补间类型不同而不同。根据这个系数，可以实现多目标同时补间的效果，比如：
-     * @example
-     var tween1 = new soya2d.Tween(ken,
-             {opacity:1,scaleX:1},
-             1000,
-             {easing:soya2d.Tween.Expo.Out,cacheable:true,
-             onUpdate:function(target,ratio){
-                 target.sclaeY = ratio;
-             }
-    });
-     * @event
-     */
-    this.onUpdate = opts.onUpdate;
-    /**
-     * @name soya2d.Tween#onEnd
-     * @desc  补间运行完触发，this指向补间器
-     * @param {Object} target 补间目标
-     * @event
-     */
-    this.onEnd = opts.onEnd;
-    this.cacheable = opts.cacheable||false;
+                //没有该属性直接跳过
+                var val = this.__state[k];
+                if(val===undefined){
+                    val = this.target[k];
+                }
+                if(val===undefined)continue;
 
-    this.__loops = 0;//已经循环的次数
-    this.__delay = 0;
-};
+                var initVal = parseFloat(val||0);
+                var endVal = attris[k];
+                if(typeof endVal === 'string' || endVal instanceof String){//relative
+                    if(endVal.indexOf('-')===0){
+                        endVal = initVal-parseFloat(endVal.substring(1,endVal.length));
+                    }else if(endVal.indexOf('+')===0){
+                        endVal = initVal+parseFloat(endVal.substring(1,endVal.length));
+                    }else{
+                        endVal = parseFloat(endVal);
+                    }
+                }
+                var varVal = (endVal-initVal);
+                attr[k] = {'initVal':initVal,'varVal':varVal,'endVal':endVal};
+                this.__state[k] = endVal;
 
-soya2d.Tween.prototype = {
-    __calc:function(un){
-        var keys = this.__attriNames = Object.getOwnPropertyNames(this.attris);
-        //初始化指定属性的step
-        for(var i=keys.length;i--;){//遍历引擎clone的对象，不包括引擎属性
-            var key = keys[i];
+                //预计算。精度为10MS
+                if(this.cacheable){
+                    var dVal = attr[k].dVal = {};
+                    for(var j=0;(j+=10)<duration;){
+                        var r = easing(j,0,1,duration);
+                        cacheRatio['p_'+j] = r;
+                        dVal['p_'+j] = initVal + varVal*r;
+                    }
+                }//over if
+            }//over for
 
-            //没有该属性直接跳过
-            var tKey = this.target[key];
-            if(tKey===un)continue;
+            return [attr,cacheRatio];
+        },
+        /**
+         * @param {Object} attris 补间目标属性
+        * @param {int} duration 补间周期(ms)
+        * @param {Object} [opts] 补间属性
+        * @param {function} [opts.easing=soya2d.Tween.Linear] 补间类型
+        * @param {boolean} [opts.cacheable=false] 是否缓存，启用缓存可以提高动画性能，但是动画过程会有些许误差
+        * @param {int} [opts.repeat=0] 循环播放次数，-1为无限
+        * @param {boolean} [opts.yoyo=false] 是否交替反向播放动画，只在循环启用时生效
+        * @param {int} [opts.delay] 延迟时间(ms)
+        * @param {boolean} [opts.clear=true] 是否在执行完成后自动销毁释放内存
+        * @see {soya2d.Tween.Linear}
+         */
+        to:function(attris,duration,opts){
+            if(this.__infinite)return this;
+            opts = opts || {};
+            var easing = opts.easing||soya2d.Tween.Linear;
+            var data = this.__calc(attris,duration,easing);
 
-            var initVal = parseFloat(tKey||0);//修复初始值为字符的问题，会导致字符和数字相加，数值变大--2014.9.16
-            var endVal = this.attris[key];
-            if(typeof endVal === 'string' || endVal instanceof String){//relative
-                if(endVal.indexOf('-')===0){
-                    endVal = initVal-parseFloat(endVal.substring(1,endVal.length));
-                }else if(endVal.indexOf('+')===0){
-                    endVal = initVal+parseFloat(endVal.substring(1,endVal.length));
-                }else{
-                    endVal = parseFloat(endVal);
+            var yoyo = opts.yoyo||false;
+            var repeat = opts.repeat||0;
+            var odd = repeat % 2;
+            if(yoyo && odd){
+                for(var k in data[0]){
+                    this.__state[k] = data[0][k].initVal;
                 }
             }
-            var varVal = (endVal-initVal);
-            this.__attr[key] = {'initVal':initVal,'varVal':varVal,'endVal':endVal};
-            //inverse
-            var varVal_inverse = (initVal-endVal);
-            this.__attr_inverse[key] = {'initVal':endVal,'varVal':varVal_inverse,'endVal':initVal};
+            var state = {};
+            soya2d.ext(state,this.__state);
 
+            var td = new TweenData(data,state,duration,opts);
+            this.__long += td.delay;
 
-            //预计算。精度为10MS
-            if(this.cacheable){
-                this.__ratio = {};//用于传递给onupdate
-                this.__ratio_inverse = {};
-
-                var dVal = this.__attr[key].dVal = {};
-                var dVal_inverse = this.__attr_inverse[key].dVal = {};
-                for(var j=0;(j+=10)<this.duration;){
-                    var r = this.easing(j,0,1,this.duration);
-                    this.__ratio['p_'+j] = r;
-                    dVal['p_'+j] = initVal + varVal*r;
-                    //inverse
-                    r = this.easing(j,0,1,this.duration);
-                    this.__ratio_inverse['p_'+j] = r;
-                    dVal_inverse['p_'+j] = endVal + varVal_inverse*r;
+            for(var tdk in this.__tds){
+                var t = this.__tds[tdk];
+                for(var k in data[0]){
+                    if(t.__initState[k] === undefined)
+                        t.__initState[k] = data[0][k].initVal;
                 }
             }
 
-        }
-    },
-    /**
-     * 启动补间器<br/>
-     * *启动新的补间实例，会立即停止当前目标正在执行的补间
-     * @return this
-     */
-    start:function(){
-        this.__calc();
-        this.__startTime = Date.now();
-
-        if(this.target.__soya__tween instanceof soya2d.Tween){
-            this.target.__soya__tween.stop();
-        }
-
-        this.target.__soya__tween = this;
-
-        soya2d.TweenManager.add(this);
-        return this;
-    },
-    /**
-     * 延迟启动补间器
-     * @param {int} delay 延迟毫秒数
-     * @return this
-     */
-    delay:function(delay){
-        this.__delay = delay;
-        return this;
-    },
-    /**
-     * 停止补间器
-     */
-    stop:function(){
-        delete this.target.__soya__tween;
-        soya2d.TweenManager.remove(this);
-        return this;
-    },
-    /**
-     * 跳转到指定间隔
-     */
-    goTo:function(target,time,un){
-        var ratio,attNames=this.__attriNames,attr=this.__attr,t=target;
-        //预计算
-        if(this.cacheable){
-            var phase = 'p_'+(time/10>>0)*10;
-            ratio = this.__ratio[phase];
-            if(phase==='p_0')ratio=0;
-            if(ratio===un)ratio = 1;
-            //更新参数
-            for(var i=attNames.length;i--;){
-                var k = attNames[i];
-                if(!attr[k])continue;
-                var v = attr[k].dVal[phase];
-                if(v===un)v = attr[k].endVal;
-                t[k] = v;
+            this.__tds[this.__long] = td;
+            this.__startTimes.push(this.__long);
+            td.__startPos = this.__long;
+            if(td.repeat === -1){
+                this.__infinite = true;
+                soya2d.console.warn('infinite loop instance');
             }
-        }else{
-            ratio = this.easing(time,0,1,this.duration);
-            if(time>this.duration)ratio=1;
-            //更新参数
-            for(var i=attNames.length;i--;){
-                var k = attNames[i];
-                if(attr[k])
-                t[k] = attr[k].initVal + attr[k].varVal*ratio;
-            }
-        }
-        return ratio;
-    },
-    /**
-     * 更新补间实例
-     */
-    update:function(now,d){
-        var c = now - this.__startTime;
-        if(this.__delay > 0){
-            this.__delay -= d;
-            if(this.__delay <=0)this.__startTime = Date.now();
-            return;
-        }
-        var t=this.target;
-        var ratio = this.goTo(t,c);
+            this.__long += td.duration * (td.repeat+1);
 
-        //判断结束
-        if(c>=this.duration){
-            if(this.onEnd)this.onEnd(t);
-            //是否循环
-			if(this.iteration===-1 ||
-                (this.iteration>0 && this.__loops++ < this.iteration)){
-                //重新计算
-                this.__startTime = Date.now();
-                if(this.alternate){
-                    //替换属性
-                    var tmp = this.__attr;
-                    this.__attr = this.__attr_inverse;
-                    this.__attr_inverse = tmp;
-                    //替换缓存
-                    tmp = this.__ratio;
-                    this.__ratio = this.__ratio_inverse;
-                    this.__ratio_inverse = tmp;
+            return this;
+        },
+        /**
+         * 启动补间器
+         * @return this
+         */
+        play:function(keepAlive){
+            this.__reversed = false;
+            this.__status = 'running';
+
+            this.keepAlive = keepAlive;
+            
+            return this;
+        },
+        reverse:function(){
+            if(this.__infinite)return;
+            this.__status = 'running';
+            this.__reversed = true;
+        },
+        /**
+         * 暂停补间器
+         */
+        pause:function(){
+            this.__status = 'paused';
+            this.emit('pause');
+            return this;
+        },
+        restart:function(){
+            this.position = 0;
+            this.play();
+        },
+        __getTD:function(){
+            for(var i=this.__startTimes.length;i--;){
+                if(this.position >= this.__startTimes[i]){
+                    return this.__tds[this.__startTimes[i]];
                 }
+            }
+        },
+        __onUpdate:function(r,td){
+            this.emit('process',r,this.position / this.__long);
+            if(((r === 1 && !this.__reversed) || (r === 0 && this.__reversed)) && 
+                this.__lastChangeTD != td){
+                
+                this.__onChange(++this.__changeTimes);
+                this.__lastChangeTD = td;
+            }
+        },
+        __onChange:function(times){
+            this.emit('change',times);
+        },
+        __onEnd:function(){
+            this.emit('stop');
+            
+            if(!this.keepAlive){
+                this.destroy();
+            }
+        },
+        __update:function(now,d){
+            if(this.__status !== 'running')return;
+
+            if(this.position > this.__long && !this.__reversed && !this.__infinite){
+                this.position = this.__long;
+                this.pause();
+                this.__onEnd();
+                return;
+            }else if(this.position < 0 && this.__reversed && !this.__infinite){
+                this.position = 0;
+                this.pause();
+                this.__onEnd();
                 return;
             }
-            //销毁
-            this.destroy();
-            soya2d.TweenManager.remove(this);
 
-            if(this.__next){
-                this.__next.start();
+            d = this.__reversed?-d:d;
+            this.position += d;
+
+            var td = this.__getTD();
+            if(!td)return;
+            if(this.__runningTD !== td){
+                this.__runningTD = td;
+                this.__runningTD.__inited = false;
             }
 
-            return;
+            td.update(
+                this,
+                this.position);
+        },
+        destroy:function(){
+            this.__manager.__remove(this);
+            
+            for(var k in this.__tds){
+                this.__tds[k].destroy();
+            }
+            this.__tds = null;
+            this.target = null;
+            this.__currentTD = null;            
         }
-        //调用更新[target,ratio]
-        if(this.onUpdate)this.onUpdate(t,ratio);
-    },
-    /**
-     * 销毁补间实例，释放内存
-     */
-    destroy:function(){
-        this.__attr = null;
-        this.__ratio = null;
-        this.attris = null;
-        this.easing = null;
-        delete this.target.__soya__tween;
-        this.target = null;
-        this.onUpdate = null;
-        this.onEnd = null;
-    },
-    /**
-     * 设置当前补间完成后的下一个补间，进行链式执行<br/>
-     * *如果当前补间设置了无限循环，永远不会进入下一个
-     * @param  {soya2d.Tween} tween 下一个补间
-     * @return this
-     */
-    next:function(tween){
-        this.__next = tween;
-        if(this.iteration===-1){
-            soya2d.console.warn('invalid [next] setting on infinite loop instance...');
-        }
-        return this;
-    }
-};
+    });
 
-/********* 扩展 **********/
-soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.prototype */{
     /**
-    * 播放补间动画
-    * @param {Object} attris 补间目标属性
-    * @param {int} duration 补间周期(ms)
-    * @param {Object} [opts] 补间属性
-    * @param {function} [opts.easing=soya2d.Tween.Linear] 补间类型
-    * @param {boolean} [opts.cacheable=false] 是否缓存，启用缓存可以提高动画性能，但是动画过程会有些许误差
-    * @param {int} [opts.iteration=0] 循环播放次数，-1为无限
-    * @param {boolean} [opts.alternate=false] 是否交替反向播放动画，只在循环启用时生效
-    * @param {function} [opts.onUpdate] 补间更新事件
-    * @param {function} [opts.onEnd] 补间结束事件
-    * @param {boolean} [si=true] 是否立即启动
-    * @see {soya2d.Tween.Linear}
-    * @return {soya2d.Tween} 补间实例
-    * @requires tween
-    */
-	animate:function(attris,duration,opts,si){
-        var tween = new soya2d.Tween(this,attris,duration,opts);
-        si = si===false?false:si || true;
-        if(si)tween.start();
-		return tween;
-	},
-    /**
-     * 停止当前对象正在执行的补间动画
-     * @return {soya2d.DisplayObject} 
-     * @requires tween
+     * 补间数据
      */
-    stopAnimation:function(){
-        if(this.__soya__tween){
-            this.__soya__tween.stop();
-        }
-        return this;
+    function TweenData(data,state,duration,opts){
+        /**
+         * 补间时长(s)
+         * @type {Number}
+         */
+        this.duration = duration * 1000;
+
+        opts = opts||{};
+        /**
+         * 补间算法
+         * @type {Function}
+         */
+        this.easing = opts.easing||soya2d.Tween.Linear;
+        /**
+         * 循环播放次数，-1为无限
+         * @type {int}
+         */
+        this.repeat = opts.repeat||0;
+        /**
+         * 是否交替反向播放动画，只在循环多于1次时有效
+         * @type {Boolean}
+         */
+        this.yoyo = opts.yoyo||false;
+        /**
+         * 是否缓存，启用缓存可以提高动画性能，但是动画过程会有些许误差
+         * @type {Boolean}
+         */
+        this.cacheable = opts.cacheable||false;
+        /**
+         * 延迟时间(s)
+         * @type {Number}
+         */
+        this.delay = (opts.delay||0) * 1000;
+
+        //用来保存每个属性的，变化值，补间值
+        this.__attr = data[0];
+        this.__attriNames = Object.keys(data[0]);
+        this.__ratio = data[1];
+
+        this.__initState = state;
+
+        this.__loops = 0;//已经循环的次数
     }
-});
+    TweenData.prototype = {
+        update:function(tween,pos){
+            var c = pos - this.__startPos;
+            if(this.repeat !== 0){
+                this.__loops = Math.ceil(c / this.duration) - 1;
+
+                if(this.repeat > 0 && this.__loops > this.repeat)return;
+
+                c = c % this.duration;
+            }else{
+                c = c>this.duration?this.duration:c;
+            }
+
+            var t = tween.target;
+            if(!this.__inited){
+                for(var k in this.__initState){
+                    t[k] = this.__initState[k];
+                }
+                this.__inited = true;
+            }
+            
+            var ratio;
+            if(this.repeat === 0){
+                ratio = this.goTo(t,c);
+            }else{
+                var odd = this.__loops % 2;
+                if(odd && this.__loops > 0 && this.yoyo){
+                    ratio = this.goTo(t,c,true);
+                }else{
+                    ratio = this.goTo(t,c);
+                }
+            }
+
+            tween.__onUpdate(ratio,this);
+        },
+        goTo:function(target,time,reverse){
+            var ratio,attNames=this.__attriNames,attr=this.__attr,t=target;
+            //预计算
+            if(this.cacheable){
+                var phase = 'p_'+(time/10>>0)*10;
+                ratio = this.__ratio[phase];
+                if(phase==='p_0')ratio=0;
+                if(ratio===undefined)ratio = 1;
+                //更新参数
+                for(var i=attNames.length;i--;){
+                    var k = attNames[i];
+                    if(!attr[k])continue;
+                    var v = attr[k].dVal[phase];
+                    if(v===undefined)v = attr[k].endVal;
+                    t[k] = v;
+                }
+            }else{
+                if(time < 0)time = 0;
+                ratio = this.easing(time,0,1,this.duration);
+                if(time > this.duration)ratio=1;
+                // console.log(ratio)
+                //更新参数
+                for(var i=attNames.length;i--;){
+                    var k = attNames[i];
+                    if(attr[k])
+                    t[k] = attr[k].initVal + attr[k].varVal*(reverse?1-ratio:ratio);
+                }
+            }
+            return ratio;
+        },
+        destroy:function(){
+            this.__attr = null;
+            this.__ratio = null;
+            this.easing = null;
+            this.target = null;
+            this.onUpdate = null;
+            this.onEnd = null;
+        }
+    };
+
+}();
 /**
- * @classdesc 路径描述结构。既可用于支持路径动画的路径检索，也可以用于绘制路径
+ * 路径描述结构。既可用于支持路径动画的路径检索，也可以用于绘制路径
  * @class 
- * @author {@link http://weibo.com/soya2d MrSoya}
- * @since 1.2.0
  */
 soya2d.Path = function(d){
     /**
@@ -6127,427 +6911,570 @@ soya2d.ext(soya2d.Path.prototype,/** @lends soya2d.Path.prototype */{
      * 设置path指令串，并解析
      * @param {string} d path指令串
      */
-    setData:function(d){
+    setPath:function(d){
         this.d = d;
         this.__parse();
     }
 });
-/**
-     * @classdesc 路径补间类，用于创建路径动画<br/>
-     * 该类提供了在周期时间内，按照指定补间类型进行“补间目标”路径的计算，并提供反馈的过程<br/>
-     * @example
-var MrSoya = new soya2d.Text({
-    text:"Hi~~,i'm MrSoya"
-});
-var path = new soya2d.Path("M250 150 L150 350 L350 350 Z");
-var pt = new soya2d.PathTween(MrSoya,
-        path,
-        1000,{easing:soya2d.Tween.Bounce.Out}
-    );
-    * @param {Object} target 需要进行对象
-    * @param {soya2d.Path} path 路径实例
-    * @param {int} duration 补间周期(ms)
-    * @param {Object} opts 补间属性
-    * @param {function} [opts.easing=soya2d.Tween.Linear] 补间类型
-    * @param {int} [opts.iteration=0] 循环播放次数，-1为无限
-    * @param {boolean} [opts.alternate=false] 是否交替反向播放动画，只在循环启用时生效
-    * @param {function} [opts.onUpdate] 补间更新事件
-    * @param {function} [opts.onEnd] 补间结束事件
-    * @class
-    * @see {soya2d.Tween.Linear}
-    * @author {@link http://weibo.com/soya2d MrSoya}
-    * @since 1.2.0
-    */
-soya2d.PathTween = function(target,path,duration,opts){
+!function(){
+    soya2d.class("soya2d.PathTween",{
+        extends:Signal,
+        constructor:function(target){
+            this.__signalHandler = new SignalHandler();
 
-    this.__pps = [];
-    this.__pps_inverse = [];
+            this.target = target;
+            this.__tds = {};
+            this.__startTimes = [];
+            this.__long = 0;
 
-    this.path = path;
-    this.target = target;
-    this.duration = duration;
+            this.position = 0;
+            this.__reversed = false;
+            this.__paused = false;
+            this.__infinite = false;
 
-    opts = opts||{};
-    this.easing = opts.easing||soya2d.Tween.Linear;
-    this.iteration = opts.iteration||0;
-    this.alternate = opts.alternate||false;
+            this.__status = 'paused';
 
-    /**
-     * @name soya2d.PathTween#onUpdate
-     * @desc  补间每运行一次时触发，this指向补间器
-     * @param {Object} target 补间目标，可能为null
-     * @param {Number} ratio 补间系数。当补间器运行时，会回传0-1之间的补间系数
-     * @param {Number} angle 切线角
-     * @event
-     */
-    this.onUpdate = opts.onUpdate;
-    /**
-     * @name soya2d.PathTween#onEnd
-     * @desc  补间运行完触发，this指向补间器
-     * @param {Object} target 补间目标
-     * @event
-     */
-    this.onEnd = opts.onEnd;
+            this.__runningTD;
 
-    this.__loops = 0;
+            this.__changeTimes = 0;
+            this.__lastChangeTD;
+        },
+        __calc:function(path,duration,easing){
+            var sx=0,sy=0;
+            var ox=0,oy=0;
+            var __pps = [];
+            if(typeof(path) === 'string'){
+                path = new soya2d.Path(path);
+            }
+            path._insQ.forEach(function(ins){
+                var type = ins[0].toLowerCase();
+                switch(type){
+                    case 'm':ox=sx=parseFloat(ins[1][0]),oy=sy=parseFloat(ins[1][1]);break;
+                    case 'l':
+                        var xys = ins[1];
+                        for(var i=0;i<xys.length;i+=2){
 
-    this.__radian;
-};
-soya2d.PathTween.prototype = {
-    __calc:function(un){
-        var sx=0,sy=0;
-        var ox=0,oy=0;
-        this.path._insQ.forEach(function(ins){
-            var type = ins[0].toLowerCase();
-            switch(type){
-                case 'm':ox=sx=parseFloat(ins[1][0]),oy=sy=parseFloat(ins[1][1]);break;
-                case 'l':
-                    var xys = ins[1];
-                    for(var i=0;i<xys.length;i+=2){
+                            var r = Math.atan2(xys[i+1] - sy,xys[i] - sx);
+                            var len = soya2d.Math.len2D(sx,sy,xys[i],xys[i+1]);
+                            
+                            for(var d=0;d<len;d++){
+                                var x = d*Math.cos(r) + sx;
+                                var y = d*Math.sin(r) + sy;
+                                __pps.push(x,y);
+                            }
 
-                        var r = Math.atan2(xys[i+1] - sy,xys[i] - sx);
-                        var len = soya2d.Math.len2D(sx,sy,xys[i],xys[i+1]);
+                            sx=parseFloat(xys[i]),sy=parseFloat(xys[i+1]);
+                        }
+                        break;
+                    case 'c':
+                        var pps = [];
+                        var xys = ins[1];
+                        for(var i=0;i<xys.length;i+=6){
+                            for(var t=0;t<1;t+=.01){
+                                var ts = t*t;
+                                var tc = ts*t;
+
+                                var x = sx*(1-3*t+3*ts-tc) + 3*xys[i]*t*(1-2*t+ts) + 3*xys[i+2]*ts*(1-t) + xys[i+4]*tc;
+                                var y = sy*(1-3*t+3*ts-tc) + 3*xys[i+1]*t*(1-2*t+ts) + 3*xys[i+3]*ts*(1-t) + xys[i+5]*tc;
+                                pps.push(x,y);
+                            }
+                            sx=parseFloat(xys[i+4]),sy=parseFloat(xys[i+5]);
+                        }
+                        if(pps[pps.length-2] != xys[xys.length-2] || 
+                            pps[pps.length-1] != xys[xys.length-1] ){
+                            pps.push(xys[xys.length-2],xys[xys.length-1]);
+                        }
+                        var totalLen = 0;
+                        var ks = {};
+                        for(var i=0;i<pps.length-2;i+=2){
+                            var len = soya2d.Math.len2D(pps[i],pps[i+1],pps[i+2],pps[i+3]);
+                            
+                            var r = Math.atan2(pps[i+3]-pps[i+1],pps[i+2]-pps[i]);
+                            ks[totalLen] = [r,pps[i],pps[i+1],len];
+
+                            totalLen += len;
+                        }
+                        var ppsa = [pps[0],pps[1]];
+                        for(var i=1;i<totalLen;i++){
+                            var r=0,nx,ny,s;
+                            var keys = Object.keys(ks);
+                            for(var k=keys.length;k--;){
+                                s = parseFloat(keys[k]);
+                                if(i>=s){
+                                    r = ks[s][0];
+                                    nx = ks[s][1];
+                                    ny = ks[s][2];
+                                    break;
+                                }
+                            }
+                            if(r===0)continue;
+                            var x = (i-s)*Math.cos(r) + nx;
+                            var y = (i-s)*Math.sin(r) + ny;
+                            ppsa.push(x,y);
+                        }
                         
+                        __pps = __pps.concat(ppsa);
+                        break;
+                    case 'q':
+                        var pps = [];
+                        var xys = ins[1];
+                        for(var i=0;i<xys.length;i+=4){
+                   
+                            for(var t=0;t<1;t+=.01){
+                                var ts = t*t;
+                                var tc = ts*t;
+
+                                var x = sx*(1-2*t+ts) + 2*xys[i]*t*(1-t) + xys[i+2]*ts;
+                                var y = sy*(1-2*t+ts) + 2*xys[i+1]*t*(1-t) + xys[i+3]*ts;
+                                pps.push(x,y);
+                            }
+                            sx=parseFloat(xys[i+2]),sy=parseFloat(xys[i+3]);
+                        }
+                        if(pps[pps.length-2] != xys[xys.length-2] || 
+                            pps[pps.length-1] != xys[xys.length-1] ){
+                            pps.push(xys[xys.length-2],xys[xys.length-1]);
+                        }
+                        var totalLen = 0;
+                        var ks = {};
+                        for(var i=0;i<pps.length-2;i+=2){
+                            var len = soya2d.Math.len2D(pps[i],pps[i+1],pps[i+2],pps[i+3]);
+                            
+                            var r = Math.atan2(pps[i+3]-pps[i+1],pps[i+2]-pps[i]);
+                            ks[totalLen] = [r,pps[i],pps[i+1],len];
+
+                            totalLen += len;
+                        }
+                        var ppsa = [pps[0],pps[1]];
+                        for(var i=1;i<totalLen;i++){
+                            var r=0,nx,ny,s;
+                            var keys = Object.keys(ks);
+                            for(var k=keys.length;k--;){
+                                s = parseFloat(keys[k]);
+                                if(i>=s){
+                                    r = ks[s][0];
+                                    nx = ks[s][1];
+                                    ny = ks[s][2];
+                                    break;
+                                }
+                            }
+                            if(r===0)continue;
+                            var x = (i-s)*Math.cos(r) + nx;
+                            var y = (i-s)*Math.sin(r) + ny;
+                            ppsa.push(x,y);
+                        }
+                        
+                        __pps = __pps.concat(ppsa);
+                        break;
+                    case 'z':
+                        var r = Math.atan2(oy - sy,ox - sx);
+                        var len = soya2d.Math.len2D(sx,sy,ox,oy);
+     
                         for(var d=0;d<len;d++){
                             var x = d*Math.cos(r) + sx;
                             var y = d*Math.sin(r) + sy;
-                            this.__pps.push(x,y);
+                            __pps.push(x,y);
                         }
 
-                        sx=parseFloat(xys[i]),sy=parseFloat(xys[i+1]);
-                    }
-                    break;
-                case 'c':
-                    var pps = [];
-                    var xys = ins[1];
-                    for(var i=0;i<xys.length;i+=6){
-                        for(var t=0;t<1;t+=.01){
-                            var ts = t*t;
-                            var tc = ts*t;
-
-                            var x = sx*(1-3*t+3*ts-tc) + 3*xys[i]*t*(1-2*t+ts) + 3*xys[i+2]*ts*(1-t) + xys[i+4]*tc;
-                            var y = sy*(1-3*t+3*ts-tc) + 3*xys[i+1]*t*(1-2*t+ts) + 3*xys[i+3]*ts*(1-t) + xys[i+5]*tc;
-                            pps.push(x,y);
-                        }
-                        sx=parseFloat(xys[i+4]),sy=parseFloat(xys[i+5]);
-                    }
-                    if(pps[pps.length-2] != xys[xys.length-2] || 
-                        pps[pps.length-1] != xys[xys.length-1] ){
-                        pps.push(xys[xys.length-2],xys[xys.length-1]);
-                    }
-                    var totalLen = 0;
-                    var ks = {};
-                    for(var i=0;i<pps.length-2;i+=2){
-                        var len = soya2d.Math.len2D(pps[i],pps[i+1],pps[i+2],pps[i+3]);
-                        
-                        var r = Math.atan2(pps[i+3]-pps[i+1],pps[i+2]-pps[i]);
-                        ks[totalLen] = [r,pps[i],pps[i+1],len];
-
-                        totalLen += len;
-                    }
-                    var ppsa = [pps[0],pps[1]];
-                    for(var i=1;i<totalLen;i++){
-                        var r=0,nx,ny,s;
-                        var keys = Object.keys(ks);
-                        for(var k=keys.length;k--;){
-                            s = parseFloat(keys[k]);
-                            if(i>=s){
-                                r = ks[s][0];
-                                nx = ks[s][1];
-                                ny = ks[s][2];
-                                l = ks[s][3];
-                                break;
-                            }
-                        }
-                        if(r===0)continue;
-                        var x = (i-s)*Math.cos(r) + nx;
-                        var y = (i-s)*Math.sin(r) + ny;
-                        ppsa.push(x,y);
-                    }
-                    
-                    this.__pps = this.__pps.concat(ppsa);
-                    break;
-                case 'q':
-                    var pps = [];
-                    var xys = ins[1];
-                    for(var i=0;i<xys.length;i+=4){
-               
-                        for(var t=0;t<1;t+=.01){
-                            var ts = t*t;
-                            var tc = ts*t;
-
-                            var x = sx*(1-2*t+ts) + 2*xys[i]*t*(1-t) + xys[i+2]*ts;
-                            var y = sy*(1-2*t+ts) + 2*xys[i+1]*t*(1-t) + xys[i+3]*ts;
-                            pps.push(x,y);
-                        }
-                        sx=parseFloat(xys[i+2]),sy=parseFloat(xys[i+3]);
-                    }
-                    if(pps[pps.length-2] != xys[xys.length-2] || 
-                        pps[pps.length-1] != xys[xys.length-1] ){
-                        pps.push(xys[xys.length-2],xys[xys.length-1]);
-                    }
-                    var totalLen = 0;
-                    var ks = {};
-                    for(var i=0;i<pps.length-2;i+=2){
-                        var len = soya2d.Math.len2D(pps[i],pps[i+1],pps[i+2],pps[i+3]);
-                        
-                        var r = Math.atan2(pps[i+3]-pps[i+1],pps[i+2]-pps[i]);
-                        ks[totalLen] = [r,pps[i],pps[i+1],len];
-
-                        totalLen += len;
-                    }
-                    var ppsa = [pps[0],pps[1]];
-                    for(var i=1;i<totalLen;i++){
-                        var r=0,nx,ny,s;
-                        var keys = Object.keys(ks);
-                        for(var k=keys.length;k--;){
-                            s = parseFloat(keys[k]);
-                            if(i>=s){
-                                r = ks[s][0];
-                                nx = ks[s][1];
-                                ny = ks[s][2];
-                                l = ks[s][3];
-                                break;
-                            }
-                        }
-                        if(r===0)continue;
-                        var x = (i-s)*Math.cos(r) + nx;
-                        var y = (i-s)*Math.sin(r) + ny;
-                        ppsa.push(x,y);
-                    }
-                    
-                    this.__pps = this.__pps.concat(ppsa);
-                    break;
-                case 'z':
-                    var r = Math.atan2(oy - sy,ox - sx);
-                    var len = soya2d.Math.len2D(sx,sy,ox,oy);
- 
-                    for(var d=0;d<len;d++){
-                        var x = d*Math.cos(r) + sx;
-                        var y = d*Math.sin(r) + sy;
-                        this.__pps.push(x,y);
-                    }
-
-                    break;
-            }
-        },this);
-
-        for(var i=this.__pps.length-2;i>0;i-=2){
-            this.__pps_inverse.push(this.__pps[i],this.__pps[i+1]);
-        }
-    },
-    /**
-     * 启动补间器<br/>
-     * *启动新的补间实例，会立即停止当前目标正在执行的补间
-     */
-    start:function(){
-        this.__calc();
-        this.__startTime = Date.now();
-
-        if(this.target.__pt instanceof soya2d.PathTween){
-            this.target.__pt.stop();
-        }
-
-        this.target.__pt = this;
-
-        soya2d.TweenManager.add(this);
-        return this;
-    },
-    /**
-     * 延迟启动补间器
-     * @param {int} delay 延迟毫秒数
-     */
-    delay:function(delay){
-        this.__delay = delay;
-        return this;
-    },
-    /**
-     * 停止补间器
-     */
-    stop:function(){
-        soya2d.TweenManager.remove(this);
-        return this;
-    },
-    /**
-     * 跳转到指定间隔
-     */
-    goTo:function(target,time,un){
-        var ratio,pps=this.__pps,t=target;
-        
-        ratio = this.easing(time,0,1,this.duration);
-        if(time>this.duration)ratio=1;
-
-        var i = (pps.length-2) * ratio >> 0;
-        if(i>pps.length-2)i=pps.length-2;
-        if(i<0)i *= -1;
-        if(i%2!=0){
-            i++;
-        }
-        
-        t.x = pps[i];
-        t.y = pps[i+1];
-
-        var nx,ny;
-        if(i<1){
-            nx = pps[i+2];
-            ny = pps[i+3];
-
-            this.__radian = Math.atan2(ny-t.y,nx-t.x);
-        }else{
-            nx = pps[i-2];
-            ny = pps[i-1];
-
-            this.__radian = Math.atan2(t.y-ny,t.x-nx);
-        }
-        
-        return ratio;
-    },
-    /**
-     * 更新补间实例
-     */
-    update:function(now,d){
-        var c = now - this.__startTime;
-        if(this.__delay > 0){
-            this.__delay -= d;
-            if(this.__delay <=0)this.__startTime = Date.now();
-            return;
-        }
-        var t=this.target;
-        var ratio = this.goTo(t,c);
-
-        if(c>=this.duration){
-            if(this.onEnd)this.onEnd(t);
-			if(this.iteration===-1 ||
-                (this.iteration>0 && this.__loops++ < this.iteration)){
-                this.__startTime = Date.now();
-                if(this.alternate){
-                    var tmp = this.__pps;
-                    this.__pps = this.__pps_inverse;
-                    this.__pps_inverse = tmp;
+                        break;
                 }
+            },this);
+
+            return __pps;
+        },
+        /**
+         * @param {String | soya2d.Path} path path字符串或者path对象
+        * @param {int} duration 补间周期(ms)
+        * @param {Object} [opts] 补间属性
+        * @param {function} [opts.easing=soya2d.Tween.Linear] 补间类型
+        * @param {boolean} [opts.cacheable=false] 是否缓存，启用缓存可以提高动画性能，但是动画过程会有些许误差
+        * @param {int} [opts.repeat=0] 循环播放次数，-1为无限
+        * @param {boolean} [opts.yoyo=false] 是否交替反向播放动画，只在循环启用时生效
+        * @param {int} [opts.delay] 延迟时间(ms)
+        * @see {soya2d.Tween.Linear}
+         */
+        to:function(path,duration,opts){
+            if(this.__infinite)return this;
+            opts = opts || {};
+            var easing = opts.easing||soya2d.Tween.Linear;
+            var data = this.__calc(path,duration,easing);
+
+            var td = new TweenData(data,duration,opts);
+            this.__long += td.delay;
+
+            this.__tds[this.__long] = td;
+            this.__startTimes.push(this.__long);
+            td.__startPos = this.__long;
+            if(td.repeat === -1){
+                this.__infinite = true;
+                soya2d.console.warn('infinite loop instance');
+            }
+            this.__long += td.duration * (td.repeat+1);
+
+            return this;
+        },
+        /**
+         * 启动补间器
+         * @return this
+         */
+        play:function(keepAlive){
+            this.__reversed = false;
+            this.__status = 'running';
+
+            this.keepAlive = keepAlive;
+            
+            return this;
+        },
+        reverse:function(){
+            if(this.__infinite)return;
+            this.__status = 'running';
+            this.__reversed = true;
+        },
+        /**
+         * 暂停补间器
+         */
+        pause:function(){
+            this.__status = 'paused';
+            this.emit('pause');
+            return this;
+        },
+        restart:function(){
+            this.position = 0;
+            this.play();
+        },
+        __getTD:function(){
+            for(var i=this.__startTimes.length;i--;){
+                if(this.position >= this.__startTimes[i]){
+                    return this.__tds[this.__startTimes[i]];
+                }
+            }
+        },
+        __onUpdate:function(r,angle,td){
+            this.emit('process',r,this.position / this.__long,angle);
+            if(((r === 1 && !this.__reversed ) || (r === 0 && this.__reversed)) && 
+                this.__lastChangeTD != td){
+                
+                this.__onChange(++this.__changeTimes);
+                this.__lastChangeTD = td;
+            }
+        },
+        __onChange:function(times){
+            this.emit('change',times);
+        },
+        __onEnd:function(){
+            this.emit('stop');
+
+            if(!this.keepAlive){
+                this.destroy();
+            }
+        },
+        __update:function(now,d){
+            if(this.__status !== 'running')return;
+
+            if(this.position > this.__long && !this.__reversed){
+                this.position = this.__long;
+                this.pause();
+                this.__onEnd();
+                return;
+            }else if(this.position < 0 && this.__reversed){
+                this.position = 0;
+                this.pause();
+                this.__onEnd();
                 return;
             }
-            //销毁
-            this.destroy();
-            soya2d.TweenManager.remove(this);
 
-            if(this.__next){
-                this.__next.start();
+            d = this.__reversed?-d:d;
+            this.position += d;
+
+            var td = this.__getTD();
+            if(!td)return;
+            if(this.__runningTD !== td){
+                this.__runningTD = td;
+                this.__runningTD.__inited = false;
+            }
+            
+
+            td.update(
+                this,
+                this.position);
+        },
+        destroy:function(){
+            this.__manager.__remove(this);
+            
+            for(var k in this.__tds){
+                this.__tds[k].destroy();
+            }
+            this.__tds = null;
+            this.target = null;
+            this.__currentTD = null;
+        }
+    });
+
+    /**
+     * 补间数据
+     */
+    function TweenData(data,duration,opts){
+        /**
+         * 补间时长(s)
+         * @type {Number}
+         */
+        this.duration = duration * 1000;
+
+        opts = opts||{};
+        /**
+         * 补间算法
+         * @type {Function}
+         */
+        this.easing = opts.easing||soya2d.Tween.Linear;
+        /**
+         * 循环播放次数，-1为无限
+         * @type {int}
+         */
+        this.repeat = opts.repeat||0;
+        /**
+         * 是否交替反向播放动画，只在循环多于1次时有效
+         * @type {Boolean}
+         */
+        this.yoyo = opts.yoyo||false;
+        /**
+         * 是否缓存，启用缓存可以提高动画性能，但是动画过程会有些许误差
+         * @type {Boolean}
+         */
+        this.cacheable = opts.cacheable||false;
+        /**
+         * 延迟时间(s)
+         * @type {Number}
+         */
+        this.delay = (opts.delay||0) * 1000;
+
+        //path points
+        this.__pps = data;
+
+        this.__radian = 0;
+        this.__loops = 0;//已经循环的次数
+    }
+    TweenData.prototype = {
+        update:function(tween,pos){
+            var c = pos - this.__startPos;
+            if(this.repeat !== 0){
+                this.__loops = Math.ceil(c / this.duration) - 1;
+
+                if(this.repeat > 0 && this.__loops > this.repeat)return;
+
+                c = c % this.duration;
+            }else{
+                c = c>this.duration?this.duration:c;
             }
 
-            return;
-        }
+            var t = tween.target;
+            if(!this.__inited){
+                t.x = this.__pps[0];
+                t.y = this.__pps[1];
+                this.__inited = true;
+            }
+            
+            var ratio;
+            if(this.repeat === 0){
+                ratio = this.goTo(t,c);
+            }else{
+                var odd = this.__loops % 2;
+                if(odd && this.__loops > 0 && this.yoyo){
+                    ratio = this.goTo(t,c,true);
+                }else{
+                    ratio = this.goTo(t,c);
+                }
+            }
 
-        if(this.onUpdate)this.onUpdate(t,ratio,this.__radian*soya2d.Math.ONEANG);
-    },
-    /**
-     * 销毁补间实例，释放内存
-     */
-    destroy:function(){
-        this.__pps = null;
-        this.__pps_inverse = null;
-        this.easing = null;
-        this.target = null;
-        this.onUpdate = null;
-        this.onEnd = null;
-    },/**
-     * 设置当前补间完成后的下一个补间，进行链式执行<br/>
-     * *如果当前补间设置了无限循环，永远不会进入下一个
-     * @param  {soya2d.PathTween} tween 下一个补间
-     * @return this
-     */
-    next:function(tween){
-        this.__next = tween;
-        if(this.iteration===-1){
-            soya2d.console.warn('invalid [next] setting on infinite loop instance...');
-        }
-        return this;
-    }
-};
+            tween.__onUpdate(ratio,this.__radian*soya2d.Math.ONEANG,this);
+        },
+        goTo:function(target,time,reverse){
+            var ratio,pps=this.__pps,t=target;
+        
+            if(time < 0)time = 0;
+            ratio = this.easing(time,0,1,this.duration);
 
-/********* 扩展 **********/
-soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.prototype */{
-    /**
-    * 播放路径补间动画
-    * @param {soya2d.Path} path 路径
-    * @param {int} duration 补间周期(ms)
-    * @param {Object} [opts] 补间属性
-    * @param {function} [opts.easing=soya2d.Tween.Linear] 补间类型
-    * @param {boolean} [opts.cacheable=false] 是否缓存，启用缓存可以提高动画性能，但是动画过程会有些许误差
-    * @param {int} [opts.iteration=0] 循环播放次数，-1为无限
-    * @param {boolean} [opts.alternate=false] 是否交替反向播放动画，只在循环启用时生效
-    * @param {function} [opts.onUpdate] 补间更新事件
-    * @param {function} [opts.onEnd] 补间结束事件
-    * @param {boolean} [si=true] 是否立即启动
-    * @see {soya2d.Tween.Linear}
-    * @return {soya2d.PathTween} 补间实例
-    * @requires tween
-    */
-    pathAnimate:function(path,duration,opts,si){
-        var tween = new soya2d.PathTween(this,path,duration,opts);
-        si = si===false?false:si || true;
-        if(si)tween.start();
-        return tween;
-    },
-    /**
-     * 停止当前对象正在执行的路径补间动画
-     * @return {soya2d.DisplayObject} 
-     * @requires tween
-     */
-    stopPathAnimation:function(){
-        if(this.__pt){
-            this.__pt.stop();
-            delete this.__pt;
+            var i = (pps.length-2) * (reverse?1-ratio:ratio) >> 0;
+            if(i>pps.length-2)i=pps.length-2;
+            if(i<0)i *= -1;
+            if(i%2!=0){
+                i++;
+            }
+            
+            var ap = t.anchorPosition;
+            t.x = pps[i] - ap.x;
+            t.y = pps[i+1] - ap.y;
+
+            var x = pps[i],
+                y = pps[i+1];
+            var nx,ny;
+            if(i<1){
+                nx = pps[i+2];
+                ny = pps[i+3];
+
+                this.__radian = Math.atan2(ny-y,nx-x);
+            }else{
+                nx = pps[i-2];
+                ny = pps[i-1];
+
+                this.__radian = Math.atan2(y-ny,x-nx);
+            }
+            
+            return ratio;
+        },
+        destroy:function(){
+            this.__pps = null;
+            this.easing = null;
+            this.target = null;
+            this.onUpdate = null;
+            this.onEnd = null;
         }
-        return this;
-    }
-});
+    };
+
+}();
 /**
- * 补间动画管理器接口，用于管理补间实例的运行<br/>
+ * 补间动画管理器，用于管理补间实例的运行<br/>
  * *通常不需要开发者直接使用该类，引擎会自动调度
- * @namespace soya2d.TweenManager
- * @author {@link http://weibo.com/soya2d MrSoya}
+ * @class soya2d.TweenManager
  */
 soya2d.TweenManager = new function(){
-	var ins = [];
+	this.list = [];
+	this.tweenMap = {};
+
     /**
-     * 增加一个补间实例到管理器中,重复增加无效
-     * @param soya2d.Tween t 补间实例
-     * @return this
+     * 增加一个补间实例到管理器中
+     * @param {soya2d.DisplayObject} sp   显示对象
+     * @param {int} [type] 补间类型,默认为普通补间
+     * @return {soya2d.Tween | soya2d.PathTween} 补间实例
      */
-	this.add = function(t){
-		var i = ins.indexOf(t);
-		if(i>-1)return this;
-		
-		ins.push(t);
-		return this;
+	this.add = function(sp,type){
+		var t = null;
+		if(type === soya2d.TWEEN_TYPE_PATH){
+			t = new soya2d.PathTween(sp);
+		}else{
+			t = new soya2d.Tween(sp);
+		}
+		this.list.push(t);
+		t.__manager = this;
+
+		var ts = this.tweenMap[sp.roid];
+		if(!ts){
+			ts = this.tweenMap[sp.roid] = [];
+		}
+		ts.push(t);
+
+		return t;
 	};
     /**
      * 从管理器中删除一个补间实例
-     * @param soya2d.Tween t 补间实例
-     * @return this
+     * @param {soya2d.Tween | soya2d.PathTween} t  补间
+     * @return {soya2d.Tween | soya2d.PathTween} 补间实例
      */
-	this.remove = function(t) {
-		var i = ins.indexOf(t);
-		if(i>-1)ins.splice(i, 1);
-		return this;
-	};
+	this.__remove = function(t) {
+		var i = this.list.indexOf(t);
+		if(i > -1){
+			this.list.splice(i,1);
+			t.__manager = null;
+			delete t.__manager;
+		}
 
+		var ts = this.tweenMap[t.target.roid];
+		if(ts){
+			i = ts.indexOf(t);
+			if(i > -1){
+				ts.splice(i,1);
+			}
+		}
+
+		return t;
+	};
 	/**
-	 * 停止所有补间实例
+	 * 移除指定精灵绑定的所有补间或所有补间
+	 * @param  {DisplayObject} sp 指定的显示对象。如果没有参数，删除所有补间
 	 */
-	this.stop = function(){
-		ins = [];
+	this.clearAll = function(sp){
+		var list = null;
+		if(sp){
+			if(!this.tweenMap[sp.roid])return;
+			list = this.tweenMap[sp.roid].concat();
+		}else{
+			list = this.list.concat();
+		}
+		for(var i=list.length;i--;){
+			this.__remove(list[i]);
+		}
 	}
+
+	this.pauseAll = function(sp){
+		var list = null;
+		if(sp){
+			if(!this.tweenMap[sp.roid])return;
+			list = this.tweenMap[sp.roid].concat();
+		}else{
+			list = this.list.concat();
+		}
+		for(var i=list.length;i--;){
+			list[i].pause();
+		}
+	}
+
+	this.playAll = function(sp){
+		var list = null;
+		if(sp){
+			if(!this.tweenMap[sp.roid])return;
+			list = this.tweenMap[sp.roid].concat();
+		}else{
+			list = this.list.concat();
+		}
+		for(var i=list.length;i--;){
+			list[i].play();
+		}
+	}
+
+	this.reverseAll = function(sp){
+		var list = null;
+		if(sp){
+			if(!this.tweenMap[sp.roid])return;
+			list = this.tweenMap[sp.roid].concat();
+		}else{
+			list = this.list.concat();
+		}
+		for(var i=list.length;i--;){
+			list[i].reverse();
+		}
+	}
+
+	this.__refresh = function(){
+		while(true){
+			var toBreak = true;
+			for(var i=this.list.length;i--;){
+				if(!this.list[i].target.__seq){
+					this.__remove(this.list[i]);
+					toBreak = false;
+				}
+			}
+			if(toBreak)break;
+		}
+		
+	}
+	
     /**
      * 更新管理器中的所有补间实例，当实例运行时间结束后，管理器会自动释放实例
      */
-	this.update = function(now,d){
-		for(var i=ins.length;i--;){
-			ins[i].update(now,d);
+	this.__update = function(now,d){
+		var needRefresh = false;
+		for(var i=this.list.length;i--;){
+			if(!this.list[i].target.__seq){
+				
+				needRefresh = true;
+				continue;
+			}
+			this.list[i].__update(now,d);
 		}
+
+		if(needRefresh)this.__refresh();
 	};
 }
+
+soya2d.TWEEN_TYPE_PATH = 2;
 /*
  * t:第几帧
  * b:初始值
@@ -6754,15 +7681,25 @@ soya2d.Tween.Bounce = {
 }
 
 soya2d.module.install('tween',{
+	onInit:function(game){
+        /**
+         * 补间管理器
+         * @type {soya2d.TweenManager}
+         * @memberOf! soya2d.Game#
+         * @alias tween
+         * @requires tween
+         */
+        game.tween = soya2d.TweenManager;
+    },
     onUpdate:function(game,now,d){
-    	soya2d.TweenManager.update(now,d);
+    	soya2d.TweenManager.__update(now,d);
     },
     onStop:function(){
     	soya2d.TweenManager.stop();
     }
 });
 /**
- * @classdesc 可以进行圆弧形填充或线框绘制的显示对象
+ * 可以进行圆弧形填充或线框绘制的显示对象
  * @class 
  * @extends soya2d.DisplayObjectContainer
  * @param {Object} data 所有父类参数,以及新增参数
@@ -6771,17 +7708,14 @@ soya2d.module.install('tween',{
  * @param {String} data.lineWidth 线条宽度
  * @param {String} data.startAngle 弧形的开始角度
  * @param {String} data.endAngle 弧形的结束角度
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
-soya2d.Arc = function(data){
-	data = data||{};
-	soya2d.DisplayObjectContainer.call(this,data);
-	soya2d.ext(this,data);
+soya2d.class("soya2d.Arc",{
+    extends:soya2d.DisplayObjectContainer,
+    constructor:function(data){
 
-    this.fillStyle = data.fillStyle || 'transparent';
-};
-soya2d.inherits(soya2d.Arc,soya2d.DisplayObjectContainer);
-soya2d.ext(soya2d.Arc.prototype,{
+        this.bounds = new soya2d.Circle(0,0,this.w/2);
+        this.fillStyle = data.fillStyle || 'transparent';
+    },
     onRender:function(g){
         g.beginPath();
 
@@ -6807,26 +7741,21 @@ soya2d.ext(soya2d.Arc.prototype,{
         g.moveTo(hw,hh);
     }
 });
-
 /**
- * @classdesc 可以进行椭圆填充或线框绘制的显示对象
+ * 可以进行椭圆填充或线框绘制的显示对象
  * @class 
  * @extends soya2d.DisplayObjectContainer
  * @param {Object} data 所有父类参数,以及新增参数
  * @param {String} data.fillStyle 填充样式
  * @param {String} data.strokeStyle 线框样式
  * @param {String} data.lineWidth 线条宽度
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
-soya2d.Ellipse = function(data){
-	data = data||{};
-	soya2d.DisplayObjectContainer.call(this,data);
-	soya2d.ext(this,data);
+soya2d.class("soya2d.Ellipse",{
+    extends:soya2d.DisplayObjectContainer,
+    constructor:function(data){
 
-    this.fillStyle = data.fillStyle || 'transparent';
-};
-soya2d.inherits(soya2d.Ellipse,soya2d.DisplayObjectContainer);
-soya2d.ext(soya2d.Ellipse.prototype,{
+        this.fillStyle = data.fillStyle || 'transparent';
+    },
     onRender:function(g){
         g.beginPath();
         g.fillStyle(this.fillStyle);
@@ -6840,9 +7769,8 @@ soya2d.ext(soya2d.Ellipse.prototype,{
         }
     }
 });
-
 /**
- * @classdesc 可以进行多边形填充或线框绘制的显示对象
+ * 可以进行多边形填充或线框绘制的显示对象
  * @class 
  * @extends soya2d.DisplayObjectContainer
  * @param {Object} data 所有父类参数,以及新增参数
@@ -6850,18 +7778,13 @@ soya2d.ext(soya2d.Ellipse.prototype,{
  * @param {String} data.strokeStyle 线框样式
  * @param {String} data.lineWidth 线条宽度
  * @param {Array} data.vtx 一维顶点数组 [x1,y1, x2,y2, ...]
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
-soya2d.Poly = function(data){
-	data = data||{};
-	soya2d.DisplayObjectContainer.call(this,data);
-	soya2d.ext(this,data);
-
-    this.bounds = new soya2d.Polygon(data.vtx);
-    this.fillStyle = data.fillStyle || 'transparent';
-};
-soya2d.inherits(soya2d.Poly,soya2d.DisplayObjectContainer);
-soya2d.ext(soya2d.Poly.prototype,{
+soya2d.class("soya2d.Poly",{
+    extends:soya2d.DisplayObjectContainer,
+    constructor:function(data){
+        this.bounds = new soya2d.Polygon(data.vtx);
+        this.fillStyle = data.fillStyle || 'transparent';
+    },
     onRender:function(g){
         g.beginPath();
         g.fillStyle(this.fillStyle);
@@ -6875,26 +7798,20 @@ soya2d.ext(soya2d.Poly.prototype,{
         }
     }
 });
-
 /**
- * @classdesc 可以进行矩形填充或线框绘制的显示对象
+ * 可以进行矩形填充或线框绘制的显示对象
  * @class 
  * @extends soya2d.DisplayObjectContainer
  * @param {Object} data 所有父类参数,以及新增参数
  * @param {String} data.fillStyle 填充样式
  * @param {String} data.strokeStyle 线框样式
  * @param {String} data.lineWidth 线条宽度
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
-soya2d.Rect = function(data){
-    data = data||{};
-    soya2d.DisplayObjectContainer.call(this,data);
-    soya2d.ext(this,data);
-
-    this.fillStyle = data.fillStyle || 'transparent';
-};
-soya2d.inherits(soya2d.Rect,soya2d.DisplayObjectContainer);
-soya2d.ext(soya2d.Rect.prototype,{
+soya2d.class("soya2d.Rect",{
+    extends:soya2d.DisplayObjectContainer,
+    constructor:function(data){
+        this.fillStyle = data.fillStyle || 'transparent';
+    },
     onRender:function(g){
         g.beginPath();
         g.fillStyle(this.fillStyle);
@@ -6910,7 +7827,7 @@ soya2d.ext(soya2d.Rect.prototype,{
     }
 });
 /**
- * @classdesc 可以进行规则多边形填充或线框绘制的显示对象。该多边形拥有内外两个半径，
+ * 可以进行规则多边形填充或线框绘制的显示对象。该多边形拥有内外两个半径，
  * 可以构成有趣的形状。外半径由对象的w属性决定，内半径则需要指定r属性
  * @class 
  * @extends soya2d.DisplayObjectContainer
@@ -6920,17 +7837,12 @@ soya2d.ext(soya2d.Rect.prototype,{
  * @param {String} data.lineWidth 线条宽度
  * @param {int} data.edgeCount 多边形的边数，不能小于3
  * @param {Number} [data.r] 内半径。默认和外半径相同
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
-soya2d.RPoly = function(data){
-	data = data||{};
-	soya2d.DisplayObjectContainer.call(this,data);
-	soya2d.ext(this,data);
-
-    this.fillStyle = data.fillStyle || 'transparent';
-};
-soya2d.inherits(soya2d.RPoly,soya2d.DisplayObjectContainer);
-soya2d.ext(soya2d.RPoly.prototype,{
+soya2d.class("soya2d.RPoly",{
+    extends:soya2d.DisplayObjectContainer,
+    constructor:function(data){
+        this.fillStyle = data.fillStyle || 'transparent';
+    },
     onRender:function(g){
         g.beginPath();
         g.fillStyle(this.fillStyle);
@@ -6944,9 +7856,8 @@ soya2d.ext(soya2d.RPoly.prototype,{
         }
     }
 });
-
 /**
- * @classdesc 可以进行圆角矩形填充或线框绘制的显示对象
+ * 可以进行圆角矩形填充或线框绘制的显示对象
  * @class 
  * @extends soya2d.DisplayObjectContainer
  * @param {Object} data 所有父类参数,以及新增参数
@@ -6954,19 +7865,13 @@ soya2d.ext(soya2d.RPoly.prototype,{
  * @param {String} data.strokeStyle 线框样式
  * @param {number} data.lineWidth 线条宽度
  * @param {number} data.r 圆角半径
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
-soya2d.RRect = function(data){
-	data = data||{};
-	soya2d.DisplayObjectContainer.call(this,data);
-	soya2d.ext(this,data);
-
-    this.fillStyle = data.fillStyle || 'transparent';
-
-    this.r = data.r || 0;
-};
-soya2d.inherits(soya2d.RRect,soya2d.DisplayObjectContainer);
-soya2d.ext(soya2d.RRect.prototype,{
+soya2d.class("soya2d.RRect",{
+    extends:soya2d.DisplayObjectContainer,
+    constructor:function(data){
+        this.fillStyle = data.fillStyle || 'transparent';
+        this.r = data.r || 0;
+    },
     onRender:function(g){
         g.beginPath();
         g.moveTo(0,0);
@@ -6981,9 +7886,8 @@ soya2d.ext(soya2d.RRect.prototype,{
         g.closePath();
     }
 });
-
 /**
- * @classdesc 可以进行椭圆弧形填充或线框绘制的显示对象
+ * 可以进行椭圆弧形填充或线框绘制的显示对象
  * @class 
  * @extends soya2d.DisplayObjectContainer
  * @param {Object} data 所有父类参数,以及新增参数
@@ -6992,17 +7896,13 @@ soya2d.ext(soya2d.RRect.prototype,{
  * @param {String} data.lineWidth 线条宽度
  * @param {String} data.startAngle 弧形的开始角度
  * @param {String} data.endAngle 弧形的结束角度
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
-soya2d.EArc = function(data){
-	data = data||{};
-	soya2d.DisplayObjectContainer.call(this,data);
-	soya2d.ext(this,data);
+soya2d.class("soya2d.EArc",{
+    extends:soya2d.DisplayObjectContainer,
+    constructor:function(data){
 
-    this.fillStyle = data.fillStyle || 'transparent';
-};
-soya2d.inherits(soya2d.EArc,soya2d.DisplayObjectContainer);
-soya2d.ext(soya2d.EArc.prototype,{
+        this.fillStyle = data.fillStyle || 'transparent';
+    },
     onRender:function(g){
         g.beginPath();
 
@@ -7025,61 +7925,19 @@ soya2d.ext(soya2d.EArc.prototype,{
     }
 });
 
+soya2d.module.install('shapes',{
+    onInit:function(game){
+        game.objects.register('rect',soya2d.Rect);
+        game.objects.register('rrect',soya2d.RRect);
+        game.objects.register('poly',soya2d.Poly);
+        game.objects.register('rpoly',soya2d.RPoly);
+        game.objects.register('arc',soya2d.Arc);
+        game.objects.register('earc',soya2d.EArc);
+        game.objects.register('ellipse',soya2d.Ellipse);
+    }
+});
 /**
- * @classdesc 事件处理器基类,所有具体的事件处理类都需要继承此类
- * @class 
- * @author {@link http://weibo.com/soya2d MrSoya}
- */
-soya2d.EventHandler = function(){
-    this.__eventMap = {};
-    /**
-     * 增加监听器
-     * @param {string}   ev       事件类型
-     * @param {Function} callback 回调函数
-     * @param {Object}   context  事件源，触发上下文
-     * @param {int}   order    触发顺序
-     */
-    this.addListener = function(ev,callback,context,order){
-        if(!this.__eventMap[ev])this.__eventMap[ev]=[];
-        this.__eventMap[ev].push({fn:callback,order:order||0,context:context});
-    }
-    /**
-     * 删除监听器
-     * @param  {string}   ev       事件类型
-     * @param  {Function} callback 回调函数
-     * @param  {Object}   context  事件源，触发上下文
-     * @param  {int}   order    触发顺序
-     */
-    this.removeListener = function(ev,callback,context){
-        if(!this.__eventMap[ev])return;
-
-        var index = -1;
-        for(var i=this.__eventMap[ev].length;i--;){
-            if(context == this.__eventMap[ev][i].context && 
-                (callback?this.__eventMap[ev][i].fn == callback:true)){
-                index = i;
-                break;
-            }
-        }
-        if(index > -1)this.__eventMap[ev].splice(index,1);
-    }
-
-    /**
-     * 清除事件监听
-     * @param  {string} [ev] 事件类型。如果为空，清除该事件处理器下的所有监听器
-     * @return {[type]}    [description]
-     */
-    this.clearListener = function(ev){
-        if(ev){
-            this.__eventMap[ev] = null;
-            delete this.__eventMap[ev];
-        }else{
-            this.__eventMap = {};
-        }
-    }
-}
-/**
- * @classdesc 事件组用于管理一个soya2d.Game实例内的所有事件的启动，停止，和触法。<br/>
+ * 事件组用于管理一个soya2d.Game实例内的所有事件的启动，停止，和触法。<br/>
  * 该类无需开发者显式创建，引擎会自动管理
  * @class
  * @author {@link http://weibo.com/soya2d MrSoya}
@@ -7188,7 +8046,7 @@ soya2d.Events = function(){
     }
 }
 /**
- * @classdesc 键盘事件处理类,提供如下事件:<br/>
+ * 键盘事件处理类,提供如下事件:<br/>
  * <ul>
  *     <li>keyup</li>
  *     <li>keydown</li>
@@ -7197,7 +8055,6 @@ soya2d.Events = function(){
  * 所有事件的唯一回调参数为键盘事件对象{@link soya2d.KeyboardEvent}
  * @class 
  * @extends soya2d.EventHandler
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Keyboard = function(){
 
@@ -7209,6 +8066,8 @@ soya2d.Keyboard = function(){
 	var fireUp = false;
 	var firePress = false;
 
+	var eventMap = soya2d.DisplayObject.prototype.__signalHandler.map;
+
 	function setEvent(event,e){
 		event.keyCode = e.keyCode||e.which;
 		event.ctrlKey = e.ctrlKey;
@@ -7217,6 +8076,31 @@ soya2d.Keyboard = function(){
 		event.metaKey = e.metaKey;
 		event.keyCodes = keys;
 		event.e = e;
+		event.containsAll = function(){
+			for(var i=0;i<arguments.length;i++){
+	            var kc = arguments[i];
+
+	            if(this.keyCodes.length>0){
+	            	if(this.keyCodes.indexOf(kc) < 0)return false;
+	            }else{
+	            	if(this.keyCode != kc)return false;
+	            }
+	        }
+	        return true;
+		}
+		event.contains = function(){
+			for(var i=0;i<arguments.length;i++){
+	            var kc = arguments[i];
+
+	            if(this.keyCodes.length>0){
+	            	if(this.keyCodes.indexOf(kc) > -1)return true;
+	            }else{
+	            	if(this.keyCode === kc)return true;
+	            }
+
+	        }
+	        return false;	
+		}
 	}
 
 	var keyboard = this;
@@ -7253,7 +8137,6 @@ soya2d.Keyboard = function(){
 		fireDown = fireUp = firePress = false;
 		keys = [];
 	}
-
 	function stopCheck(e,keycode) {
 		var pks = soya2d.Keyboard.preventKeys;
 		if(pks.indexOf(keycode) > -1){
@@ -7280,36 +8163,43 @@ soya2d.Keyboard = function(){
 	this.scan = function(){
 		var events,ev;
 		if(fireDown){
-			events = this.__eventMap['keydown'];
+			events = eventMap['keydown'];
 			ev = downEvent;
-			fireEvent(events,ev);
+			fireEvent(events,ev,'keydown');
 
 			fireDown = false;
 		}
 		if(firePress){
-			events = this.__eventMap['keypress'];
+			events = eventMap['keypress'];
 			ev = downEvent;
-			fireEvent(events,ev);
+			fireEvent(events,ev,'keypress');
 		}
 		if(fireUp){
-			events = this.__eventMap['keyup'];
+			events = eventMap['keyup'];
 			ev = upEvent;
-			fireEvent(events,ev);
+			fireEvent(events,ev,'keyup');
 
 			fireUp = false;
 		}
 	}
 
-	function fireEvent(events,ev){
+	function fireEvent(events,ev,evtype){
 		if(!events)return;
 
 		//排序
         events.sort(function(a,b){
-            return a.order - b.order;
+            return b[2] - a[2];
         });
 
+        var onceEvents = [];
         for(var i=events.length;i--;){
-            events[i].fn.call(events[i].context,ev);
+            events[i][0].call(events[i][1],ev);
+            if(events[i][3]){
+                onceEvents.push(events[i]);
+            }
+        }
+        for(var i=onceEvents.length;i--;){
+            onceEvents[i][1].off(evtype,onceEvents[i][0]);
         }
 	}
 
@@ -7337,9 +8227,7 @@ soya2d.Keyboard = function(){
 		return this;
 	}
 
-	soya2d.EventHandler.call(this);
 };
-soya2d.inherits(soya2d.Keyboard,soya2d.EventHandler);
 
 /**
  * 阻止按键默认行为的按键码数组，当键盘事件发生时，会检测该数组，
@@ -7672,7 +8560,7 @@ soya2d.KeyCode = {
     '\'':222
 };
 /**
- * @classdesc 移动设备事件处理类,提供如下事件:<br/>
+ * 移动设备事件处理类,提供如下事件:<br/>
  * <ul>
  *     <li>tilt</li>
  *     <li>motion</li>
@@ -7681,7 +8569,6 @@ soya2d.KeyCode = {
  * 所有事件的唯一回调参数为设备事件对象{@link soya2d.MobileEvent}
  * @class 
  * @extends soya2d.EventHandler
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Mobile = function(){
 
@@ -7692,6 +8579,7 @@ soya2d.Mobile = function(){
     };
 
     var mobile = this;
+    var eventMap = soya2d.DisplayObject.prototype.__signalHandler.map;
 
     function setEvent(event,e){
         if(e.orientation)
@@ -7758,7 +8646,7 @@ soya2d.Mobile = function(){
             var event = fireMap[key];
             if(!event)continue;
             if(event.fire){
-                var events = this.__eventMap[key];
+                var events = eventMap[key];
                 fireEvent(events,event);
             }
         }
@@ -7779,12 +8667,19 @@ soya2d.Mobile = function(){
 
         //排序
         events.sort(function(a,b){
-            return a.order - b.order;
+            return b[2] - a[2];
         });
 
+        var onceEvents = [];
         for(var i=events.length;i--;){
-            var target = events[i].context;
-            events[i].fn.call(target,ev);
+            var target = events[i][1];
+            events[i][0].call(target,ev);
+            if(events[i][3]){
+                onceEvents.push(events[i]);
+            }
+        }
+        for(var i=onceEvents.length;i--;){
+            onceEvents[i][1].off(ev.type,onceEvents[i][0]);
         }
     }
 
@@ -7813,10 +8708,7 @@ soya2d.Mobile = function(){
 
         return this;
     }
-
-    soya2d.EventHandler.call(this);
 };
-soya2d.inherits(soya2d.Mobile,soya2d.EventHandler);
 /**
  * 移动设备事件对象
  * @type {Object}
@@ -7827,7 +8719,7 @@ soya2d.inherits(soya2d.Mobile,soya2d.EventHandler);
  * @property {Object} e - HTML事件对象
  */
 /**
- * @classdesc 鼠标事件处理类,提供如下事件:<br/>
+ * 鼠标事件处理类,提供如下事件:<br/>
  * <ul>
  *     <li>click</li>
  *     <li>dblclick</li>
@@ -7842,7 +8734,6 @@ soya2d.inherits(soya2d.Mobile,soya2d.EventHandler);
  * *该事件支持传播
  * @class 
  * @extends soya2d.EventHandler
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Mouse = function(){
 
@@ -7859,9 +8750,10 @@ soya2d.Mouse = function(){
     };
     var thisGame;
     var mouse = this;
+    var eventMap = soya2d.DisplayObject.prototype.__signalHandler.map;
 
     function setEvent(event,e,target){
-        var renderer = thisGame.getRenderer();
+        var renderer = thisGame.renderer;
         mouse.x = fireMap[event].x = (e.offsetX||e.layerX) / renderer.hr;
         mouse.y = fireMap[event].y = (e.offsetY||e.layerY) / renderer.vr;
         mouse.lButton = fireMap[event].lButton = e.button==0||e.button==1;
@@ -7899,8 +8791,8 @@ soya2d.Mouse = function(){
 
         //over/out
         var ooList = [];
-        var overList = mouse.__eventMap['mouseover'];
-        var outList = mouse.__eventMap['mouseout'];
+        var overList = eventMap['mouseover'];
+        var outList = eventMap['mouseout'];
         if(overList){
             overList.forEach(function(o){
                 ooList.push(o);
@@ -7909,7 +8801,7 @@ soya2d.Mouse = function(){
         if(outList){
             outList.forEach(function(o){
                 for(var i=ooList.length;i--;){
-                    if(ooList[i].context == o.context)return;
+                    if(ooList[i][1] == o[1])return;
                 }
 
                 ooList.push(o);
@@ -7918,8 +8810,8 @@ soya2d.Mouse = function(){
         if(ooList.length>0){
             var currIn = [];
             ooList.forEach(function(o){
-                var target = o.context;
-                var fn = o.fn;
+                var target = o[1];
+                var fn = o[0];
                 if(!target.hitTest || !target.hitTest(mouse.x,mouse.y))return;
 
                 currIn.push(target);
@@ -7960,7 +8852,7 @@ soya2d.Mouse = function(){
             var event = fireMap[key];
             if(!event)continue;
             if(event.fire){
-                var events = this.__eventMap[key];
+                var events = eventMap[key];
                 fireEvent(events,event);
             }
         }
@@ -7982,24 +8874,15 @@ soya2d.Mouse = function(){
         if(!events)return;
 
         var contextSet = [];
-        var hasGame = false;
         var scene = null;
         for(var i=events.length;i--;){
-            var target = events[i].context;
-            if(target == thisGame){
-                hasGame = true;
-                continue;
-            }
-            if(target instanceof soya2d.Scene){
-                scene = target;
-                continue;
-            }
+            var target = events[i][1];
             if(ev.type == 'mouseover' || ev.type == 'mouseout'){
-                if(ev.__fireList.indexOf(target) >= 0){
+                if(ev.__fireList.indexOf(target) >= 0 && target.isRendered()){
                     contextSet.push(target);
                 }
             }
-            if(contextSet.indexOf(target) < 0 && target.hitTest(mouse.x,mouse.y)){
+            if(contextSet.indexOf(target) < 0 && target.hitTest(mouse.x,mouse.y) && target.isRendered()){
                 contextSet.push(target);
             }
         }
@@ -8007,12 +8890,6 @@ soya2d.Mouse = function(){
         contextSet.sort(function(a,b){
             return b.z - a.z;
         });
-        if(scene){
-            contextSet.push(scene);
-        }
-        if(hasGame){
-            contextSet.push(thisGame);
-        }
         if(contextSet.length<1)return;
 
         var target = contextSet[0];
@@ -8032,7 +8909,7 @@ soya2d.Mouse = function(){
             p = p.parent;
         }
 
-        if(hasGame && target != thisGame){
+        if(target != thisGame){
             fireListeners(thisGame,events,ev);
         }
     }
@@ -8040,17 +8917,20 @@ soya2d.Mouse = function(){
     function fireListeners(target,events,ev){
         var listeners = [];
         events.forEach(function(ev){
-            if(ev.context == target){
+            if(ev[1] == target){
                 listeners.push(ev);
             }
         });
 
         listeners.sort(function(a,b){
-            return a.order - b.order;
+            return b[2] - a[2];
         });
 
         for(var i=listeners.length;i--;){
-            listeners[i].fn.call(target,ev);
+            listeners[i][0].call(target,ev);
+            if(listeners[i][3]){
+                listeners[i][1].off(ev.type,listeners[i][0]);
+            }
         }
         return ev;
     }
@@ -8061,7 +8941,7 @@ soya2d.Mouse = function(){
      */
     this.startListen = function(game){
         thisGame = game;
-        var cvs = game.getRenderer().getCanvas();
+        var cvs = game.renderer.getCanvas();
         cvs.addEventListener('click',click,false);
         cvs.addEventListener('dblclick',dblclick,false);
         cvs.addEventListener('mousedown',mousedown,false);
@@ -8077,7 +8957,7 @@ soya2d.Mouse = function(){
      * @return this
      */
     this.stopListen = function(game){
-        var cvs = game.getRenderer().getCanvas();
+        var cvs = game.renderer.getCanvas();
         cvs.removeEventListener('click',click,false);
         cvs.removeEventListener('dblclick',dblclick,false);
         cvs.removeEventListener('mousedown',mousedown,false);
@@ -8088,12 +8968,10 @@ soya2d.Mouse = function(){
         return this;
     }
 
-    soya2d.EventHandler.call(this);
 };
-soya2d.inherits(soya2d.Mouse,soya2d.EventHandler);
 
 /**
- * 事件类型 - 单机
+ * 事件类型 - 单击
  * @type {String}
  */
 soya2d.EVENT_CLICK = 'click';
@@ -8146,7 +9024,7 @@ soya2d.EVENT_MOUSEOUT = 'mouseout';
  * @property {Object} e - HTML事件对象
  */
 /**
- * @classdesc 触摸事件处理类,提供如下事件:<br/>
+ * 触摸事件处理类,提供如下事件:<br/>
  * <ul>
  *     <li>touchstart</li>
  *     <li>touchmove</li>
@@ -8169,6 +9047,7 @@ soya2d.Touch = function(){
     };
     var thisGame;
     var touch = this;
+    var eventMap = soya2d.DisplayObject.prototype.__signalHandler.map;
 
     this.touchList = [];
 
@@ -8218,7 +9097,7 @@ soya2d.Touch = function(){
 
         var touchList = touch.touchList;
 
-        var renderer = thisGame.getRenderer();
+        var renderer = thisGame.renderer;
         var cvs = renderer.getCanvas();
         var marginLeft = window.getComputedStyle(cvs,null).marginLeft;
         marginLeft = parseFloat(marginLeft) || 0;
@@ -8229,7 +9108,7 @@ soya2d.Touch = function(){
             var x = touchList[i];
             var y = touchList[i+1];
             
-            switch(thisGame.view.rotate()){
+            switch(thisGame.stage.rotateMode){
                 case soya2d.ROTATEMODE_90:
                     //平移，计算出canvas内坐标
                     x = x + cvs.offsetLeft - marginTop;
@@ -8238,7 +9117,7 @@ soya2d.Touch = function(){
                     //旋转
                     var tmp = x;
                     x = y;
-                    y = thisGame.view.w - Math.abs(tmp);
+                    y = thisGame.stage.w - Math.abs(tmp);
                     break;
                 case soya2d.ROTATEMODE_270:
                     //平移，计算出canvas内坐标
@@ -8248,12 +9127,12 @@ soya2d.Touch = function(){
                     //旋转
                     var tmp = y;
                     y = x;
-                    x = thisGame.view.h - Math.abs(tmp);
+                    x = thisGame.stage.h - Math.abs(tmp);
                     break;
                 case soya2d.ROTATEMODE_180:
                     //旋转
-                    x = thisGame.view.w - Math.abs(x);
-                    y = thisGame.view.h - Math.abs(y);
+                    x = thisGame.stage.w - Math.abs(x);
+                    y = thisGame.stage.h - Math.abs(y);
                     break;
             }
             
@@ -8314,8 +9193,6 @@ soya2d.Touch = function(){
         }
     }
 
-
-
     /******************* interface *******************/
 
     /**
@@ -8327,7 +9204,7 @@ soya2d.Touch = function(){
             var event = fireMap[key];
             if(!event)continue;
             if(event.fire){
-                var events = this.__eventMap[key];
+                var events = eventMap[key];
                 fireEvent(events,event);
             }
         }
@@ -8345,26 +9222,16 @@ soya2d.Touch = function(){
 
     function fireEvent(events,ev){
         if(!events)return;
-
+        var x,y;
         var contextSet = [];
-        var hasGame = false;
-        var scene = null;
         var touchList = touch.touchList;
         for(var i=events.length;i--;){
-            var target = events[i].context;
-            if(target == thisGame){
-                hasGame = true;
-                continue;
-            }
-            if(target instanceof soya2d.Scene){
-                scene = target;
-                continue;
-            }
+            var target = events[i][1];
             for(var j=0;j<touchList.length;j+=2){
                 x = touchList[j];
                 y = touchList[j+1];
 
-                if(target.hitTest(x,y)){
+                if(target.hitTest(x,y) && target.isRendered()){
                     if(contextSet.indexOf(target) < 0){
                         contextSet.push(target);
                     }
@@ -8376,12 +9243,7 @@ soya2d.Touch = function(){
         contextSet.sort(function(a,b){
             return b.z - a.z;
         });
-        if(scene){
-            contextSet.push(scene);
-        }
-        if(hasGame){
-            contextSet.push(thisGame);
-        }
+
         if(contextSet.length<1)return;
 
         var target = contextSet[0];
@@ -8400,26 +9262,25 @@ soya2d.Touch = function(){
 
             p = p.parent;
         }
-
-        if(hasGame && target != thisGame){
-            fireListeners(thisGame,events,ev);
-        }
     }
 
     function fireListeners(target,events,ev){
         var listeners = [];
         events.forEach(function(ev){
-            if(ev.context == target){
+            if(ev[1] == target){
                 listeners.push(ev);
             }
         });
 
         listeners.sort(function(a,b){
-            return a.order - b.order;
+            return b[2] - a[2];
         });
 
         for(var i=listeners.length;i--;){
-            listeners[i].fn.call(target,ev);
+            listeners[i][0].call(target,ev);
+            if(listeners[i][3]){
+                listeners[i][1].off(ev.type,listeners[i][0]);
+            }
         }
         return ev;
     }
@@ -8430,7 +9291,7 @@ soya2d.Touch = function(){
      */
     this.startListen = function(game){
         thisGame = game;
-        var cvs = game.getRenderer().getCanvas();
+        var cvs = game.renderer.getCanvas();
 
         if (window.PointerEvent) {
             cvs.addEventListener("pointerdown", proxy, false);
@@ -8458,7 +9319,7 @@ soya2d.Touch = function(){
      * @return this
      */
     this.stopListen = function(game){
-        var cvs = game.getRenderer().getCanvas();
+        var cvs = game.renderer.getCanvas();
         
         if (window.PointerEvent) {
             cvs.removeEventListener("pointerdown", proxy, false);
@@ -8478,10 +9339,7 @@ soya2d.Touch = function(){
         }
         return this;
     }
-
-    soya2d.EventHandler.call(this);
 };
-soya2d.inherits(soya2d.Touch,soya2d.EventHandler);
 /**
  * 事件类型 - 触摸按下
  * @type {String}
@@ -8515,7 +9373,7 @@ soya2d.EVENT_TOUCHCANCEL = 'touchcancel';
 
 soya2d.module.install('event',{
     onInit:function(game){
-        game.events = new soya2d.Events();
+        this.events = new soya2d.Events();
         var keyboardEvents = ['keyup','keydown','keypress'];
         var mouseEvents = ['click','dblclick','mousedown','mousewheel',
                             'mousemove','mouseup','mouseover','mouseout'];
@@ -8523,129 +9381,44 @@ soya2d.module.install('event',{
         var mobileEvents = ['hov','tilt','motion'];
 
         if(soya2d.Mouse){
-            game.events.register(mouseEvents,new soya2d.Mouse());
+            this.events.register(mouseEvents,new soya2d.Mouse());
         }
         if(soya2d.Keyboard){
-            game.events.register(keyboardEvents,new soya2d.Keyboard());
+            this.events.register(keyboardEvents,new soya2d.Keyboard());
         }
         if(soya2d.Touch){
-            game.events.register(touchEvents,new soya2d.Touch());
+            this.events.register(touchEvents,new soya2d.Touch());
         }
         if(soya2d.Mobile){
-            game.events.register(mobileEvents,new soya2d.Mobile());
+            this.events.register(mobileEvents,new soya2d.Mobile());
         }
     },
     onStart:function(game){
-        game.events.startListen(game);
+        this.events.startListen(game);
     },
     onStop:function(game){
-        game.events.stopListen(game);
+        this.events.stopListen(game);
     },
     onUpdate:function(game){
-        game.events.scan();
+        this.events.scan();
     }
 });
 
 /**
- * 扩展可渲染对象的事件接口
- * @author {@link http://weibo.com/soya2d MrSoya}
+ * 点击事件类型 - 点下
+ * 该事件会自动判断所在平台，决定是触摸还是鼠标
+ * @type {String}
  */
-soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.prototype */{
-    /**
-     * 绑定一个或者多个事件，使用同一个回调函数
-     * @param {string} events 一个或多个用空格分隔的事件类型
-     * @param {Function} callback 回调函数
-     * @param {int} [order] 触发顺序，值越大越先触发
-     * @requires event
-     * @return this
-     */
-    on:function(events,callback,order){
-        this.game.events.addListener(events,callback,this,order);
-        return this;
-    },
-    /**
-     * 绑定一个或者多个事件，使用同一个回调函数。但只触发一次
-     * @param {string} events 一个或多个用空格分隔的事件类型
-     * @param {Function} callback 回调函数
-     * @param {int} [order] 触发顺序，值越大越先触发
-     * @requires event
-     * @return this
-     */
-    once:function(events,callback,order){
-        var that = this;
-        var cb = function() {
-            that.off(events, cb);
-            callback.apply(that, arguments)
-        }
-        this.game.events.addListener(events,cb,this,order);
-        return this;
-    },
-    /**
-     * 取消一个或者多个已绑定事件
-     * @param {soya2d.Game} game 绑定的游戏实例
-     * @param {string} events 一个或多个用空格分隔的事件类型
-     * @param {Function} callback 回调函数，可选。如果该参数为空。则删除指定类型下所有事件
-     * @requires event
-     * @return this
-     */
-    off:function(events,callback){
-        this.game.events.removeListener(events,callback,this);
-        return this;
-    }
-});
-
+soya2d.EVENT_POINTDOWN = 'pointdown';
+soya2d.EVENT_POINTMOVE = 'pointmove';
+soya2d.EVENT_POINTUP = 'pointup';
+/*! howler.js v2.0.0-beta13 | (c) 2013-2016, James Simpson of GoldFire Studios | MIT License | howlerjs.com */
+!function(){"use strict";var e=function(){this.init()};e.prototype={init:function(){var e=this||n;return e._codecs={},e._howls=[],e._muted=!1,e._volume=1,e._canPlayEvent="canplaythrough",e._navigator="undefined"!=typeof window&&window.navigator?window.navigator:null,e.masterGain=null,e.noAudio=!1,e.usingWebAudio=!0,e.autoSuspend=!0,e.ctx=null,e.mobileAutoEnable=!0,e._setup(),e},volume:function(e){var o=this||n;if(e=parseFloat(e),o.ctx||_(),"undefined"!=typeof e&&e>=0&&1>=e){o._volume=e,o.usingWebAudio&&(o.masterGain.gain.value=e);for(var t=0;t<o._howls.length;t++)if(!o._howls[t]._webAudio)for(var r=o._howls[t]._getSoundIds(),u=0;u<r.length;u++){var a=o._howls[t]._soundById(r[u]);a&&a._node&&(a._node.volume=a._volume*e)}return o}return o._volume},mute:function(e){var o=this||n;o.ctx||_(),o._muted=e,o.usingWebAudio&&(o.masterGain.gain.value=e?0:o._volume);for(var t=0;t<o._howls.length;t++)if(!o._howls[t]._webAudio)for(var r=o._howls[t]._getSoundIds(),u=0;u<r.length;u++){var a=o._howls[t]._soundById(r[u]);a&&a._node&&(a._node.muted=e?!0:a._muted)}return o},unload:function(){for(var e=this||n,o=e._howls.length-1;o>=0;o--)e._howls[o].unload();return e.usingWebAudio&&"undefined"!=typeof e.ctx.close&&(e.ctx.close(),e.ctx=null,_()),e},codecs:function(e){return(this||n)._codecs[e]},_setup:function(){var e=this||n;return e.state=e.ctx?e.ctx.state||"running":"running",e._autoSuspend(),e.noAudio||e._setupCodecs(),e},_setupCodecs:function(){var e=this||n,o="undefined"!=typeof Audio?new Audio:null;if(!o||"function"!=typeof o.canPlayType)return e;var t=o.canPlayType("audio/mpeg;").replace(/^no$/,""),r=e._navigator&&e._navigator.userAgent.match(/OPR\/([0-6].)/g),u=r&&parseInt(r[0].split("/")[1],10)<33;return e._codecs={mp3:!(u||!t&&!o.canPlayType("audio/mp3;").replace(/^no$/,"")),mpeg:!!t,opus:!!o.canPlayType('audio/ogg; codecs="opus"').replace(/^no$/,""),ogg:!!o.canPlayType('audio/ogg; codecs="vorbis"').replace(/^no$/,""),oga:!!o.canPlayType('audio/ogg; codecs="vorbis"').replace(/^no$/,""),wav:!!o.canPlayType('audio/wav; codecs="1"').replace(/^no$/,""),aac:!!o.canPlayType("audio/aac;").replace(/^no$/,""),caf:!!o.canPlayType("audio/x-caf;").replace(/^no$/,""),m4a:!!(o.canPlayType("audio/x-m4a;")||o.canPlayType("audio/m4a;")||o.canPlayType("audio/aac;")).replace(/^no$/,""),mp4:!!(o.canPlayType("audio/x-mp4;")||o.canPlayType("audio/mp4;")||o.canPlayType("audio/aac;")).replace(/^no$/,""),weba:!!o.canPlayType('audio/webm; codecs="vorbis"').replace(/^no$/,""),webm:!!o.canPlayType('audio/webm; codecs="vorbis"').replace(/^no$/,""),dolby:!!o.canPlayType('audio/mp4; codecs="ec-3"').replace(/^no$/,"")},e},_enableMobileAudio:function(){var e=this||n,o=/iPhone|iPad|iPod|Android|BlackBerry|BB10|Silk|Mobi/i.test(e._navigator&&e._navigator.userAgent),t=!!("ontouchend"in window||e._navigator&&e._navigator.maxTouchPoints>0||e._navigator&&e._navigator.msMaxTouchPoints>0);if(!e._mobileEnabled&&e.ctx&&(o||t)){e._mobileEnabled=!1,e._mobileUnloaded||44100===e.ctx.sampleRate||(e._mobileUnloaded=!0,e.unload()),e._scratchBuffer=e.ctx.createBuffer(1,1,22050);var r=function(){var n=e.ctx.createBufferSource();n.buffer=e._scratchBuffer,n.connect(e.ctx.destination),"undefined"==typeof n.start?n.noteOn(0):n.start(0),n.onended=function(){n.disconnect(0),e._mobileEnabled=!0,e.mobileAutoEnable=!1,document.removeEventListener("touchend",r,!0)}};return document.addEventListener("touchend",r,!0),e}},_autoSuspend:function(){var e=this;if(e.autoSuspend&&e.ctx&&"undefined"!=typeof e.ctx.suspend&&n.usingWebAudio){for(var o=0;o<e._howls.length;o++)if(e._howls[o]._webAudio)for(var t=0;t<e._howls[o]._sounds.length;t++)if(!e._howls[o]._sounds[t]._paused)return e;return e._suspendTimer&&clearTimeout(e._suspendTimer),e._suspendTimer=setTimeout(function(){e.autoSuspend&&(e._suspendTimer=null,e.state="suspending",e.ctx.suspend().then(function(){e.state="suspended",e._resumeAfterSuspend&&(delete e._resumeAfterSuspend,e._autoResume())}))},3e4),e}},_autoResume:function(){var e=this;if(e.ctx&&"undefined"!=typeof e.ctx.resume&&n.usingWebAudio)return"running"===e.state&&e._suspendTimer?(clearTimeout(e._suspendTimer),e._suspendTimer=null):"suspended"===e.state?(e.state="resuming",e.ctx.resume().then(function(){e.state="running"}),e._suspendTimer&&(clearTimeout(e._suspendTimer),e._suspendTimer=null)):"suspending"===e.state&&(e._resumeAfterSuspend=!0),e}};var n=new e,o=function(e){var n=this;return e.src&&0!==e.src.length?void n.init(e):void console.error("An array of source files must be passed with any new Howl.")};o.prototype={init:function(e){var o=this;return n.ctx||_(),o._autoplay=e.autoplay||!1,o._format="string"!=typeof e.format?e.format:[e.format],o._html5=e.html5||!1,o._muted=e.mute||!1,o._loop=e.loop||!1,o._pool=e.pool||5,o._preload="boolean"==typeof e.preload?e.preload:!0,o._rate=e.rate||1,o._sprite=e.sprite||{},o._src="string"!=typeof e.src?e.src:[e.src],o._volume=void 0!==e.volume?e.volume:1,o._duration=0,o._state="unloaded",o._sounds=[],o._endTimers={},o._queue=[],o._onend=e.onend?[{fn:e.onend}]:[],o._onfade=e.onfade?[{fn:e.onfade}]:[],o._onload=e.onload?[{fn:e.onload}]:[],o._onloaderror=e.onloaderror?[{fn:e.onloaderror}]:[],o._onpause=e.onpause?[{fn:e.onpause}]:[],o._onplay=e.onplay?[{fn:e.onplay}]:[],o._onstop=e.onstop?[{fn:e.onstop}]:[],o._onmute=e.onmute?[{fn:e.onmute}]:[],o._onvolume=e.onvolume?[{fn:e.onvolume}]:[],o._onrate=e.onrate?[{fn:e.onrate}]:[],o._onseek=e.onseek?[{fn:e.onseek}]:[],o._webAudio=n.usingWebAudio&&!o._html5,"undefined"!=typeof n.ctx&&n.ctx&&n.mobileAutoEnable&&n._enableMobileAudio(),n._howls.push(o),o._preload&&o.load(),o},load:function(){var e=this,o=null;if(n.noAudio)return void e._emit("loaderror",null,"No audio support.");"string"==typeof e._src&&(e._src=[e._src]);for(var r=0;r<e._src.length;r++){var a,d;if(e._format&&e._format[r])a=e._format[r];else{if(d=e._src[r],"string"!=typeof d){e._emit("loaderror",null,"Non-string found in selected audio sources - ignoring.");continue}a=/^data:audio\/([^;,]+);/i.exec(d),a||(a=/\.([^.]+)$/.exec(d.split("?",1)[0])),a&&(a=a[1].toLowerCase())}if(n.codecs(a)){o=e._src[r];break}}return o?(e._src=o,e._state="loading","https:"===window.location.protocol&&"http:"===o.slice(0,5)&&(e._html5=!0,e._webAudio=!1),new t(e),e._webAudio&&u(e),e):void e._emit("loaderror",null,"No codec support for selected audio sources.")},play:function(e){var o=this,t=arguments,r=null;if("number"==typeof e)r=e,e=null;else if("undefined"==typeof e){e="__default";for(var u=0,a=0;a<o._sounds.length;a++)o._sounds[a]._paused&&!o._sounds[a]._ended&&(u++,r=o._sounds[a]._id);1===u?e=null:r=null}var d=r?o._soundById(r):o._inactiveSound();if(!d)return null;if(r&&!e&&(e=d._sprite||"__default"),"loaded"!==o._state&&!o._sprite[e])return o._queue.push({event:"play",action:function(){o.play(o._soundById(d._id)?d._id:void 0)}}),d._id;if(r&&!d._paused)return t[1]||setTimeout(function(){o._emit("play",d._id)},0),d._id;o._webAudio&&n._autoResume();var i=d._seek>0?d._seek:o._sprite[e][0]/1e3,_=(o._sprite[e][0]+o._sprite[e][1])/1e3-i,s=1e3*_/Math.abs(d._rate);d._paused=!1,d._ended=!1,d._sprite=e,d._seek=i,d._start=o._sprite[e][0]/1e3,d._stop=(o._sprite[e][0]+o._sprite[e][1])/1e3,d._loop=!(!d._loop&&!o._sprite[e][2]);var l=d._node;if(o._webAudio){var f=function(){o._refreshBuffer(d);var e=d._muted||o._muted?0:d._volume*n.volume();l.gain.setValueAtTime(e,n.ctx.currentTime),d._playStart=n.ctx.currentTime,"undefined"==typeof l.bufferSource.start?d._loop?l.bufferSource.noteGrainOn(0,i,86400):l.bufferSource.noteGrainOn(0,i,_):d._loop?l.bufferSource.start(0,i,86400):l.bufferSource.start(0,i,_),s!==1/0&&(o._endTimers[d._id]=setTimeout(o._ended.bind(o,d),s)),t[1]||setTimeout(function(){o._emit("play",d._id)},0)};"loaded"===o._state?f():(o.once("load",f,d._id),o._clearTimer(d._id))}else{var c=function(){l.currentTime=i,l.muted=d._muted||o._muted||n._muted||l.muted,l.volume=d._volume*n.volume(),l.playbackRate=d._rate,setTimeout(function(){l.play(),s!==1/0&&(o._endTimers[d._id]=setTimeout(o._ended.bind(o,d),s)),t[1]||o._emit("play",d._id)},0)},p="loaded"===o._state&&(window&&window.ejecta||!l.readyState&&n._navigator.isCocoonJS);if(4===l.readyState||p)c();else{var m=function(){c(),l.removeEventListener(n._canPlayEvent,m,!1)};l.addEventListener(n._canPlayEvent,m,!1),o._clearTimer(d._id)}}return d._id},pause:function(e){var n=this;if("loaded"!==n._state)return n._queue.push({event:"pause",action:function(){n.pause(e)}}),n;for(var o=n._getSoundIds(e),t=0;t<o.length;t++){n._clearTimer(o[t]);var r=n._soundById(o[t]);if(r&&!r._paused){if(r._seek=n.seek(o[t]),r._rateSeek=0,r._paused=!0,n._stopFade(o[t]),r._node)if(n._webAudio){if(!r._node.bufferSource)return n;"undefined"==typeof r._node.bufferSource.stop?r._node.bufferSource.noteOff(0):r._node.bufferSource.stop(0),n._cleanBuffer(r._node)}else isNaN(r._node.duration)&&r._node.duration!==1/0||r._node.pause();arguments[1]||n._emit("pause",r._id)}}return n},stop:function(e){var n=this;if("loaded"!==n._state)return n._queue.push({event:"stop",action:function(){n.stop(e)}}),n;for(var o=n._getSoundIds(e),t=0;t<o.length;t++){n._clearTimer(o[t]);var r=n._soundById(o[t]);if(r&&!r._paused&&(r._seek=r._start||0,r._rateSeek=0,r._paused=!0,r._ended=!0,n._stopFade(o[t]),r._node))if(n._webAudio){if(!r._node.bufferSource)return n;"undefined"==typeof r._node.bufferSource.stop?r._node.bufferSource.noteOff(0):r._node.bufferSource.stop(0),n._cleanBuffer(r._node)}else isNaN(r._node.duration)&&r._node.duration!==1/0||(r._node.pause(),r._node.currentTime=r._start||0);r&&n._emit("stop",r._id)}return n},mute:function(e,o){var t=this;if("loaded"!==t._state)return t._queue.push({event:"mute",action:function(){t.mute(e,o)}}),t;if("undefined"==typeof o){if("boolean"!=typeof e)return t._muted;t._muted=e}for(var r=t._getSoundIds(o),u=0;u<r.length;u++){var a=t._soundById(r[u]);a&&(a._muted=e,t._webAudio&&a._node?a._node.gain.setValueAtTime(e?0:a._volume*n.volume(),n.ctx.currentTime):a._node&&(a._node.muted=n._muted?!0:e),t._emit("mute",a._id))}return t},volume:function(){var e,o,t=this,r=arguments;if(0===r.length)return t._volume;if(1===r.length){var u=t._getSoundIds(),a=u.indexOf(r[0]);a>=0?o=parseInt(r[0],10):e=parseFloat(r[0])}else r.length>=2&&(e=parseFloat(r[0]),o=parseInt(r[1],10));var d;if(!("undefined"!=typeof e&&e>=0&&1>=e))return d=o?t._soundById(o):t._sounds[0],d?d._volume:0;if("loaded"!==t._state)return t._queue.push({event:"volume",action:function(){t.volume.apply(t,r)}}),t;"undefined"==typeof o&&(t._volume=e),o=t._getSoundIds(o);for(var i=0;i<o.length;i++)d=t._soundById(o[i]),d&&(d._volume=e,r[2]||t._stopFade(o[i]),t._webAudio&&d._node&&!d._muted?d._node.gain.setValueAtTime(e*n.volume(),n.ctx.currentTime):d._node&&!d._muted&&(d._node.volume=e*n.volume()),t._emit("volume",d._id));return t},fade:function(e,o,t,r){var u=this,a=Math.abs(e-o),d=e>o?"out":"in",i=a/.01,_=t/i;if("loaded"!==u._state)return u._queue.push({event:"fade",action:function(){u.fade(e,o,t,r)}}),u;u.volume(e,r);for(var s=u._getSoundIds(r),l=0;l<s.length;l++){var f=u._soundById(s[l]);if(f){if(r||u._stopFade(s[l]),u._webAudio&&!f._muted){var c=n.ctx.currentTime,p=c+t/1e3;f._volume=e,f._node.gain.setValueAtTime(e*n.volume(),c),f._node.gain.linearRampToValueAtTime(o*n.volume(),p)}var m=e;f._interval=setInterval(function(e,n){m+="in"===d?.01:-.01,m=Math.max(0,m),m=Math.min(1,m),m=Math.round(100*m)/100,u._webAudio?("undefined"==typeof r&&(u._volume=m),n._volume=m):u.volume(m,e,!0),m===o&&(clearInterval(n._interval),n._interval=null,u.volume(m,e),u._emit("fade",e))}.bind(u,s[l],f),_)}}return u},_stopFade:function(e){var o=this,t=o._soundById(e);return t&&t._interval&&(o._webAudio&&t._node.gain.cancelScheduledValues(n.ctx.currentTime),clearInterval(t._interval),t._interval=null,o._emit("fade",e)),o},loop:function(){var e,n,o,t=this,r=arguments;if(0===r.length)return t._loop;if(1===r.length){if("boolean"!=typeof r[0])return o=t._soundById(parseInt(r[0],10)),o?o._loop:!1;e=r[0],t._loop=e}else 2===r.length&&(e=r[0],n=parseInt(r[1],10));for(var u=t._getSoundIds(n),a=0;a<u.length;a++)o=t._soundById(u[a]),o&&(o._loop=e,t._webAudio&&o._node&&o._node.bufferSource&&(o._node.bufferSource.loop=e));return t},rate:function(){var e,o,t=this,r=arguments;if(0===r.length)o=t._sounds[0]._id;else if(1===r.length){var u=t._getSoundIds(),a=u.indexOf(r[0]);a>=0?o=parseInt(r[0],10):e=parseFloat(r[0])}else 2===r.length&&(e=parseFloat(r[0]),o=parseInt(r[1],10));var d;if("number"!=typeof e)return d=t._soundById(o),d?d._rate:t._rate;if("loaded"!==t._state)return t._queue.push({event:"rate",action:function(){t.rate.apply(t,r)}}),t;"undefined"==typeof o&&(t._rate=e),o=t._getSoundIds(o);for(var i=0;i<o.length;i++)if(d=t._soundById(o[i])){d._rateSeek=t.seek(o[i]),d._playStart=t._webAudio?n.ctx.currentTime:d._playStart,d._rate=e,t._webAudio&&d._node&&d._node.bufferSource?d._node.bufferSource.playbackRate.value=e:d._node&&(d._node.playbackRate=e);var _=t.seek(o[i]),s=(t._sprite[d._sprite][0]+t._sprite[d._sprite][1])/1e3-_,l=1e3*s/Math.abs(d._rate);t._clearTimer(o[i]),t._endTimers[o[i]]=setTimeout(t._ended.bind(t,d),l),t._emit("rate",d._id)}return t},seek:function(){var e,o,t=this,r=arguments;if(0===r.length)o=t._sounds[0]._id;else if(1===r.length){var u=t._getSoundIds(),a=u.indexOf(r[0]);a>=0?o=parseInt(r[0],10):(o=t._sounds[0]._id,e=parseFloat(r[0]))}else 2===r.length&&(e=parseFloat(r[0]),o=parseInt(r[1],10));if("undefined"==typeof o)return t;if("loaded"!==t._state)return t._queue.push({event:"seek",action:function(){t.seek.apply(t,r)}}),t;var d=t._soundById(o);if(d){if(!("number"==typeof e&&e>=0)){if(t._webAudio){var i=t.playing(o)?n.ctx.currentTime-d._playStart:0,_=d._rateSeek?d._rateSeek-d._seek:0;return d._seek+(_+i*Math.abs(d._rate))}return d._node.currentTime}var s=t.playing(o);s&&t.pause(o,!0),d._seek=e,d._ended=!1,t._clearTimer(o),s&&t.play(o,!0),t._emit("seek",o)}return t},playing:function(e){var n=this;if("number"==typeof e){var o=n._soundById(e);return o?!o._paused:!1}for(var t=0;t<n._sounds.length;t++)if(!n._sounds[t]._paused)return!0;return!1},duration:function(e){var n=this,o=n._duration,t=n._soundById(e);return t&&(o=n._sprite[t._sprite][1]/1e3),o},state:function(){return this._state},unload:function(){for(var e=this,o=e._sounds,t=0;t<o.length;t++){o[t]._paused||(e.stop(o[t]._id),e._emit("end",o[t]._id)),e._webAudio||(o[t]._node.src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=",o[t]._node.removeEventListener("error",o[t]._errorFn,!1),o[t]._node.removeEventListener(n._canPlayEvent,o[t]._loadFn,!1)),delete o[t]._node,e._clearTimer(o[t]._id);var u=n._howls.indexOf(e);u>=0&&n._howls.splice(u,1)}return r&&delete r[e._src],e._state="unloaded",e._sounds=[],e=null,null},on:function(e,n,o,t){var r=this,u=r["_on"+e];return"function"==typeof n&&u.push(t?{id:o,fn:n,once:t}:{id:o,fn:n}),r},off:function(e,n,o){var t=this,r=t["_on"+e],u=0;if(n){for(u=0;u<r.length;u++)if(n===r[u].fn&&o===r[u].id){r.splice(u,1);break}}else if(e)t["_on"+e]=[];else{var a=Object.keys(t);for(u=0;u<a.length;u++)0===a[u].indexOf("_on")&&Array.isArray(t[a[u]])&&(t[a[u]]=[])}return t},once:function(e,n,o){var t=this;return t.on(e,n,o,1),t},_emit:function(e,n,o){for(var t=this,r=t["_on"+e],u=r.length-1;u>=0;u--)r[u].id&&r[u].id!==n&&"load"!==e||(setTimeout(function(e){e.call(this,n,o)}.bind(t,r[u].fn),0),r[u].once&&t.off(e,r[u].fn,r[u].id));return t},_loadQueue:function(){var e=this;if(e._queue.length>0){var n=e._queue[0];e.once(n.event,function(){e._queue.shift(),e._loadQueue()}),n.action()}return e},_ended:function(e){var o=this,t=e._sprite,r=!(!e._loop&&!o._sprite[t][2]);if(o._emit("end",e._id),!o._webAudio&&r&&o.stop(e._id).play(e._id),o._webAudio&&r){o._emit("play",e._id),e._seek=e._start||0,e._rateSeek=0,e._playStart=n.ctx.currentTime;var u=1e3*(e._stop-e._start)/Math.abs(e._rate);o._endTimers[e._id]=setTimeout(o._ended.bind(o,e),u)}return o._webAudio&&!r&&(e._paused=!0,e._ended=!0,e._seek=e._start||0,e._rateSeek=0,o._clearTimer(e._id),o._cleanBuffer(e._node),n._autoSuspend()),o._webAudio||r||o.stop(e._id),o},_clearTimer:function(e){var n=this;return n._endTimers[e]&&(clearTimeout(n._endTimers[e]),delete n._endTimers[e]),n},_soundById:function(e){for(var n=this,o=0;o<n._sounds.length;o++)if(e===n._sounds[o]._id)return n._sounds[o];return null},_inactiveSound:function(){var e=this;e._drain();for(var n=0;n<e._sounds.length;n++)if(e._sounds[n]._ended)return e._sounds[n].reset();return new t(e)},_drain:function(){var e=this,n=e._pool,o=0,t=0;if(!(e._sounds.length<n)){for(t=0;t<e._sounds.length;t++)e._sounds[t]._ended&&o++;for(t=e._sounds.length-1;t>=0;t--){if(n>=o)return;e._sounds[t]._ended&&(e._webAudio&&e._sounds[t]._node&&e._sounds[t]._node.disconnect(0),e._sounds.splice(t,1),o--)}}},_getSoundIds:function(e){var n=this;if("undefined"==typeof e){for(var o=[],t=0;t<n._sounds.length;t++)o.push(n._sounds[t]._id);return o}return[e]},_refreshBuffer:function(e){var o=this;return e._node.bufferSource=n.ctx.createBufferSource(),e._node.bufferSource.buffer=r[o._src],e._panner?e._node.bufferSource.connect(e._panner):e._node.bufferSource.connect(e._node),e._node.bufferSource.loop=e._loop,e._loop&&(e._node.bufferSource.loopStart=e._start||0,e._node.bufferSource.loopEnd=e._stop),e._node.bufferSource.playbackRate.value=e._rate,o},_cleanBuffer:function(e){var n=this;if(n._scratchBuffer){e.bufferSource.onended=null,e.bufferSource.disconnect(0);try{e.bufferSource.buffer=n._scratchBuffer}catch(o){}}return e.bufferSource=null,n}};var t=function(e){this._parent=e,this.init()};t.prototype={init:function(){var e=this,n=e._parent;return e._muted=n._muted,e._loop=n._loop,e._volume=n._volume,e._muted=n._muted,e._rate=n._rate,e._seek=0,e._paused=!0,e._ended=!0,e._sprite="__default",e._id=Math.round(Date.now()*Math.random()),n._sounds.push(e),e.create(),e},create:function(){var e=this,o=e._parent,t=n._muted||e._muted||e._parent._muted?0:e._volume*n.volume();return o._webAudio?(e._node="undefined"==typeof n.ctx.createGain?n.ctx.createGainNode():n.ctx.createGain(),e._node.gain.setValueAtTime(t,n.ctx.currentTime),e._node.paused=!0,e._node.connect(n.masterGain)):(e._node=new Audio,e._errorFn=e._errorListener.bind(e),e._node.addEventListener("error",e._errorFn,!1),e._loadFn=e._loadListener.bind(e),e._node.addEventListener(n._canPlayEvent,e._loadFn,!1),e._node.src=o._src,e._node.preload="auto",e._node.volume=t,e._node.load()),e},reset:function(){var e=this,n=e._parent;return e._muted=n._muted,e._loop=n._loop,e._volume=n._volume,e._muted=n._muted,e._rate=n._rate,e._seek=0,e._rateSeek=0,e._paused=!0,e._ended=!0,e._sprite="__default",e._id=Math.round(Date.now()*Math.random()),e},_errorListener:function(){var e=this;e._node.error&&4===e._node.error.code&&(n.noAudio=!0),e._parent._emit("loaderror",e._id,e._node.error?e._node.error.code:0),e._node.removeEventListener("error",e._errorListener,!1)},_loadListener:function(){var e=this,o=e._parent;o._duration=Math.ceil(10*e._node.duration)/10,0===Object.keys(o._sprite).length&&(o._sprite={__default:[0,1e3*o._duration]}),"loaded"!==o._state&&(o._state="loaded",o._emit("load"),o._loadQueue()),o._autoplay&&o.play(),e._node.removeEventListener(n._canPlayEvent,e._loadFn,!1)}};var r={},u=function(e){var n=e._src;if(r[n])return e._duration=r[n].duration,void i(e);if(/^data:[^;]+;base64,/.test(n)){for(var o=atob(n.split(",")[1]),t=new Uint8Array(o.length),u=0;u<o.length;++u)t[u]=o.charCodeAt(u);d(t.buffer,e)}else{var _=new XMLHttpRequest;_.open("GET",n,!0),_.responseType="arraybuffer",_.onload=function(){var n=(_.status+"")[0];return"0"!==n&&"2"!==n&&"3"!==n?void e._emit("loaderror",null,"Failed loading audio file with status: "+_.status+"."):void d(_.response,e)},_.onerror=function(){e._webAudio&&(e._html5=!0,e._webAudio=!1,e._sounds=[],delete r[n],e.load())},a(_)}},a=function(e){try{e.send()}catch(n){e.onerror()}},d=function(e,o){n.ctx.decodeAudioData(e,function(e){e&&o._sounds.length>0&&(r[o._src]=e,i(o,e))},function(){o._emit("loaderror",null,"Decoding audio data failed.")})},i=function(e,n){n&&!e._duration&&(e._duration=n.duration),0===Object.keys(e._sprite).length&&(e._sprite={__default:[0,1e3*e._duration]}),"loaded"!==e._state&&(e._state="loaded",e._emit("load"),e._loadQueue()),e._autoplay&&e.play()},_=function(){n.noAudio=!1;try{"undefined"!=typeof AudioContext?n.ctx=new AudioContext:"undefined"!=typeof webkitAudioContext?n.ctx=new webkitAudioContext:n.usingWebAudio=!1}catch(e){n.usingWebAudio=!1}if(!n.usingWebAudio)if("undefined"!=typeof Audio)try{var o=new Audio;"undefined"==typeof o.oncanplaythrough&&(n._canPlayEvent="canplay")}catch(e){n.noAudio=!0}else n.noAudio=!0;try{var o=new Audio;o.muted&&(n.noAudio=!0)}catch(e){}var t=/iP(hone|od|ad)/.test(n._navigator&&n._navigator.platform),r=n._navigator&&n._navigator.appVersion.match(/OS (\d+)_(\d+)_?(\d+)?/),u=r?parseInt(r[1],10):null;if(t&&u&&9>u){var a=/safari/.test(n._navigator&&n._navigator.userAgent.toLowerCase());(n._navigator&&n._navigator.standalone&&!a||n._navigator&&!n._navigator.standalone&&!a)&&(n.usingWebAudio=!1)}n.usingWebAudio&&(n.masterGain="undefined"==typeof n.ctx.createGain?n.ctx.createGainNode():n.ctx.createGain(),n.masterGain.gain.value=1,n.masterGain.connect(n.ctx.destination)),n._setup()};"function"==typeof define&&define.amd&&define([],function(){return{Howler:n,Howl:o}}),"undefined"!=typeof exports&&(exports.Howler=n,exports.Howl=o),"undefined"!=typeof window?(window.HowlerGlobal=e,window.Howler=n,window.Howl=o,window.Sound=t):"undefined"!=typeof global&&(global.HowlerGlobal=e,global.Howler=n,global.Howl=o,global.Sound=t)}();
+/*! Effects Plugin */
+!function(){"use strict";HowlerGlobal.prototype._pos=[0,0,0],HowlerGlobal.prototype._orientation=[0,0,-1,0,1,0],HowlerGlobal.prototype._velocity=[0,0,0],HowlerGlobal.prototype._listenerAttr={dopplerFactor:1,speedOfSound:343.3},HowlerGlobal.prototype.pos=function(e,n,t){var o=this;return o.ctx&&o.ctx.listener?(n="number"!=typeof n?o._pos[1]:n,t="number"!=typeof t?o._pos[2]:t,"number"!=typeof e?o._pos:(o._pos=[e,n,t],o.ctx.listener.setPosition(o._pos[0],o._pos[1],o._pos[2]),o)):o},HowlerGlobal.prototype.orientation=function(e,n,t,o,r,i){var a=this;if(!a.ctx||!a.ctx.listener)return a;var p=a._orientation;return n="number"!=typeof n?p[1]:n,t="number"!=typeof t?p[2]:t,o="number"!=typeof o?p[3]:o,r="number"!=typeof r?p[4]:r,i="number"!=typeof i?p[5]:i,"number"!=typeof e?p:(a._orientation=[e,n,t,o,r,i],a.ctx.listener.setOrientation(e,n,t,o,r,i),a)},HowlerGlobal.prototype.velocity=function(e,n,t){var o=this;return o.ctx&&o.ctx.listener?(n="number"!=typeof n?o._velocity[1]:n,t="number"!=typeof t?o._velocity[2]:t,"number"!=typeof e?o._velocity:(o._velocity=[e,n,t],o.ctx.listener.setVelocity(o._velocity[0],o._velocity[1],o._velocity[2]),o)):o},HowlerGlobal.prototype.listenerAttr=function(e){var n=this;if(!n.ctx||!n.ctx.listener)return n;var t=n._listenerAttr;return e?(n._listenerAttr={dopplerFactor:"undefined"!=typeof e.dopplerFactor?e.dopplerFactor:t.dopplerFactor,speedOfSound:"undefined"!=typeof e.speedOfSound?e.speedOfSound:t.speedOfSound},n.ctx.listener.dopplerFactor=t.dopplerFactor,n.ctx.listener.speedOfSound=t.speedOfSound,n):t},Howl.prototype.init=function(e){return function(n){var t=this;return t._orientation=n.orientation||[1,0,0],t._pos=n.pos||null,t._velocity=n.velocity||[0,0,0],t._pannerAttr={coneInnerAngle:"undefined"!=typeof n.coneInnerAngle?n.coneInnerAngle:360,coneOuterAngle:"undefined"!=typeof n.coneOuterAngle?n.coneOuterAngle:360,coneOuterGain:"undefined"!=typeof n.coneOuterGain?n.coneOuterGain:0,distanceModel:"undefined"!=typeof n.distanceModel?n.distanceModel:"inverse",maxDistance:"undefined"!=typeof n.maxDistance?n.maxDistance:1e4,panningModel:"undefined"!=typeof n.panningModel?n.panningModel:"HRTF",refDistance:"undefined"!=typeof n.refDistance?n.refDistance:1,rolloffFactor:"undefined"!=typeof n.rolloffFactor?n.rolloffFactor:1},t._onpos=n.onpos?[{fn:n.onpos}]:[],t._onorientation=n.onorientation?[{fn:n.onorientation}]:[],t._onvelocity=n.onvelocity?[{fn:n.onvelocity}]:[],e.call(this,n)}}(Howl.prototype.init),Howl.prototype.pos=function(n,t,o,r){var i=this;if(!i._webAudio)return i;if("loaded"!==i._state)return i._queue.push({event:"pos",action:function(){i.pos(n,t,o,r)}}),i;if(t="number"!=typeof t?0:t,o="number"!=typeof o?-.5:o,"undefined"==typeof r){if("number"!=typeof n)return i._pos;i._pos=[n,t,o]}for(var a=i._getSoundIds(r),p=0;p<a.length;p++){var l=i._soundById(a[p]);if(l){if("number"!=typeof n)return l._pos;l._pos=[n,t,o],l._node&&(l._panner||e(l),l._panner.setPosition(n,t,o)),i._emit("pos",l._id)}}return i},Howl.prototype.orientation=function(n,t,o,r){var i=this;if(!i._webAudio)return i;if("loaded"!==i._state)return i._queue.push({event:"orientation",action:function(){i.orientation(n,t,o,r)}}),i;if(t="number"!=typeof t?i._orientation[1]:t,o="number"!=typeof o?i._orientation[2]:o,"undefined"==typeof r){if("number"!=typeof n)return i._orientation;i._orientation=[n,t,o]}for(var a=i._getSoundIds(r),p=0;p<a.length;p++){var l=i._soundById(a[p]);if(l){if("number"!=typeof n)return l._orientation;l._orientation=[n,t,o],l._node&&(l._panner||(l._pos||(l._pos=i._pos||[0,0,-.5]),e(l)),l._panner.setOrientation(n,t,o)),i._emit("orientation",l._id)}}return i},Howl.prototype.velocity=function(n,t,o,r){var i=this;if(!i._webAudio)return i;if("loaded"!==i._state)return i._queue.push({event:"velocity",action:function(){i.velocity(n,t,o,r)}}),i;if(t="number"!=typeof t?i._velocity[1]:t,o="number"!=typeof o?i._velocity[2]:o,"undefined"==typeof r){if("number"!=typeof n)return i._velocity;i._velocity=[n,t,o]}for(var a=i._getSoundIds(r),p=0;p<a.length;p++){var l=i._soundById(a[p]);if(l){if("number"!=typeof n)return l._velocity;l._velocity=[n,t,o],l._node&&(l._pos||(l._pos=i._pos||[0,0,-.5]),l._panner||e(l),l._panner.setVelocity(n,t,o)),i._emit("velocity",l._id)}}return i},Howl.prototype.pannerAttr=function(){var n,t,o,r=this,i=arguments;if(!r._webAudio)return r;if(0===i.length)return r._pannerAttr;if(1===i.length){if("object"!=typeof i[0])return o=r._soundById(parseInt(i[0],10)),o?o._pannerAttr:r._pannerAttr;n=i[0],"undefined"==typeof t&&(r._pannerAttr={coneInnerAngle:"undefined"!=typeof n.coneInnerAngle?n.coneInnerAngle:r._coneInnerAngle,coneOuterAngle:"undefined"!=typeof n.coneOuterAngle?n.coneOuterAngle:r._coneOuterAngle,coneOuterGain:"undefined"!=typeof n.coneOuterGain?n.coneOuterGain:r._coneOuterGain,distanceModel:"undefined"!=typeof n.distanceModel?n.distanceModel:r._distanceModel,maxDistance:"undefined"!=typeof n.maxDistance?n.maxDistance:r._maxDistance,panningModel:"undefined"!=typeof n.panningModel?n.panningModel:r._panningModel,refDistance:"undefined"!=typeof n.refDistance?n.refDistance:r._refDistance,rolloffFactor:"undefined"!=typeof n.rolloffFactor?n.rolloffFactor:r._rolloffFactor})}else 2===i.length&&(n=i[0],t=parseInt(i[1],10));for(var a=r._getSoundIds(t),p=0;p<a.length;p++)if(o=r._soundById(a[p])){var l=o._pannerAttr;l={coneInnerAngle:"undefined"!=typeof n.coneInnerAngle?n.coneInnerAngle:l.coneInnerAngle,coneOuterAngle:"undefined"!=typeof n.coneOuterAngle?n.coneOuterAngle:l.coneOuterAngle,coneOuterGain:"undefined"!=typeof n.coneOuterGain?n.coneOuterGain:l.coneOuterGain,distanceModel:"undefined"!=typeof n.distanceModel?n.distanceModel:l.distanceModel,maxDistance:"undefined"!=typeof n.maxDistance?n.maxDistance:l.maxDistance,panningModel:"undefined"!=typeof n.panningModel?n.panningModel:l.panningModel,refDistance:"undefined"!=typeof n.refDistance?n.refDistance:l.refDistance,rolloffFactor:"undefined"!=typeof n.rolloffFactor?n.rolloffFactor:l.rolloffFactor};var c=o._panner;c?(c.coneInnerAngle=l.coneInnerAngle,c.coneOuterAngle=l.coneOuterAngle,c.coneOuterGain=l.coneOuterGain,c.distanceModel=l.distanceModel,c.maxDistance=l.maxDistance,c.panningModel=l.panningModel,c.refDistance=l.refDistance,c.rolloffFactor=l.rolloffFactor):(o._pos||(o._pos=r._pos||[0,0,-.5]),e(o))}return r},Sound.prototype.init=function(e){return function(){var n=this,t=n._parent;n._orientation=t._orientation,n._pos=t._pos,n._velocity=t._velocity,n._pannerAttr=t._pannerAttr,e.call(this),n._pos&&t.pos(n._pos[0],n._pos[1],n._pos[2],n._id)}}(Sound.prototype.init),Sound.prototype.reset=function(e){return function(){var n=this,t=n._parent;return n._orientation=t._orientation,n._pos=t._pos,n._velocity=t._velocity,n._pannerAttr=t._pannerAttr,e.call(this)}}(Sound.prototype.reset);var e=function(e){e._panner=Howler.ctx.createPanner(),e._panner.coneInnerAngle=e._pannerAttr.coneInnerAngle,e._panner.coneOuterAngle=e._pannerAttr.coneOuterAngle,e._panner.coneOuterGain=e._pannerAttr.coneOuterGain,e._panner.distanceModel=e._pannerAttr.distanceModel,e._panner.maxDistance=e._pannerAttr.maxDistance,e._panner.panningModel=e._pannerAttr.panningModel,e._panner.refDistance=e._pannerAttr.refDistance,e._panner.rolloffFactor=e._pannerAttr.rolloffFactor,e._panner.setPosition(e._pos[0],e._pos[1],e._pos[2]),e._panner.setOrientation(e._orientation[0],e._orientation[1],e._orientation[2]),e._panner.setVelocity(e._velocity[0],e._velocity[1],e._velocity[2]),e._panner.connect(e._node),e._paused||e._parent.pause(e._id,!0).play(e._id)}}();
 /**
- * 扩展可游戏对象的事件接口
- * @author {@link http://weibo.com/soya2d MrSoya}
- */
-soya2d.ext(soya2d.Game.prototype,/** @lends soya2d.Game.prototype */{
-    /**
-     * 绑定一个或者多个事件，使用同一个回调函数
-     * @param {string} events 一个或多个用空格分隔的事件类型
-     * @param {Function} callback 回调函数
-     * @param {int} [order] 触发顺序，值越大越先触发
-     * @requires event
-     * @return this
-     */
-    on:function(events,callback,order){
-        this.events.addListener(events,callback,this,order);
-        return this;
-    },
-    /**
-     * 绑定一个或者多个事件，使用同一个回调函数。但只触发一次
-     * @param {string} events 一个或多个用空格分隔的事件类型
-     * @param {Function} callback 回调函数
-     * @param {int} [order] 触发顺序，值越大越先触发
-     * @requires event
-     * @return this
-     */
-    once:function(events,callback,order){
-        var that = this;
-        var cb = function() {
-            that.off(events, cb);
-            callback.apply(that, arguments)
-        }
-        this.events.addListener(events,cb,this,order);
-        return this;
-    },
-    /**
-     * 取消一个或者多个已绑定事件
-     * @param {string} events 一个或多个用空格分隔的事件类型
-     * @param {Function} callback 回调函数，可选。如果该参数为空。则删除指定类型下所有事件
-     * @requires event
-     * @return this
-     */
-    off:function(events,callback){
-        this.events.removeListener(events,callback,this);
-        return this;
-    }
-});
-/*! howler.js v2.0.0-beta | (c) 2013-2015, James Simpson of GoldFire Studios | MIT License | howlerjs.com */
-!function(){"use strict";function e(){try{"undefined"!=typeof AudioContext?n=new AudioContext:"undefined"!=typeof webkitAudioContext?n=new webkitAudioContext:o=!1}catch(e){o=!1}if(!o)if("undefined"!=typeof Audio)try{new Audio}catch(e){t=!0}else t=!0}var n=null,o=!0,t=!1;if(e(),o){var r="undefined"==typeof n.createGain?n.createGainNode():n.createGain();r.gain.value=1,r.connect(n.destination)}var d=function(){this.init()};d.prototype={init:function(){var e=this||u;return e._codecs={},e._howls=[],e._muted=!1,e._volume=1,e.iOSAutoEnable=!0,e.noAudio=t,e.usingWebAudio=o,e.ctx=n,t||e._setupCodecs(),e},volume:function(e){var n=this||u;if(e=parseFloat(e),"undefined"!=typeof e&&e>=0&&1>=e){n._volume=e,o&&(r.gain.value=e);for(var t=0;t<n._howls.length;t++)if(!n._howls[t]._webAudio)for(var d=n._howls[t]._getSoundIds(),a=0;a<d.length;a++){var i=n._howls[t]._soundById(d[a]);i&&i._node&&(i._node.volume=i._volume*e)}return n}return n._volume},mute:function(e){var n=this||u;n._muted=e,o&&(r.gain.value=e?0:n._volume);for(var t=0;t<n._howls.length;t++)if(!n._howls[t]._webAudio)for(var d=n._howls[t]._getSoundIds(),a=0;a<d.length;a++){var i=n._howls[t]._soundById(d[a]);i&&i._node&&(i._node.muted=e?!0:i._muted)}return n},codecs:function(e){return(this||u)._codecs[e]},_setupCodecs:function(){var e=this||u,n=new Audio,o=n.canPlayType("audio/mpeg;").replace(/^no$/,"");return e._codecs={mp3:!(!o&&!n.canPlayType("audio/mp3;").replace(/^no$/,"")),mpeg:!!o,opus:!!n.canPlayType('audio/ogg; codecs="opus"').replace(/^no$/,""),ogg:!!n.canPlayType('audio/ogg; codecs="vorbis"').replace(/^no$/,""),wav:!!n.canPlayType('audio/wav; codecs="1"').replace(/^no$/,""),aac:!!n.canPlayType("audio/aac;").replace(/^no$/,""),m4a:!!(n.canPlayType("audio/x-m4a;")||n.canPlayType("audio/m4a;")||n.canPlayType("audio/aac;")).replace(/^no$/,""),mp4:!!(n.canPlayType("audio/x-mp4;")||n.canPlayType("audio/mp4;")||n.canPlayType("audio/aac;")).replace(/^no$/,""),weba:!!n.canPlayType('audio/webm; codecs="vorbis"').replace(/^no$/,""),webm:!!n.canPlayType('audio/webm; codecs="vorbis"').replace(/^no$/,"")},e},_enableiOSAudio:function(){var e=this||u;if(!n||!e._iOSEnabled&&/iPhone|iPad|iPod/i.test(navigator.userAgent)){e._iOSEnabled=!1;var o=function(){var t=n.createBuffer(1,1,22050),r=n.createBufferSource();r.buffer=t,r.connect(n.destination),"undefined"==typeof r.start?r.noteOn(0):r.start(0),setTimeout(function(){(r.playbackState===r.PLAYING_STATE||r.playbackState===r.FINISHED_STATE)&&(e._iOSEnabled=!0,e.iOSAutoEnable=!1,window.removeEventListener("touchstart",o,!1))},0)};return window.addEventListener("touchstart",o,!1),e}}};var u=new d,a=function(e){var n=this;return e.src&&0!==e.src.length?void n.init(e):void console.error("An array of source files must be passed with any new Howl.")};a.prototype={init:function(e){var t=this;return t._autoplay=e.autoplay||!1,t._ext=e.ext||null,t._html5=e.html5||!1,t._muted=e.mute||!1,t._loop=e.loop||!1,t._pool=e.pool||5,t._preload="boolean"==typeof e.preload?e.preload:!0,t._rate=e.rate||1,t._sprite=e.sprite||{},t._src="string"!=typeof e.src?e.src:[e.src],t._volume=void 0!==e.volume?e.volume:1,t._duration=0,t._loaded=!1,t._sounds=[],t._endTimers={},t._onend=e.onend?[{fn:e.onend}]:[],t._onfaded=e.onfaded?[{fn:e.onfaded}]:[],t._onload=e.onload?[{fn:e.onload}]:[],t._onloaderror=e.onloaderror?[{fn:e.onloaderror}]:[],t._onpause=e.onpause?[{fn:e.onpause}]:[],t._onplay=e.onplay?[{fn:e.onplay}]:[],t._webAudio=o&&!t._html5,"undefined"!=typeof n&&n&&u.iOSAutoEnable&&u._enableiOSAudio(),u._howls.push(t),t._preload&&t.load(),t},load:function(){var e=this,n=null;if(t)return void e._emit("loaderror");"string"==typeof e._src&&(e._src=[e._src]);for(var o=0;o<e._src.length;o++){var r,d;if(e._ext&&e._ext[o]?r=e._ext[o]:(d=e._src[o],r=/^data:audio\/([^;,]+);/i.exec(d),r||(r=/\.([^.]+)$/.exec(d.split("?",1)[0])),r&&(r=r[1].toLowerCase())),u.codecs(r)){n=e._src[o];break}}return n?(e._src=n,new i(e),e._webAudio&&s(e),e):void e._emit("loaderror")},play:function(e){var o=this,t=arguments,r=null;if("number"==typeof e)r=e,e=null;else if("undefined"==typeof e){e="__default";for(var d=0,a=0;a<o._sounds.length;a++)o._sounds[a]._paused&&!o._sounds[a]._ended&&(d++,r=o._sounds[a]._id);1===d?e=null:r=null}var i=r?o._soundById(r):o._inactiveSound();if(!i)return null;if(r&&!e&&(e=i._sprite||"__default"),!o._loaded&&!o._sprite[e])return o.once("load",function(){o.play(o._soundById(i._id)?i._id:void 0)}),i._id;if(r&&!i._paused)return i._id;var _=i._seek>0?i._seek:o._sprite[e][0]/1e3,s=(o._sprite[e][0]+o._sprite[e][1])/1e3-_,l=function(){var t=!(!i._loop&&!o._sprite[e][2]);o._emit("end",i._id),!o._webAudio&&t&&o.stop(i._id).play(i._id),o._webAudio&&t&&(o._emit("play",i._id),i._seek=i._start||0,i._playStart=n.currentTime,o._endTimers[i._id]=setTimeout(l,1e3*(i._stop-i._start)/Math.abs(o._rate))),o._webAudio&&!t&&(i._paused=!0,i._ended=!0,i._seek=i._start||0,o._clearTimer(i._id),i._node.bufferSource=null),o._webAudio||t||o.stop(i._id)};o._endTimers[i._id]=setTimeout(l,1e3*s/Math.abs(o._rate)),i._paused=!1,i._ended=!1,i._sprite=e,i._seek=_,i._start=o._sprite[e][0]/1e3,i._stop=(o._sprite[e][0]+o._sprite[e][1])/1e3,i._loop=!(!i._loop&&!o._sprite[e][2]);var f=i._node;if(o._webAudio){var c=function(){o._refreshBuffer(i);var e=i._muted||o._muted?0:i._volume*u.volume();f.gain.setValueAtTime(e,n.currentTime),i._playStart=n.currentTime,"undefined"==typeof f.bufferSource.start?i._loop?f.bufferSource.noteGrainOn(0,_,86400):f.bufferSource.noteGrainOn(0,_,s):i._loop?f.bufferSource.start(0,_,86400):f.bufferSource.start(0,_,s),o._endTimers[i._id]||(o._endTimers[i._id]=setTimeout(l,1e3*s/Math.abs(o._rate))),t[1]||setTimeout(function(){o._emit("play",i._id)},0)};o._loaded?c():(o.once("load",c),o._clearTimer(i._id))}else{var p=function(){f.currentTime=_,f.muted=i._muted||o._muted||u._muted||f.muted,f.volume=i._volume*u.volume(),f.playbackRate=o._rate,setTimeout(function(){f.play(),t[1]||o._emit("play",i._id)},0)};if(4===f.readyState||!f.readyState&&navigator.isCocoonJS)p();else{var m=function(){o._endTimers[i._id]=setTimeout(l,1e3*s/Math.abs(o._rate)),p(),f.removeEventListener("canplaythrough",m,!1)};f.addEventListener("canplaythrough",m,!1),o._clearTimer(i._id)}}return i._id},pause:function(e){var n=this;if(!n._loaded)return n.once("play",function(){n.pause(e)}),n;for(var o=n._getSoundIds(e),t=0;t<o.length;t++){n._clearTimer(o[t]);var r=n._soundById(o[t]);if(r&&!r._paused){if(r._seek=n.seek(o[t]),r._paused=!0,n._webAudio){if(!r._node.bufferSource)return n;"undefined"==typeof r._node.bufferSource.stop?r._node.bufferSource.noteOff(0):r._node.bufferSource.stop(0),r._node.bufferSource=null}else isNaN(r._node.duration)||r._node.pause();arguments[1]||n._emit("pause",r._id)}}return n},stop:function(e){var n=this;if(!n._loaded)return"undefined"!=typeof n._sounds[0]._sprite&&n.once("play",function(){n.stop(e)}),n;for(var o=n._getSoundIds(e),t=0;t<o.length;t++){n._clearTimer(o[t]);var r=n._soundById(o[t]);if(r&&!r._paused)if(r._seek=r._start||0,r._paused=!0,r._ended=!0,n._webAudio&&r._node){if(!r._node.bufferSource)return n;"undefined"==typeof r._node.bufferSource.stop?r._node.bufferSource.noteOff(0):r._node.bufferSource.stop(0),r._node.bufferSource=null}else r._node&&!isNaN(r._node.duration)&&(r._node.pause(),r._node.currentTime=r._start||0)}return n},mute:function(e,o){var t=this;if(!t._loaded)return t.once("play",function(){t.mute(e,o)}),t;if("undefined"==typeof o){if("boolean"!=typeof e)return t._muted;t._muted=e}for(var r=t._getSoundIds(o),d=0;d<r.length;d++){var a=t._soundById(r[d]);a&&(a._muted=e,t._webAudio&&a._node?a._node.gain.setValueAtTime(e?0:a._volume*u.volume(),n.currentTime):a._node&&(a._node.muted=u._muted?!0:e))}return t},volume:function(){var e,o,t=this,r=arguments;if(0===r.length)return t._volume;if(1===r.length){var d=t._getSoundIds(),a=d.indexOf(r[0]);a>=0?o=parseInt(r[0],10):e=parseFloat(r[0])}else 2===r.length&&(e=parseFloat(r[0]),o=parseInt(r[1],10));var i;if(!("undefined"!=typeof e&&e>=0&&1>=e))return i=o?t._soundById(o):t._sounds[0],i?i._volume:0;if(!t._loaded)return t.once("play",function(){t.volume.apply(t,r)}),t;"undefined"==typeof o&&(t._volume=e),o=t._getSoundIds(o);for(var _=0;_<o.length;_++)i=t._soundById(o[_]),i&&(i._volume=e,t._webAudio&&i._node?i._node.gain.setValueAtTime(e*u.volume(),n.currentTime):i._node&&(i._node.volume=e*u.volume()));return t},fade:function(e,o,t,r){var d=this;if(!d._loaded)return d.once("play",function(){d.fade(e,o,t,r)}),d;d.volume(e,r);for(var u=d._getSoundIds(r),a=0;a<u.length;a++){var i=d._soundById(u[a]);if(i)if(d._webAudio){var _=n.currentTime,s=_+t/1e3;i._volume=e,i._node.gain.setValueAtTime(e,_),i._node.gain.linearRampToValueAtTime(o,s),setTimeout(function(e,t){setTimeout(function(){t._volume=o,d._emit("faded",e)},s-n.currentTime>0?Math.ceil(1e3*(s-n.currentTime)):0)}.bind(d,u[a],i),t)}else{var l=Math.abs(e-o),f=e>o?"out":"in",c=l/.01,p=t/c;!function(){var n=e,t=setInterval(function(e){n+="in"===f?.01:-.01,n=Math.max(0,n),n=Math.min(1,n),n=Math.round(100*n)/100,d.volume(n,e),n===o&&(clearInterval(t),d._emit("faded",e))}.bind(d,u[a]),p)}()}}return d},loop:function(){var e,n,o,t=this,r=arguments;if(0===r.length)return t._loop;if(1===r.length){if("boolean"!=typeof r[0])return o=t._soundById(parseInt(r[0],10)),o?o._loop:!1;e=r[0],t._loop=e}else 2===r.length&&(e=r[0],n=parseInt(r[1],10));for(var d=t._getSoundIds(n),u=0;u<d.length;u++)o=t._soundById(d[u]),o&&(o._loop=e,t._webAudio&&o._node&&(o._node.bufferSource.loop=e));return t},seek:function(){var e,o,t=this,r=arguments;if(0===r.length)o=t._sounds[0]._id;else if(1===r.length){var d=t._getSoundIds(),u=d.indexOf(r[0]);u>=0?o=parseInt(r[0],10):(o=t._sounds[0]._id,e=parseFloat(r[0]))}else 2===r.length&&(e=parseFloat(r[0]),o=parseInt(r[1],10));if("undefined"==typeof o)return t;if(!t._loaded)return t.once("load",function(){t.seek.apply(t,r)}),t;var a=t._soundById(o);if(a){if(!(e>=0))return t._webAudio?a._seek+t.playing(o)?n.currentTime-a._playStart:0:a._node.currentTime;var i=t.playing(o);i&&t.pause(o,!0),a._seek=e,t._clearTimer(o),i&&t.play(o,!0)}return t},playing:function(e){var n=this,o=n._soundById(e)||n._sounds[0];return o?!o._paused:!1},duration:function(){return this._duration},unload:function(){for(var e=this,n=e._sounds,o=0;o<n.length;o++){n[o]._paused||(e.stop(n[o]._id),e._emit("end",n[o]._id)),e._webAudio||(n[o]._node.src="",n[o]._node.removeEventListener("error",n[o]._errorFn,!1),n[o]._node.removeEventListener("canplaythrough",n[o]._loadFn,!1)),delete n[o]._node,e._clearTimer(n[o]._id);var t=u._howls.indexOf(e);t>=0&&u._howls.splice(t,1)}return _&&delete _[e._src],e=null,null},on:function(e,n,o){var t=this,r=t["_on"+e];return"function"==typeof n&&r.push({id:o,fn:n}),t},off:function(e,n,o){var t=this,r=t["_on"+e];if(n){for(var d=0;d<r.length;d++)if(n===r[d].fn&&o===r[d].id){r.splice(d,1);break}}else r=[];return t},once:function(e,n,o){var t=this,r=function(){n.apply(t,arguments),t.off(e,r,o)};return t.on(e,r,o),t},_emit:function(e,n,o){for(var t=this,r=t["_on"+e],d=0;d<r.length;d++)r[d].id&&r[d].id!==n||setTimeout(function(e){e.call(this,n,o)}.bind(t,r[d].fn),0);return t},_clearTimer:function(e){var n=this;return n._endTimers[e]&&(clearTimeout(n._endTimers[e]),delete n._endTimers[e]),n},_soundById:function(e){for(var n=this,o=0;o<n._sounds.length;o++)if(e===n._sounds[o]._id)return n._sounds[o];return null},_inactiveSound:function(){var e=this;e._drain();for(var n=0;n<e._sounds.length;n++)if(e._sounds[n]._ended)return e._sounds[n].reset();return new i(e)},_drain:function(){var e=this,n=e._pool,o=0,t=0;if(!(e._sounds.length<n)){for(t=0;t<e._sounds.length;t++)e._sounds[t]._ended&&o++;for(t=e._sounds.length-1;t>=0;t--){if(n>=o)return;e._sounds[t]._ended&&(e._webAudio&&e._sounds[t]._node&&e._sounds[t]._node.disconnect(0),e._sounds.splice(t,1),o--)}}},_getSoundIds:function(e){var n=this;if("undefined"==typeof e){for(var o=[],t=0;t<n._sounds.length;t++)o.push(n._sounds[t]._id);return o}return[e]},_refreshBuffer:function(e){var o=this;return e._node.bufferSource=n.createBufferSource(),e._node.bufferSource.buffer=_[o._src],e._node.bufferSource.connect(e._panner?e._panner:e._node),e._node.bufferSource.loop=e._loop,e._loop&&(e._node.bufferSource.loopStart=e._start||0,e._node.bufferSource.loopEnd=e._stop),e._node.bufferSource.playbackRate.value=o._rate,o}};var i=function(e){this._parent=e,this.init()};if(i.prototype={init:function(){var e=this,n=e._parent;return e._muted=n._muted,e._loop=n._loop,e._volume=n._volume,e._muted=n._muted,e._seek=0,e._paused=!0,e._ended=!0,e._id=Math.round(Date.now()*Math.random()),n._sounds.push(e),e.create(),e},create:function(){var e=this,o=e._parent,t=u._muted||e._muted||e._parent._muted?0:e._volume*u.volume();return o._webAudio?(e._node="undefined"==typeof n.createGain?n.createGainNode():n.createGain(),e._node.gain.setValueAtTime(t,n.currentTime),e._node.paused=!0,e._node.connect(r)):(e._node=new Audio,e._errorFn=e._errorListener.bind(e),e._node.addEventListener("error",e._errorFn,!1),e._loadFn=e._loadListener.bind(e),e._node.addEventListener("canplaythrough",e._loadFn,!1),e._node.src=o._src,e._node.preload="auto",e._node.volume=t,e._node.load()),e},reset:function(){var e=this,n=e._parent;return e._muted=n._muted,e._loop=n._loop,e._volume=n._volume,e._muted=n._muted,e._seek=0,e._paused=!0,e._ended=!0,e._sprite=null,e._id=Math.round(Date.now()*Math.random()),e},_errorListener:function(){var e=this;e._node.error&&4===e._node.error.code&&(u.noAudio=!0),e._parent._emit("loaderror",e._id,e._node.error?e._node.error.code:0),e._node.removeEventListener("error",e._errorListener,!1)},_loadListener:function(){var e=this,n=e._parent;n._duration=Math.ceil(10*e._node.duration)/10,0===Object.keys(n._sprite).length&&(n._sprite={__default:[0,1e3*n._duration]}),n._loaded||(n._loaded=!0,n._emit("load")),n._autoplay&&n.play(),e._node.removeEventListener("canplaythrough",e._loadFn,!1)}},o)var _={},s=function(e){var n=e._src;if(_[n])return e._duration=_[n].duration,void c(e);if(/^data:[^;]+;base64,/.test(n)){window.atob=window.atob||function(e){for(var n,o,t="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",r=String(e).replace(/=+$/,""),d=0,u=0,a="";o=r.charAt(u++);~o&&(n=d%4?64*n+o:o,d++%4)?a+=String.fromCharCode(255&n>>(-2*d&6)):0)o=t.indexOf(o);return a};for(var o=atob(n.split(",")[1]),t=new Uint8Array(o.length),r=0;r<o.length;++r)t[r]=o.charCodeAt(r);f(t.buffer,e)}else{var d=new XMLHttpRequest;d.open("GET",n,!0),d.responseType="arraybuffer",d.onload=function(){f(d.response,e)},d.onerror=function(){e._webAudio&&(e._html5=!0,e._webAudio=!1,e._sounds=[],delete _[n],e.load())},l(d)}},l=function(e){try{e.send()}catch(n){e.onerror()}},f=function(e,o){n.decodeAudioData(e,function(e){e&&(_[o._src]=e,c(o,e))},function(){o._emit("loaderror")})},c=function(e,n){n&&!e._duration&&(e._duration=n.duration),0===Object.keys(e._sprite).length&&(e._sprite={__default:[0,1e3*e._duration]}),e._loaded||(e._loaded=!0,e._emit("load")),e._autoplay&&e.play()};"function"==typeof define&&define.amd&&define("howler",function(){return{Howler:u,Howl:a}}),"undefined"!=typeof exports&&(exports.Howler=u,exports.Howl=a),"undefined"!=typeof window&&(window.HowlerGlobal=d,window.Howler=u,window.Howl=a,window.Sound=i)}();
-/**
- * @classdesc 声音类用来对指定音频执行播放、暂停、静音等操作
+ * 声音类用来对指定音频执行播放、暂停、静音等操作
  * @class 
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Sound = function(opts){
     opts = opts || {};
@@ -8692,9 +9465,9 @@ soya2d.Sound.prototype = {
         if(m != undefined){
             this.__muted = m;
             if(m)
-                this.__handler.mute();
+                this.__handler.mute(true);
             else{
-                this.__handler.unmute();
+                this.__handler.mute(false);
             }
             return this;
         }
@@ -8781,72 +9554,21 @@ soya2d.Sound.prototype = {
 };
 
 /**
- * @classdesc 声音管理器类用来管理所绑定game实例中的所有音频，用于获取，创建，删除声音。<br/>
+ * 声音管理器类用来管理所绑定game实例中的所有音频，用于统一处理这些声音，
+ * 包括静音、停止等。<br/>
  * 该类无需显式创建，引擎会自动绑定到game实例属性中。
  * @class 
- * @extends soya2d.ResourceManager
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
-soya2d.SoundManager = function(){
-    //继承
-    soya2d.ResourceManager.call(this);
-
-    function getBaseNames(urls){
-        var rs = [];
-        if(urls.forEach){
-            urls.forEach(function(url){
-                var baseName = url.split('.')[0];
-                if(rs.indexOf(baseName) < 0)rs.push(baseName);
-            });
-        }
-        return rs;
-    }
-
-    /**
-     * 创建一个声音对象，并立即加载
-     * @param {var} opts 创建参数对象，参数如下：
-     * @param {Array} opts.urls 文件路径数组，可以指定不同的格式路径用于跨平台，比如：['sound.mp3','sound.ogg','sound.m4a']。文件前缀被称为标识，
-        每次创建只支持一个标识，如果有多个，只识别第一个
-     * @param {boolean} [opts.autoplay=false] 是否自动播放
-     * @param {boolean} [opts.loop] 是否循环播放
-     * @param {boolean} [opts.volume] 声音初始音量。0.0 - 1.0
-     * @return {soya2d.Sound | null} 声音对象
-     */
-    this.create = function(opts){
-        if(!opts)return null;
-        if(!opts.urls || opts.urls.length<1)return null;
-
-        var handler = new Howl(opts);
-        var sound = new soya2d.Sound(opts);
-        sound.__handler = handler;
-
-        //put map
-        var baseNames = getBaseNames(opts.urls);
-        this.urlMap[baseNames[0]] = sound;
-
-        return sound;
-    };
-
-    /**
-     * 添加声音到管理器，用于loader
-     * @private
-     */
-    this._add = function(src,res){
-        if(typeof(src) == "string"){
-            src = [src];
-        }
-        var baseNames = getBaseNames(src);
-        this.urlMap[baseNames[0]] = res;
-    };
-
+soya2d.SoundManager = function(game){
+    this.game = game;
+    this.__sounds = game.assets.__assets.sound;
     /**
      * 设置所有声音的静音状态
      * @param {boolean} m 是否静音
      */
     this.muteAll = function(m){
-        for(var i in this.urlMap){
-            var sound = this.urlMap[i];
-            sound.mute(m);
+        for(var k in this.__sounds){
+            this.__sounds[k].mute(m);
         }
     };
     
@@ -8854,13 +9576,11 @@ soya2d.SoundManager = function(){
      * 停止所有声音
      */
     this.stopAll = function(){
-        for(var i in this.urlMap){
-            var sound = this.urlMap[i];
-            sound.stop();
+        for(var k in this.__sounds){
+            this.__sounds[k].stop();
         }
     }
 };
-soya2d.inherits(soya2d.SoundManager,soya2d.ResourceManager);
 
 soya2d.module.install('sound',{
     onInit:function(game){
@@ -8868,1151 +9588,860 @@ soya2d.module.install('sound',{
          * 声音管理器
          * @type {soya2d.SoundManager}
          * @memberOf! soya2d.Game#
-         * @alias soundManager
+         * @alias sound
          * @requires sound
          */
-        game.soundManager = new soya2d.SoundManager();
+        game.sound = new soya2d.SoundManager(game);
     },
     onStop:function(game){
-        game.soundManager.stopAll();
+        game.sound.stopAll();
     }
 });
-/**
- * @classdesc 发射器用于在给定的坐标发射粒子。默认的粒子都是dead状态，不可见，
- * 引擎会激活粒子为活跃状态，并按照参数发射粒子，这时粒子为可见。
- * @class 
- * @param {Object} opts 构造参数对象，参数如下：
- * @param {Number} [opts.MSPE=16] 粒子发射间隔
- * @param {int} opts.emissionCount 总粒子数
- * @param {int} [opts.blendMode=soya2d.BLEND_LIGHTER] 混合模式
- * @param {int} opts.x 发射器坐标
- * @param {int} [opts.xVar=0] 发射器坐标，可变累加值
- * @param {int} opts.y 发射器坐标
- * @param {int} [opts.yVar=0] 发射器坐标，可变累加值
- * @param {soya2d.DisplayObject} opts.template 粒子模版
- * @param {Number} [opts.lifeSpan=1] 粒子生命周期
- * @param {Number} [opts.lifeSpanVar=0] 粒子生命周期，可变累加值
- * @param {Number} [opts.speed=0] 粒子移动速度
- * @param {Number} [opts.speedVar=0] 粒子移动速度，可变累加值
- * @param {Number} [opts.radialAcc=0] 径向加速度
- * @param {Number} [opts.radialAccVar=0] 径向加速度，可变累加值
- * @param {Number} [opts.tanAcc=0] 切线加速度
- * @param {Number} [opts.tanAccVar=0] 切线加速度，可变累加值
- * @param {Number} [opts.angle=0] 发射角度
- * @param {Number} [opts.angleVar=0] 发射角度，可变累加值
- * @param {Number} [opts.startSpin=0] 自转速度范围起始
- * @param {Number} [opts.startSpinVar=0] 自转速度范围起始，可变累加值
- * @param {Number} [opts.endSpin=0] 自转速度范围结束
- * @param {Number} [opts.endSpinVar=0] 自转速度范围结束，可变累加值
- * @param {function} [opts.onActive] 回调事件，粒子激活时调用。
- * 在粒子发射器停止前，每个粒子都可以无限次激活
- * @author {@link http://weibo.com/soya2d MrSoya}
- */
-soya2d.Emitter = function(opts){
-	var particles = [];
-	var lastTime = 0;
-	
-	cfg = opts||{};
+!function(){
+	/**
+	 * 发射器用于在给定的坐标发射粒子。默认的粒子都是dead状态，不可见，
+	 * 引擎会激活粒子为活跃状态，并按照参数发射粒子，这时粒子为可见。
+	 * @class 
+	 * @extends soya2d.DisplayObjectContainer
+	 * @param {Object} opts 构造参数对象，参数如下：
+	 * @param {Number} [opts.frequency=0.1] 粒子发射间隔 s
+	 * @param {int} opts.max 总粒子数
+	 * @param {soya2d.DisplayObject} opts.particles 粒子，可以是图片或者显示对象
+	 * @param {Number} [opts.lifeSpan=1] 粒子生命周期 s
+	 * @param {Number} [opts.lifeSpanVar=0] 粒子生命周期，可变累加值
+	 * @param {Number} [opts.speed=0] 粒子移动速度
+	 * @param {Number} [opts.speedVar=0] 粒子移动速度，可变累加值
+	 * @param {Number} [opts.radialAcc=0] 径向加速度
+	 * @param {Number} [opts.radialAccVar=0] 径向加速度，可变累加值
+	 * @param {Number} [opts.tanAcc=0] 切线加速度
+	 * @param {Number} [opts.tanAccVar=0] 切线加速度，可变累加值
+	 * @param {Number} [opts.angle=0] 发射角度
+	 * @param {Number} [opts.angleVar=0] 发射角度，可变累加值
+	 * @param {Number} [opts.startSpin=0] 自转速度范围起始
+	 * @param {Number} [opts.startSpinVar=0] 自转速度范围起始，可变累加值
+	 * @param {Number} [opts.endSpin=0] 自转速度范围结束
+	 * @param {Number} [opts.endSpinVar=0] 自转速度范围结束，可变累加值
+	 * @param {function} [opts.onActive] 回调事件，粒子激活时调用
+	 */
+	soya2d.class("soya2d.Emitter",{
+	    extends:soya2d.DisplayObjectContainer,
+	    constructor:function(data){
+			var cfg = data||{};
 
-	soya2d.ext(this,cfg);
+	        this.__particles = [];
 
-	//1.初始化发生器变量
-	this.MSPE = cfg.MSPE||16;
-	this.emissionCount = cfg.emissionCount;//粒子数
-	this.blendMode = cfg.blendMode || soya2d.BLEND_LIGHTER;//混合方式
-	this.x = cfg.x;this.xVar = cfg.xVar||0;
-	this.y = cfg.y;this.yVar = cfg.yVar||0;
-	
-	//2.初始化粒子属性
-	this.template = soya2d.ParticleWrapper.wrap(cfg.template);//粒子模版
-	//生命周期
-	this.lifeSpan = cfg.lifeSpan || 1;
-	this.lifeSpanVar = cfg.lifeSpanVar||0;
-	//默认速度
-	this.speed = cfg.speed || 0;
-	this.speedVar = cfg.speedVar||0;
-	//径向加速度
-	this.radialAcc = cfg.radialAcc||0;
-	this.radialAccVar = cfg.radialAccVar||0;
-	//切线加速度
-	this.tanAcc = cfg.tanAcc||0;
-	this.tanAccVar = cfg.tanAccVar||0;
-	//角度
-	this.angle = cfg.angle||0;
-	this.angleVar = cfg.angleVar||0;
-	//自旋转
-	this.startSpin = cfg.startSpin||0;
-	this.startSpinVar = cfg.startSpinVar||0;
-	this.endSpin = cfg.endSpin||0;
-	this.endSpinVar = cfg.endSpinVar||0;
+			//1.初始化发生器变量
+			this.frequency = cfg.frequency*1000 || 100;
+			this.size = cfg.size;//粒子数
+			this.quantity = cfg.quantity || 1;//每次发射最大粒子数
+			
+			//2.初始化粒子属性
+			this.__template = getTemplate(cfg.particles);//粒子模版
+			//生命周期
+			this.lifeSpan = cfg.lifeSpan || 1;
+			//默认速度
+			this.minSpeed = cfg.minSpeed || 0;
+			this.maxSpeed = cfg.maxSpeed || 0;
+			//径向加速度
+			this.minRadAcc = cfg.minRadAcc || 0;
+			this.maxRadAcc = cfg.maxRadAcc || 0;
+			//切线加速度
+			this.minTanAcc = cfg.minTanAcc || 0;
+			this.maxTanAcc = cfg.maxTanAcc || 0;
+			//角度
+			this.minAngle = cfg.minAngle || 0;
+			this.maxAngle = cfg.maxAngle || 0;
+			
+			//初始化粒子
+			for(var i=this.size;i--;){
+				var p = this.__template.clone();
+				p.visible = false;
+				p.lifeSpan = 0;//dead particle
+				p.deadRate = 0;
+				p.blendMode = cfg.blendMode;
+				this.__particles.push(p);
+			}
 
-	//回调
-	this.onActive = cfg.onActive;
-	
-	//初始化粒子
-	for(var i=this.emissionCount;i--;){
-		var p = new this.template(this);
-		p.visible = false;
-		p.lifeSpan = 0;//dead particle
-		p.deadRate = 0;
-		particles.push(p);
-	}
+			this.__deltaSum = 0;
 
-	/**
-	 * 是否运行中
-	 * @type {Boolean}
-	 */
-	this.running = false;
-	/**
-	 * 把发射器添加到soya2d显示对象上
-	 * @param {soya2d.DisplayObject} object 显示对象
-	 * @return this
-	 */
-	this.addTo = function(object){
-		if(!soya2d.ParticleManager.add(this))return this;
-		
-		object.add.apply(object,particles);
-		
-		return this;
-	}
-	/**
-	 * 把发射器从soya2d显示对象上移除
-	 * @param {soya2d.DisplayObject} object 显示对象
-	 * @return this
-	 */
-	this.removeFrom = function(object){
-		soya2d.ParticleManager.remove(this);
-		
-		object.remove.apply(object,particles);
-		
-		return this;
-	}
-	/**
-	 * 开始发射粒子
-	 */
-	this.emit = function(){
-		if(this.running)return this;
-		lastTime = Date.now();
-		this.running = true;
-		if(this.stopping){
-			clearTimeout(this.stopping);
-		}
-		return this;
-	}
-	/**
-	 * 发射器停止产生新粒子<br/>
-	 * *调用emit方法可以解除该状态
-	 * @param {int} ms 停止激活的延迟毫秒数
-	 */
-	this.stop = function(ms){
-		if(!this.running)return this;
-		if(ms>0){
-			var THAT = this;
-			this.stopping = setTimeout(function(){
-				this.running = false;
-				THAT.stopping = 0;
-			},ms);
-			return;
-		}
-		//停止激活新粒子
-		this.running = false;
-		return this;
-	};
-	
-	var deltaSum = 0;
-	/*
-	 * 更新所有粒子,代理调用
-	 * @private
-	 */
-	this.update = function(now){
-		//1.确定该帧激活多少个粒子
-		var delta = now - lastTime;
-		lastTime = now;
-		deltaSum += delta;
-		var emittableCount = 0;
-		var ps = particles;
-		
-		//时间差值是否大于粒子发射间隔
-		if (deltaSum >= this.MSPE && this.running) {
-	      	emittableCount = (deltaSum / this.MSPE)>>0;
-	      	deltaSum = 0;
-	  	}
-  
-		//有该帧能发射的粒子
-		if(emittableCount>0 && this.running){
-		  	emittableCount = emittableCount>this.emissionCount?this.emissionCount:emittableCount;
-		  	for(var i=this.emissionCount;i--&&emittableCount;){
-		  		var p = ps[i];
-				if(p.lifeSpan<=0){
-					if(this.onActive instanceof Function)
-					this.onActive.call(p);
-					p.resetParticle(this);
-					emittableCount--;
+			/**
+			 * 是否运行中
+			 * @type {Boolean}
+			 */
+			this.running = false;
+	    },
+	    tween:{
+	    	__ts:[],
+	    	add:function(){
+	    		var t = {
+	    			__tds:[],
+			    	to:function(attris,duration,opts){
+			    		this.__tds.push([attris,duration,opts]);
+			    		return this;
+			    	}
+	    		};
+	    		this.__ts.push(t);
+	    		return t;
+	    	}
+	    },
+	    /**
+		 * 发射粒子
+		 */
+	    emit:function(){
+			if(this.running)return;
+
+			this.__particles.forEach(function(p){
+				this.add(p);
+			},this);
+
+			this.running = true;
+			if(this.stopping){
+				clearTimeout(this.stopping);
+			}
+			return this;
+		},
+		/**
+		 * 发射器停止产生新粒子<br/>
+		 * *调用emit方法可以解除该状态
+		 * @param {int} ms 停止激活的延迟毫秒数
+		 */
+		stop:function(ms){
+			if(!this.running)return;
+			if(ms>0){
+				var that = this;
+				this.stopping = setTimeout(function(){
+					that.running = false;
+					that.stopping = null;
+
+					that.__particles.forEach(function(p){
+						that.add(p);
+					});
+				},ms);
+				return;
+			}
+			//停止激活新粒子
+			this.running = false;
+			return this;
+		},
+		onUpdate:function(game,delta){
+			if(!this.running)return;
+
+			this.__deltaSum += delta;
+
+			var emittableCount = 0;
+			var ps = this.__particles;
+			
+			//时间差值是否大于粒子发射间隔
+			if (this.__deltaSum >= this.frequency && this.running) {
+		      	emittableCount = (this.__deltaSum / this.frequency)>>0;
+		      	this.__deltaSum = 0;
+		  	}
+
+		  	//有该帧能发射的粒子
+			if(emittableCount>0 && this.running){
+			  	emittableCount = this.quantity;//this.size;emittableCount>this.size?this.size:emittableCount;
+			  	for(var i=this.size;i--&&emittableCount;){
+			  		var p = ps[i];
+					if(p.lifeSpan<=0){
+						if(this.onActive)this.onActive(p);
+						initParticle(p,this);
+						if(this.tween.__ts.length>0){
+							this.tween.__ts.forEach(function(t){
+								var tween = game.tween.add(p);
+								t.__tds.forEach(function(td){
+									tween.to(td[0],td[1],td[2]);
+								});
+								tween.play();
+							});
+						}
+						if(emittableCount>0)
+						emittableCount--;
+					}
 				}
 			}
-		}
-			
-		//2.更新所有活的粒子
-		for(var i=ps.length;i--;){
-			var p = ps[i];
-			if(p.lifeSpan>0){
-				p.updateParticle(delta);
-			}
-		}//over for
-	};
-};
 
-/**
- * 粒子管理器接口，用于管理粒子发射器的运行<br/>
- * *通常不需要开发者直接使用该类，引擎会自动调度
- * @namespace soya2d.ParticleManager
- * @author {@link http://weibo.com/soya2d MrSoya}
- */
-soya2d.ParticleManager = new function(){
-	var emitters = [];
-	this.add = function(emitter){
-		var i = emitters.indexOf(emitter);
-		if(i>-1){
-			return false;
-		}
-		emitters.push(emitter);
-		return this;
-	};
-	this.remove = function(emitter) {
-		var i = emitters.indexOf(emitter);
-		if(i>-1)emitters.splice(emitter, 1);
-		return this;
-	};
+			//2.更新所有活的粒子
+			for(var i=ps.length;i--;){
+				var p = ps[i];
+				if(p.lifeSpan>0){
+					updateParticle(p,delta);
+					if(!p.visible)p.visible = true;
+				}
+			}//over for
 
-	this.update = function(t){
-		for(var i=emitters.length;i--;){
-			emitters[i].update(t);	
-		}
-	};
-	
-	this.stop = function(emitter){
-		if(emitter){
-			var i = emitters.indexOf(emitter);
-			if(i>-1)emitter.stop();
-		}else{
-			emitters.splice(0,emitters.length);
-		}
-	};
-};
+			if(this.onRunning)this.onRunning(ps);
 
-/**
- * 粒子包装器用于包装soya2d显示对象为一个可用粒子
- * @namespace soya2d.ParticleWrapper
- * @author {@link http://weibo.com/soya2d MrSoya}
- */
-soya2d.ParticleWrapper = new function(){
-
-	/**
-	 * 包装一个显示类，该类需要提供粒子的绘制方法，比如内置的{@link soya2d.Rect}
-	 * @param  {soya2d.DisplayObject} clazz 粒子类
-	 * @return {soya2d.DisplayObject} particle 包装后的粒子类
-	 */
-	this.wrap = function(clazz){
-		clazz.prototype.updateParticle = updateParticle;
-		clazz.prototype.initParticle = initParticle;
-		clazz.prototype.resetParticle = resetParticle;
-		clazz.prototype.destroyParticle = function() {
-	    	this.parent.remove(this);
 		}
-		return clazz;
+	});
+
+
+	function getTemplate(particles){
+		if(typeof(particles) === 'string' 
+			|| particles instanceof Image 
+			|| particles instanceof Array ){
+			return new soya2d.Sprite({
+				images:particles
+			});
+		}else if(particles instanceof soya2d.DisplayObject){
+			return particles;
+		}
+
+		soya2d.console.error('soya2d.Emitter: invalid param [particles]; '+particles);
 	}
 
-	//this.interpolationType = 'linear';
-    //中间值可以使用Tween来进行差值计算
-    
-    function updateParticle(delta){
+	function updateParticle(particle,delta){
     	var m = soya2d.Math;
     	var dt = delta/1000;
     	//1.检测是否已经死亡
-    	this.lifeSpan -= dt;
-    	if(this.lifeSpan<=0){
-    		this.visible = false;
-    		this.deadRate = 0;
+    	particle.lifeSpan -= dt;
+    	if(particle.lifeSpan<=0){
+    		particle.visible = false;
+    		particle.deadRate = 0;
     		return;
     	}
-    	this.deadRate = this.lifeSpan / this.maxLifeSpan;
+    	particle.deadRate = particle.lifeSpan / particle.__maxLifeSpan;
     	//2.更新所有属性
     	 
     	//位置(射线)
-    	this.speed.add(this.deltaSpeed).add(this.radialAcc);
+    	particle.__speed.add(particle.__deltaSpeed).add(particle.__radialAcc);
     	 
        	//切线旋转
-       	if(this.tanAcc!==0){
-	       	this.tanDir.set(this.speed.e[0],this.speed.e[1]).rotate(this.tans);
-	       	this.tans += this.tanAcc;
-	       	this.tans %= 360;
-	       	this.speed.set(this.tanDir.e[0],this.tanDir.e[1]);
+       	if(particle.__tanAcc!==0){
+	       	particle.__tanDir.set(particle.__speed.e[0],particle.__speed.e[1]).rotate(particle.__tans);
+	       	particle.__tans += particle.__tanAcc;
+	       	particle.__tans %= 360;
+	       	particle.__speed.set(particle.__tanDir.e[0],particle.__tanDir.e[1]);
 	    }
        
-       	//自转
-       	if(this.deltaSpin)
-       		this.startSpin += this.deltaSpin * dt;
        
        	//更新引擎属性
-       	this.x = this.sx + this.speed.e[0];
-    	this.y = this.sy + this.speed.e[1];
-    	if(this.deltaSpin)this.rotation = this.startSpin;
+       	particle.x = particle.__sx + particle.__speed.e[0];
+    	particle.y = particle.__sy + particle.__speed.e[1];
     }
-    function initParticle(opts){
+    function initParticle(particle,opts){
 		var m = soya2d.Math;
 		//初始化配置
-		var ls = this.lifeSpan = opts.lifeSpan + opts.lifeSpanVar * Math.random();
-		this.maxLifeSpan = ls;
+		var ls = particle.lifeSpan = opts.lifeSpan;
+		particle.__maxLifeSpan = ls;
 		
-		this.sx = opts.x + opts.xVar * Math.random();
-		this.sy = opts.y + opts.yVar * Math.random();
+		particle.__sx = m.randomi(0,opts.w - particle.w);
+		particle.__sy = m.randomi(0,opts.h - particle.h);
 		
 		//方向速度
-		var angle = opts.angle + opts.angleVar * Math.random();
+		var diffAngle = opts.maxAngle?opts.maxAngle - opts.minAngle:0;
+		var angle = opts.minAngle + diffAngle * Math.random();
 		angle = m.floor(angle %= 360);
-		this.angle = angle;
-		var speed = opts.speed + opts.speedVar * Math.random();
+		particle.angle = angle;
+
+		var diffSpd = opts.maxSpeed?opts.maxSpeed - opts.minSpeed:0;
+		var speed = opts.minSpeed + diffSpd * Math.random();
 		var tmp = new soya2d.Vector(m.COSTABLE[angle], m.SINTABLE[angle]);
-		this.speed = tmp.clone().mul(speed);
-		this.deltaSpeed = new soya2d.Vector(this.speed.e[0]/ls,this.speed.e[1]/ls);
+		particle.__speed = tmp.clone().mul(speed);
+		particle.__deltaSpeed = new soya2d.Vector(particle.__speed.e[0]/ls,particle.__speed.e[1]/ls);
+		
 		//径向加速
-		this.radialAcc = tmp.mul(opts.radialAcc + opts.radialAccVar * Math.random());
+		var diffRac = opts.maxRadAcc?opts.maxRadAcc - opts.minRadAcc:0;
+		particle.__radialAcc = tmp.mul(opts.minRadAcc + diffRac * Math.random());
+		
 		//切线角加速度
-		this.tanAcc = opts.tanAcc + opts.tanAccVar * Math.random();
-		if(this.tanAcc!==0){
-			this.tans = this.tanAcc;
-			this.tanDir = new soya2d.Vector(0,0);
+		var diffTac = opts.maxTanAcc?opts.maxTanAcc - opts.minTanAcc:0;
+		particle.__tanAcc = opts.minTanAcc + diffTac * Math.random();
+		if(particle.__tanAcc!==0){
+			particle.__tans = particle.__tanAcc;
+			particle.__tanDir = new soya2d.Vector(0,0);
 		}
 		
-		//自转
-		this.startSpin = opts.startSpin + opts.startSpinVar * Math.random();
-		var endSpin = opts.endSpin + opts.endSpinVar * Math.random();
-		this.deltaSpin = (endSpin - this.startSpin) / ls;
-		if(this.startSpin === endSpin)this.deltaSpin = null;//不更新
-		
 	}
-	function resetParticle(c) {
-		this.initParticle(c);
-		this.visible = true;
-	}
-};
-soya2d.module.install('particle',{
-    onUpdate:function(game,now,d){
-    	soya2d.ParticleManager.update(now);
-    },
-    onStop:function(){
-    	soya2d.ParticleManager.stop();
+}();
+soya2d.module.install('particles',{
+    onInit:function(game){
+        game.objects.register('emitter',soya2d.Emitter);
     }
 });
 /**
- * The MIT License (MIT)
- * 
- * Copyright (c) 2013 p2.js authors
- * 
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- * 
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
-!function(a){if("object"==typeof exports)module.exports=a();else if("function"==typeof define&&define.amd)define(a);else{var b;"undefined"!=typeof window?b=window:"undefined"!=typeof global?b=global:"undefined"!=typeof self&&(b=self),b.p2=a()}}(function(){return function a(b,c,d){function e(g,h){if(!c[g]){if(!b[g]){var i="function"==typeof require&&require;if(!h&&i)return i(g,!0);if(f)return f(g,!0);throw new Error("Cannot find module '"+g+"'")}var j=c[g]={exports:{}};b[g][0].call(j.exports,function(a){var c=b[g][1][a];return e(c?c:a)},j,j.exports,a,b,c,d)}return c[g].exports}for(var f="function"==typeof require&&require,g=0;g<d.length;g++)e(d[g]);return e}({1:[function(a,b,c){(function(b,d,e){function e(a,b,c){if(!(this instanceof e))return new e(a,b,c);var d=typeof a;if("base64"===b&&"string"===d)for(a=D(a);a.length%4!==0;)a+="=";var f;if("number"===d)f=G(a);else if("string"===d)f=e.byteLength(a,b);else{if("object"!==d)throw new Error("First argument needs to be a number, array or string.");f=G(a.length)}var g;e._useTypedArrays?g=E(new Uint8Array(f)):(g=this,g.length=f,g._isBuffer=!0);var h;if(e._useTypedArrays&&"function"==typeof Uint8Array&&a instanceof Uint8Array)g._set(a);else if(I(a))for(h=0;f>h;h++)g[h]=e.isBuffer(a)?a.readUInt8(h):a[h];else if("string"===d)g.write(a,0,b);else if("number"===d&&!e._useTypedArrays&&!c)for(h=0;f>h;h++)g[h]=0;return g}function f(a,b,c,d){c=Number(c)||0;var f=a.length-c;d?(d=Number(d),d>f&&(d=f)):d=f;var g=b.length;T(g%2===0,"Invalid hex string"),d>g/2&&(d=g/2);for(var h=0;d>h;h++){var i=parseInt(b.substr(2*h,2),16);T(!isNaN(i),"Invalid hex string"),a[c+h]=i}return e._charsWritten=2*h,h}function g(a,b,c,d){var f=e._charsWritten=O(K(b),a,c,d);return f}function h(a,b,c,d){var f=e._charsWritten=O(L(b),a,c,d);return f}function i(a,b,c,d){return h(a,b,c,d)}function j(a,b,c,d){var f=e._charsWritten=O(N(b),a,c,d);return f}function k(a,b,c,d){var f=e._charsWritten=O(M(b),a,c,d);return f}function l(a,b,c){return U.fromByteArray(0===b&&c===a.length?a:a.slice(b,c))}function m(a,b,c){var d="",e="";c=Math.min(a.length,c);for(var f=b;c>f;f++)a[f]<=127?(d+=P(e)+String.fromCharCode(a[f]),e=""):e+="%"+a[f].toString(16);return d+P(e)}function n(a,b,c){var d="";c=Math.min(a.length,c);for(var e=b;c>e;e++)d+=String.fromCharCode(a[e]);return d}function o(a,b,c){return n(a,b,c)}function p(a,b,c){var d=a.length;(!b||0>b)&&(b=0),(!c||0>c||c>d)&&(c=d);for(var e="",f=b;c>f;f++)e+=J(a[f]);return e}function q(a,b,c){for(var d=a.slice(b,c),e="",f=0;f<d.length;f+=2)e+=String.fromCharCode(d[f]+256*d[f+1]);return e}function r(a,b,c,d){d||(T("boolean"==typeof c,"missing or invalid endian"),T(void 0!==b&&null!==b,"missing offset"),T(b+1<a.length,"Trying to read beyond buffer length"));var e=a.length;if(!(b>=e)){var f;return c?(f=a[b],e>b+1&&(f|=a[b+1]<<8)):(f=a[b]<<8,e>b+1&&(f|=a[b+1])),f}}function s(a,b,c,d){d||(T("boolean"==typeof c,"missing or invalid endian"),T(void 0!==b&&null!==b,"missing offset"),T(b+3<a.length,"Trying to read beyond buffer length"));var e=a.length;if(!(b>=e)){var f;return c?(e>b+2&&(f=a[b+2]<<16),e>b+1&&(f|=a[b+1]<<8),f|=a[b],e>b+3&&(f+=a[b+3]<<24>>>0)):(e>b+1&&(f=a[b+1]<<16),e>b+2&&(f|=a[b+2]<<8),e>b+3&&(f|=a[b+3]),f+=a[b]<<24>>>0),f}}function t(a,b,c,d){d||(T("boolean"==typeof c,"missing or invalid endian"),T(void 0!==b&&null!==b,"missing offset"),T(b+1<a.length,"Trying to read beyond buffer length"));var e=a.length;if(!(b>=e)){var f=r(a,b,c,!0),g=32768&f;return g?-1*(65535-f+1):f}}function u(a,b,c,d){d||(T("boolean"==typeof c,"missing or invalid endian"),T(void 0!==b&&null!==b,"missing offset"),T(b+3<a.length,"Trying to read beyond buffer length"));var e=a.length;if(!(b>=e)){var f=s(a,b,c,!0),g=2147483648&f;return g?-1*(4294967295-f+1):f}}function v(a,b,c,d){return d||(T("boolean"==typeof c,"missing or invalid endian"),T(b+3<a.length,"Trying to read beyond buffer length")),V.read(a,b,c,23,4)}function w(a,b,c,d){return d||(T("boolean"==typeof c,"missing or invalid endian"),T(b+7<a.length,"Trying to read beyond buffer length")),V.read(a,b,c,52,8)}function x(a,b,c,d,e){e||(T(void 0!==b&&null!==b,"missing value"),T("boolean"==typeof d,"missing or invalid endian"),T(void 0!==c&&null!==c,"missing offset"),T(c+1<a.length,"trying to write beyond buffer length"),Q(b,65535));var f=a.length;if(!(c>=f))for(var g=0,h=Math.min(f-c,2);h>g;g++)a[c+g]=(b&255<<8*(d?g:1-g))>>>8*(d?g:1-g)}function y(a,b,c,d,e){e||(T(void 0!==b&&null!==b,"missing value"),T("boolean"==typeof d,"missing or invalid endian"),T(void 0!==c&&null!==c,"missing offset"),T(c+3<a.length,"trying to write beyond buffer length"),Q(b,4294967295));var f=a.length;if(!(c>=f))for(var g=0,h=Math.min(f-c,4);h>g;g++)a[c+g]=b>>>8*(d?g:3-g)&255}function z(a,b,c,d,e){e||(T(void 0!==b&&null!==b,"missing value"),T("boolean"==typeof d,"missing or invalid endian"),T(void 0!==c&&null!==c,"missing offset"),T(c+1<a.length,"Trying to write beyond buffer length"),R(b,32767,-32768));var f=a.length;c>=f||(b>=0?x(a,b,c,d,e):x(a,65535+b+1,c,d,e))}function A(a,b,c,d,e){e||(T(void 0!==b&&null!==b,"missing value"),T("boolean"==typeof d,"missing or invalid endian"),T(void 0!==c&&null!==c,"missing offset"),T(c+3<a.length,"Trying to write beyond buffer length"),R(b,2147483647,-2147483648));var f=a.length;c>=f||(b>=0?y(a,b,c,d,e):y(a,4294967295+b+1,c,d,e))}function B(a,b,c,d,e){e||(T(void 0!==b&&null!==b,"missing value"),T("boolean"==typeof d,"missing or invalid endian"),T(void 0!==c&&null!==c,"missing offset"),T(c+3<a.length,"Trying to write beyond buffer length"),S(b,3.4028234663852886e38,-3.4028234663852886e38));var f=a.length;c>=f||V.write(a,b,c,d,23,4)}function C(a,b,c,d,e){e||(T(void 0!==b&&null!==b,"missing value"),T("boolean"==typeof d,"missing or invalid endian"),T(void 0!==c&&null!==c,"missing offset"),T(c+7<a.length,"Trying to write beyond buffer length"),S(b,1.7976931348623157e308,-1.7976931348623157e308));var f=a.length;c>=f||V.write(a,b,c,d,52,8)}function D(a){return a.trim?a.trim():a.replace(/^\s+|\s+$/g,"")}function E(a){return a._isBuffer=!0,a._get=a.get,a._set=a.set,a.get=W.get,a.set=W.set,a.write=W.write,a.toString=W.toString,a.toLocaleString=W.toString,a.toJSON=W.toJSON,a.copy=W.copy,a.slice=W.slice,a.readUInt8=W.readUInt8,a.readUInt16LE=W.readUInt16LE,a.readUInt16BE=W.readUInt16BE,a.readUInt32LE=W.readUInt32LE,a.readUInt32BE=W.readUInt32BE,a.readInt8=W.readInt8,a.readInt16LE=W.readInt16LE,a.readInt16BE=W.readInt16BE,a.readInt32LE=W.readInt32LE,a.readInt32BE=W.readInt32BE,a.readFloatLE=W.readFloatLE,a.readFloatBE=W.readFloatBE,a.readDoubleLE=W.readDoubleLE,a.readDoubleBE=W.readDoubleBE,a.writeUInt8=W.writeUInt8,a.writeUInt16LE=W.writeUInt16LE,a.writeUInt16BE=W.writeUInt16BE,a.writeUInt32LE=W.writeUInt32LE,a.writeUInt32BE=W.writeUInt32BE,a.writeInt8=W.writeInt8,a.writeInt16LE=W.writeInt16LE,a.writeInt16BE=W.writeInt16BE,a.writeInt32LE=W.writeInt32LE,a.writeInt32BE=W.writeInt32BE,a.writeFloatLE=W.writeFloatLE,a.writeFloatBE=W.writeFloatBE,a.writeDoubleLE=W.writeDoubleLE,a.writeDoubleBE=W.writeDoubleBE,a.fill=W.fill,a.inspect=W.inspect,a.toArrayBuffer=W.toArrayBuffer,a}function F(a,b,c){return"number"!=typeof a?c:(a=~~a,a>=b?b:a>=0?a:(a+=b,a>=0?a:0))}function G(a){return a=~~Math.ceil(+a),0>a?0:a}function H(a){return(Array.isArray||function(a){return"[object Array]"===Object.prototype.toString.call(a)})(a)}function I(a){return H(a)||e.isBuffer(a)||a&&"object"==typeof a&&"number"==typeof a.length}function J(a){return 16>a?"0"+a.toString(16):a.toString(16)}function K(a){for(var b=[],c=0;c<a.length;c++){var d=a.charCodeAt(c);if(127>=d)b.push(a.charCodeAt(c));else{var e=c;d>=55296&&57343>=d&&c++;for(var f=encodeURIComponent(a.slice(e,c+1)).substr(1).split("%"),g=0;g<f.length;g++)b.push(parseInt(f[g],16))}}return b}function L(a){for(var b=[],c=0;c<a.length;c++)b.push(255&a.charCodeAt(c));return b}function M(a){for(var b,c,d,e=[],f=0;f<a.length;f++)b=a.charCodeAt(f),c=b>>8,d=b%256,e.push(d),e.push(c);return e}function N(a){return U.toByteArray(a)}function O(a,b,c,d){for(var e=0;d>e&&!(e+c>=b.length||e>=a.length);e++)b[e+c]=a[e];return e}function P(a){try{return decodeURIComponent(a)}catch(b){return String.fromCharCode(65533)}}function Q(a,b){T("number"==typeof a,"cannot write a non-number as a number"),T(a>=0,"specified a negative value for writing an unsigned value"),T(b>=a,"value is larger than maximum value for type"),T(Math.floor(a)===a,"value has a fractional component")}function R(a,b,c){T("number"==typeof a,"cannot write a non-number as a number"),T(b>=a,"value larger than maximum allowed value"),T(a>=c,"value smaller than minimum allowed value"),T(Math.floor(a)===a,"value has a fractional component")}function S(a,b,c){T("number"==typeof a,"cannot write a non-number as a number"),T(b>=a,"value larger than maximum allowed value"),T(a>=c,"value smaller than minimum allowed value")}function T(a,b){if(!a)throw new Error(b||"Failed assertion")}var U=a("base64-js"),V=a("ieee754");c.Buffer=e,c.SlowBuffer=e,c.INSPECT_MAX_BYTES=50,e.poolSize=8192,e._useTypedArrays=function(){if("function"!=typeof Uint8Array||"function"!=typeof ArrayBuffer)return!1;try{var a=new Uint8Array(0);return a.foo=function(){return 42},42===a.foo()&&"function"==typeof a.subarray}catch(b){return!1}}(),e.isEncoding=function(a){switch(String(a).toLowerCase()){case"hex":case"utf8":case"utf-8":case"ascii":case"binary":case"base64":case"raw":case"ucs2":case"ucs-2":case"utf16le":case"utf-16le":return!0;default:return!1}},e.isBuffer=function(a){return!(null===a||void 0===a||!a._isBuffer)},e.byteLength=function(a,b){var c;switch(a+="",b||"utf8"){case"hex":c=a.length/2;break;case"utf8":case"utf-8":c=K(a).length;break;case"ascii":case"binary":case"raw":c=a.length;break;case"base64":c=N(a).length;break;case"ucs2":case"ucs-2":case"utf16le":case"utf-16le":c=2*a.length;break;default:throw new Error("Unknown encoding")}return c},e.concat=function(a,b){if(T(H(a),"Usage: Buffer.concat(list, [totalLength])\nlist should be an Array."),0===a.length)return new e(0);if(1===a.length)return a[0];var c;if("number"!=typeof b)for(b=0,c=0;c<a.length;c++)b+=a[c].length;var d=new e(b),f=0;for(c=0;c<a.length;c++){var g=a[c];g.copy(d,f),f+=g.length}return d},e.prototype.write=function(a,b,c,d){if(isFinite(b))isFinite(c)||(d=c,c=void 0);else{var e=d;d=b,b=c,c=e}b=Number(b)||0;var l=this.length-b;c?(c=Number(c),c>l&&(c=l)):c=l,d=String(d||"utf8").toLowerCase();var m;switch(d){case"hex":m=f(this,a,b,c);break;case"utf8":case"utf-8":m=g(this,a,b,c);break;case"ascii":m=h(this,a,b,c);break;case"binary":m=i(this,a,b,c);break;case"base64":m=j(this,a,b,c);break;case"ucs2":case"ucs-2":case"utf16le":case"utf-16le":m=k(this,a,b,c);break;default:throw new Error("Unknown encoding")}return m},e.prototype.toString=function(a,b,c){var d=this;if(a=String(a||"utf8").toLowerCase(),b=Number(b)||0,c=void 0!==c?Number(c):c=d.length,c===b)return"";var e;switch(a){case"hex":e=p(d,b,c);break;case"utf8":case"utf-8":e=m(d,b,c);break;case"ascii":e=n(d,b,c);break;case"binary":e=o(d,b,c);break;case"base64":e=l(d,b,c);break;case"ucs2":case"ucs-2":case"utf16le":case"utf-16le":e=q(d,b,c);break;default:throw new Error("Unknown encoding")}return e},e.prototype.toJSON=function(){return{type:"Buffer",data:Array.prototype.slice.call(this._arr||this,0)}},e.prototype.copy=function(a,b,c,d){var e=this;if(c||(c=0),d||0===d||(d=this.length),b||(b=0),d!==c&&0!==a.length&&0!==e.length){T(d>=c,"sourceEnd < sourceStart"),T(b>=0&&b<a.length,"targetStart out of bounds"),T(c>=0&&c<e.length,"sourceStart out of bounds"),T(d>=0&&d<=e.length,"sourceEnd out of bounds"),d>this.length&&(d=this.length),a.length-b<d-c&&(d=a.length-b+c);for(var f=0;d-c>f;f++)a[f+b]=this[f+c]}},e.prototype.slice=function(a,b){var c=this.length;if(a=F(a,c,0),b=F(b,c,c),e._useTypedArrays)return E(this.subarray(a,b));for(var d=b-a,f=new e(d,void 0,!0),g=0;d>g;g++)f[g]=this[g+a];return f},e.prototype.get=function(a){return console.log(".get() is deprecated. Access using array indexes instead."),this.readUInt8(a)},e.prototype.set=function(a,b){return console.log(".set() is deprecated. Access using array indexes instead."),this.writeUInt8(a,b)},e.prototype.readUInt8=function(a,b){return b||(T(void 0!==a&&null!==a,"missing offset"),T(a<this.length,"Trying to read beyond buffer length")),a>=this.length?void 0:this[a]},e.prototype.readUInt16LE=function(a,b){return r(this,a,!0,b)},e.prototype.readUInt16BE=function(a,b){return r(this,a,!1,b)},e.prototype.readUInt32LE=function(a,b){return s(this,a,!0,b)},e.prototype.readUInt32BE=function(a,b){return s(this,a,!1,b)},e.prototype.readInt8=function(a,b){if(b||(T(void 0!==a&&null!==a,"missing offset"),T(a<this.length,"Trying to read beyond buffer length")),!(a>=this.length)){var c=128&this[a];return c?-1*(255-this[a]+1):this[a]}},e.prototype.readInt16LE=function(a,b){return t(this,a,!0,b)},e.prototype.readInt16BE=function(a,b){return t(this,a,!1,b)},e.prototype.readInt32LE=function(a,b){return u(this,a,!0,b)},e.prototype.readInt32BE=function(a,b){return u(this,a,!1,b)},e.prototype.readFloatLE=function(a,b){return v(this,a,!0,b)},e.prototype.readFloatBE=function(a,b){return v(this,a,!1,b)},e.prototype.readDoubleLE=function(a,b){return w(this,a,!0,b)},e.prototype.readDoubleBE=function(a,b){return w(this,a,!1,b)},e.prototype.writeUInt8=function(a,b,c){c||(T(void 0!==a&&null!==a,"missing value"),T(void 0!==b&&null!==b,"missing offset"),T(b<this.length,"trying to write beyond buffer length"),Q(a,255)),b>=this.length||(this[b]=a)},e.prototype.writeUInt16LE=function(a,b,c){x(this,a,b,!0,c)},e.prototype.writeUInt16BE=function(a,b,c){x(this,a,b,!1,c)},e.prototype.writeUInt32LE=function(a,b,c){y(this,a,b,!0,c)},e.prototype.writeUInt32BE=function(a,b,c){y(this,a,b,!1,c)},e.prototype.writeInt8=function(a,b,c){c||(T(void 0!==a&&null!==a,"missing value"),T(void 0!==b&&null!==b,"missing offset"),T(b<this.length,"Trying to write beyond buffer length"),R(a,127,-128)),b>=this.length||(a>=0?this.writeUInt8(a,b,c):this.writeUInt8(255+a+1,b,c))},e.prototype.writeInt16LE=function(a,b,c){z(this,a,b,!0,c)},e.prototype.writeInt16BE=function(a,b,c){z(this,a,b,!1,c)},e.prototype.writeInt32LE=function(a,b,c){A(this,a,b,!0,c)},e.prototype.writeInt32BE=function(a,b,c){A(this,a,b,!1,c)},e.prototype.writeFloatLE=function(a,b,c){B(this,a,b,!0,c)},e.prototype.writeFloatBE=function(a,b,c){B(this,a,b,!1,c)},e.prototype.writeDoubleLE=function(a,b,c){C(this,a,b,!0,c)},e.prototype.writeDoubleBE=function(a,b,c){C(this,a,b,!1,c)},e.prototype.fill=function(a,b,c){if(a||(a=0),b||(b=0),c||(c=this.length),"string"==typeof a&&(a=a.charCodeAt(0)),T("number"==typeof a&&!isNaN(a),"value is not a number"),T(c>=b,"end < start"),c!==b&&0!==this.length){T(b>=0&&b<this.length,"start out of bounds"),T(c>=0&&c<=this.length,"end out of bounds");for(var d=b;c>d;d++)this[d]=a}},e.prototype.inspect=function(){for(var a=[],b=this.length,d=0;b>d;d++)if(a[d]=J(this[d]),d===c.INSPECT_MAX_BYTES){a[d+1]="...";break}return"<Buffer "+a.join(" ")+">"},e.prototype.toArrayBuffer=function(){if("function"==typeof Uint8Array){if(e._useTypedArrays)return new e(this).buffer;for(var a=new Uint8Array(this.length),b=0,c=a.length;c>b;b+=1)a[b]=this[b];return a.buffer}throw new Error("Buffer.toArrayBuffer not supported in this browser")};var W=e.prototype}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/../node_modules/grunt-browserify/node_modules/browserify/node_modules/buffer/index.js","/../node_modules/grunt-browserify/node_modules/browserify/node_modules/buffer")},{"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,"base64-js":2,buffer:1,ieee754:3}],2:[function(a,b){(function(){var a="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";!function(){"use strict";function c(a){var b=a.charCodeAt(0);return b===g?62:b===h?63:i>b?-1:i+10>b?b-i+26+26:k+26>b?b-k:j+26>b?b-j+26:void 0}function d(a){function b(a){j[l++]=a}var d,e,g,h,i,j;if(a.length%4>0)throw new Error("Invalid string. Length must be a multiple of 4");var k=a.length;i="="===a.charAt(k-2)?2:"="===a.charAt(k-1)?1:0,j=new f(3*a.length/4-i),g=i>0?a.length-4:a.length;var l=0;for(d=0,e=0;g>d;d+=4,e+=3)h=c(a.charAt(d))<<18|c(a.charAt(d+1))<<12|c(a.charAt(d+2))<<6|c(a.charAt(d+3)),b((16711680&h)>>16),b((65280&h)>>8),b(255&h);return 2===i?(h=c(a.charAt(d))<<2|c(a.charAt(d+1))>>4,b(255&h)):1===i&&(h=c(a.charAt(d))<<10|c(a.charAt(d+1))<<4|c(a.charAt(d+2))>>2,b(h>>8&255),b(255&h)),j}function e(b){function c(b){return a.charAt(b)}function d(a){return c(a>>18&63)+c(a>>12&63)+c(a>>6&63)+c(63&a)}var e,f,g,h=b.length%3,i="";for(e=0,g=b.length-h;g>e;e+=3)f=(b[e]<<16)+(b[e+1]<<8)+b[e+2],i+=d(f);switch(h){case 1:f=b[b.length-1],i+=c(f>>2),i+=c(f<<4&63),i+="==";break;case 2:f=(b[b.length-2]<<8)+b[b.length-1],i+=c(f>>10),i+=c(f>>4&63),i+=c(f<<2&63),i+="="}return i}var f="undefined"!=typeof Uint8Array?Uint8Array:Array,g=("0".charCodeAt(0),"+".charCodeAt(0)),h="/".charCodeAt(0),i="0".charCodeAt(0),j="a".charCodeAt(0),k="A".charCodeAt(0);b.exports.toByteArray=d,b.exports.fromByteArray=e}()}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/../node_modules/grunt-browserify/node_modules/browserify/node_modules/buffer/node_modules/base64-js/lib/b64.js","/../node_modules/grunt-browserify/node_modules/browserify/node_modules/buffer/node_modules/base64-js/lib")},{"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],3:[function(a,b,c){(function(){c.read=function(a,b,c,d,e){var f,g,h=8*e-d-1,i=(1<<h)-1,j=i>>1,k=-7,l=c?e-1:0,m=c?-1:1,n=a[b+l];for(l+=m,f=n&(1<<-k)-1,n>>=-k,k+=h;k>0;f=256*f+a[b+l],l+=m,k-=8);for(g=f&(1<<-k)-1,f>>=-k,k+=d;k>0;g=256*g+a[b+l],l+=m,k-=8);if(0===f)f=1-j;else{if(f===i)return g?0/0:1/0*(n?-1:1);g+=Math.pow(2,d),f-=j}return(n?-1:1)*g*Math.pow(2,f-d)},c.write=function(a,b,c,d,e,f){var g,h,i,j=8*f-e-1,k=(1<<j)-1,l=k>>1,m=23===e?Math.pow(2,-24)-Math.pow(2,-77):0,n=d?0:f-1,o=d?1:-1,p=0>b||0===b&&0>1/b?1:0;for(b=Math.abs(b),isNaN(b)||1/0===b?(h=isNaN(b)?1:0,g=k):(g=Math.floor(Math.log(b)/Math.LN2),b*(i=Math.pow(2,-g))<1&&(g--,i*=2),b+=g+l>=1?m/i:m*Math.pow(2,1-l),b*i>=2&&(g++,i/=2),g+l>=k?(h=0,g=k):g+l>=1?(h=(b*i-1)*Math.pow(2,e),g+=l):(h=b*Math.pow(2,l-1)*Math.pow(2,e),g=0));e>=8;a[c+n]=255&h,n+=o,h/=256,e-=8);for(g=g<<e|h,j+=e;j>0;a[c+n]=255&g,n+=o,g/=256,j-=8);a[c+n-o]|=128*p}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/../node_modules/grunt-browserify/node_modules/browserify/node_modules/buffer/node_modules/ieee754/index.js","/../node_modules/grunt-browserify/node_modules/browserify/node_modules/buffer/node_modules/ieee754")},{"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],4:[function(a,b){(function(a){function c(){}var a=b.exports={};a.nextTick=function(){var a="undefined"!=typeof window&&window.setImmediate,b="undefined"!=typeof window&&window.postMessage&&window.addEventListener;if(a)return function(a){return window.setImmediate(a)};if(b){var c=[];return window.addEventListener("message",function(a){var b=a.source;if((b===window||null===b)&&"process-tick"===a.data&&(a.stopPropagation(),c.length>0)){var d=c.shift();d()}},!0),function(a){c.push(a),window.postMessage("process-tick","*")}}return function(a){setTimeout(a,0)}}(),a.title="browser",a.browser=!0,a.env={},a.argv=[],a.on=c,a.once=c,a.off=c,a.emit=c,a.binding=function(){throw new Error("process.binding is not supported")},a.cwd=function(){return"/"},a.chdir=function(){throw new Error("process.chdir is not supported")}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/../node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js","/../node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process")},{"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],5:[function(a,b){(function(){function c(){}var d=a("./Scalar");b.exports=c,c.lineInt=function(a,b,c){c=c||0;var e,f,g,h,i,j,k,l=[0,0];return e=a[1][1]-a[0][1],f=a[0][0]-a[1][0],g=e*a[0][0]+f*a[0][1],h=b[1][1]-b[0][1],i=b[0][0]-b[1][0],j=h*b[0][0]+i*b[0][1],k=e*i-h*f,d.eq(k,0,c)||(l[0]=(i*g-f*j)/k,l[1]=(e*j-h*g)/k),l},c.segmentsIntersect=function(a,b,c,d){var e=b[0]-a[0],f=b[1]-a[1],g=d[0]-c[0],h=d[1]-c[1];if(g*f-h*e==0)return!1;var i=(e*(c[1]-a[1])+f*(a[0]-c[0]))/(g*f-h*e),j=(g*(a[1]-c[1])+h*(c[0]-a[0]))/(h*e-g*f);return i>=0&&1>=i&&j>=0&&1>=j}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/../node_modules/poly-decomp/src/Line.js","/../node_modules/poly-decomp/src")},{"./Scalar":8,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],6:[function(a,b){(function(){function a(){}b.exports=a,a.area=function(a,b,c){return(b[0]-a[0])*(c[1]-a[1])-(c[0]-a[0])*(b[1]-a[1])},a.left=function(b,c,d){return a.area(b,c,d)>0},a.leftOn=function(b,c,d){return a.area(b,c,d)>=0},a.right=function(b,c,d){return a.area(b,c,d)<0},a.rightOn=function(b,c,d){return a.area(b,c,d)<=0};var c=[],d=[];a.collinear=function(b,e,f,g){if(g){var h=c,i=d;h[0]=e[0]-b[0],h[1]=e[1]-b[1],i[0]=f[0]-e[0],i[1]=f[1]-e[1];var j=h[0]*i[0]+h[1]*i[1],k=Math.sqrt(h[0]*h[0]+h[1]*h[1]),l=Math.sqrt(i[0]*i[0]+i[1]*i[1]),m=Math.acos(j/(k*l));return g>m}return 0==a.area(b,e,f)},a.sqdist=function(a,b){var c=b[0]-a[0],d=b[1]-a[1];return c*c+d*d}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/../node_modules/poly-decomp/src/Point.js","/../node_modules/poly-decomp/src")},{"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],7:[function(a,b){(function(){function c(){this.vertices=[]}function d(a,b,c,d,e){e=e||0;var f=b[1]-a[1],h=a[0]-b[0],i=f*a[0]+h*a[1],j=d[1]-c[1],k=c[0]-d[0],l=j*c[0]+k*c[1],m=f*k-j*h;return g.eq(m,0,e)?[0,0]:[(k*i-h*l)/m,(f*l-j*i)/m]}var e=a("./Line"),f=a("./Point"),g=a("./Scalar");b.exports=c,c.prototype.at=function(a){var b=this.vertices,c=b.length;return b[0>a?a%c+c:a%c]},c.prototype.first=function(){return this.vertices[0]},c.prototype.last=function(){return this.vertices[this.vertices.length-1]},c.prototype.clear=function(){this.vertices.length=0},c.prototype.append=function(a,b,c){if("undefined"==typeof b)throw new Error("From is not given!");if("undefined"==typeof c)throw new Error("To is not given!");if(b>c-1)throw new Error("lol1");if(c>a.vertices.length)throw new Error("lol2");if(0>b)throw new Error("lol3");for(var d=b;c>d;d++)this.vertices.push(a.vertices[d])},c.prototype.makeCCW=function(){for(var a=0,b=this.vertices,c=1;c<this.vertices.length;++c)(b[c][1]<b[a][1]||b[c][1]==b[a][1]&&b[c][0]>b[a][0])&&(a=c);f.left(this.at(a-1),this.at(a),this.at(a+1))||this.reverse()},c.prototype.reverse=function(){for(var a=[],b=0,c=this.vertices.length;b!==c;b++)a.push(this.vertices.pop());this.vertices=a},c.prototype.isReflex=function(a){return f.right(this.at(a-1),this.at(a),this.at(a+1))};var h=[],i=[];c.prototype.canSee=function(a,b){var c,d,g=h,j=i;if(f.leftOn(this.at(a+1),this.at(a),this.at(b))&&f.rightOn(this.at(a-1),this.at(a),this.at(b)))return!1;d=f.sqdist(this.at(a),this.at(b));for(var k=0;k!==this.vertices.length;++k)if((k+1)%this.vertices.length!==a&&k!==a&&f.leftOn(this.at(a),this.at(b),this.at(k+1))&&f.rightOn(this.at(a),this.at(b),this.at(k))&&(g[0]=this.at(a),g[1]=this.at(b),j[0]=this.at(k),j[1]=this.at(k+1),c=e.lineInt(g,j),f.sqdist(this.at(a),c)<d))return!1;return!0},c.prototype.copy=function(a,b,d){var e=d||new c;if(e.clear(),b>a)for(var f=a;b>=f;f++)e.vertices.push(this.vertices[f]);else{for(var f=0;b>=f;f++)e.vertices.push(this.vertices[f]);for(var f=a;f<this.vertices.length;f++)e.vertices.push(this.vertices[f])}return e},c.prototype.getCutEdges=function(){for(var a=[],b=[],d=[],e=new c,f=Number.MAX_VALUE,g=0;g<this.vertices.length;++g)if(this.isReflex(g))for(var h=0;h<this.vertices.length;++h)if(this.canSee(g,h)){b=this.copy(g,h,e).getCutEdges(),d=this.copy(h,g,e).getCutEdges();for(var i=0;i<d.length;i++)b.push(d[i]);b.length<f&&(a=b,f=b.length,a.push([this.at(g),this.at(h)]))}return a},c.prototype.decomp=function(){var a=this.getCutEdges();return a.length>0?this.slice(a):[this]},c.prototype.slice=function(a){if(0==a.length)return[this];if(a instanceof Array&&a.length&&a[0]instanceof Array&&2==a[0].length&&a[0][0]instanceof Array){for(var b=[this],c=0;c<a.length;c++)for(var d=a[c],e=0;e<b.length;e++){var f=b[e],g=f.slice(d);if(g){b.splice(e,1),b.push(g[0],g[1]);break}}return b}var d=a,c=this.vertices.indexOf(d[0]),e=this.vertices.indexOf(d[1]);return-1!=c&&-1!=e?[this.copy(c,e),this.copy(e,c)]:!1},c.prototype.isSimple=function(){for(var a=this.vertices,b=0;b<a.length-1;b++)for(var c=0;b-1>c;c++)if(e.segmentsIntersect(a[b],a[b+1],a[c],a[c+1]))return!1;for(var b=1;b<a.length-2;b++)if(e.segmentsIntersect(a[0],a[a.length-1],a[b],a[b+1]))return!1;return!0},c.prototype.quickDecomp=function(a,b,e,g,h,i){h=h||100,i=i||0,g=g||25,a="undefined"!=typeof a?a:[],b=b||[],e=e||[];var j=[0,0],k=[0,0],l=[0,0],m=0,n=0,o=0,p=0,q=0,r=0,s=0,t=new c,u=new c,v=this,w=this.vertices;if(w.length<3)return a;if(i++,i>h)return console.warn("quickDecomp: max level ("+h+") reached."),a;for(var x=0;x<this.vertices.length;++x)if(v.isReflex(x)){b.push(v.vertices[x]),m=n=Number.MAX_VALUE;for(var y=0;y<this.vertices.length;++y)f.left(v.at(x-1),v.at(x),v.at(y))&&f.rightOn(v.at(x-1),v.at(x),v.at(y-1))&&(l=d(v.at(x-1),v.at(x),v.at(y),v.at(y-1)),f.right(v.at(x+1),v.at(x),l)&&(o=f.sqdist(v.vertices[x],l),n>o&&(n=o,k=l,r=y))),f.left(v.at(x+1),v.at(x),v.at(y+1))&&f.rightOn(v.at(x+1),v.at(x),v.at(y))&&(l=d(v.at(x+1),v.at(x),v.at(y),v.at(y+1)),f.left(v.at(x-1),v.at(x),l)&&(o=f.sqdist(v.vertices[x],l),m>o&&(m=o,j=l,q=y)));if(r==(q+1)%this.vertices.length)l[0]=(k[0]+j[0])/2,l[1]=(k[1]+j[1])/2,e.push(l),q>x?(t.append(v,x,q+1),t.vertices.push(l),u.vertices.push(l),0!=r&&u.append(v,r,v.vertices.length),u.append(v,0,x+1)):(0!=x&&t.append(v,x,v.vertices.length),t.append(v,0,q+1),t.vertices.push(l),u.vertices.push(l),u.append(v,r,x+1));else{if(r>q&&(q+=this.vertices.length),p=Number.MAX_VALUE,r>q)return a;for(var y=r;q>=y;++y)f.leftOn(v.at(x-1),v.at(x),v.at(y))&&f.rightOn(v.at(x+1),v.at(x),v.at(y))&&(o=f.sqdist(v.at(x),v.at(y)),p>o&&(p=o,s=y%this.vertices.length));s>x?(t.append(v,x,s+1),0!=s&&u.append(v,s,w.length),u.append(v,0,x+1)):(0!=x&&t.append(v,x,w.length),t.append(v,0,s+1),u.append(v,s,x+1))}return t.vertices.length<u.vertices.length?(t.quickDecomp(a,b,e,g,h,i),u.quickDecomp(a,b,e,g,h,i)):(u.quickDecomp(a,b,e,g,h,i),t.quickDecomp(a,b,e,g,h,i)),a}return a.push(this),a},c.prototype.removeCollinearPoints=function(a){for(var b=0,c=this.vertices.length-1;this.vertices.length>3&&c>=0;--c)f.collinear(this.at(c-1),this.at(c),this.at(c+1),a)&&(this.vertices.splice(c%this.vertices.length,1),c--,b++);return b}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/../node_modules/poly-decomp/src/Polygon.js","/../node_modules/poly-decomp/src")},{"./Line":5,"./Point":6,"./Scalar":8,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],8:[function(a,b){(function(){function a(){}b.exports=a,a.eq=function(a,b,c){return c=c||0,Math.abs(a-b)<c}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/../node_modules/poly-decomp/src/Scalar.js","/../node_modules/poly-decomp/src")},{"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],9:[function(a,b){(function(){b.exports={Polygon:a("./Polygon"),Point:a("./Point")}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/../node_modules/poly-decomp/src/index.js","/../node_modules/poly-decomp/src")},{"./Point":6,"./Polygon":7,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],10:[function(a,b){b.exports={name:"p2",version:"0.6.0",description:"A JavaScript 2D physics engine.",author:"Stefan Hedman <schteppe@gmail.com> (http://steffe.se)",keywords:["p2.js","p2","physics","engine","2d"],main:"./src/p2.js",engines:{node:"*"},repository:{type:"git",url:"https://github.com/schteppe/p2.js.git"},bugs:{url:"https://github.com/schteppe/p2.js/issues"},licenses:[{type:"MIT"}],devDependencies:{grunt:"~0.4.0","grunt-contrib-jshint":"~0.9.2","grunt-contrib-nodeunit":"~0.1.2","grunt-contrib-uglify":"~0.4.0","grunt-contrib-watch":"~0.5.0","grunt-browserify":"~2.0.1","grunt-contrib-concat":"^0.4.0"},dependencies:{"poly-decomp":"0.1.0"}}},{}],11:[function(a,b){(function(){function c(a){this.lowerBound=d.create(),a&&a.lowerBound&&d.copy(this.lowerBound,a.lowerBound),this.upperBound=d.create(),a&&a.upperBound&&d.copy(this.upperBound,a.upperBound)}{var d=a("../math/vec2");a("../utils/Utils")}b.exports=c;var e=d.create();c.prototype.setFromPoints=function(a,b,c,f){var g=this.lowerBound,h=this.upperBound;"number"!=typeof c&&(c=0),0!==c?d.rotate(g,a[0],c):d.copy(g,a[0]),d.copy(h,g);for(var i=Math.cos(c),j=Math.sin(c),k=1;k<a.length;k++){var l=a[k];if(0!==c){var m=l[0],n=l[1];e[0]=i*m-j*n,e[1]=j*m+i*n,l=e}for(var o=0;2>o;o++)l[o]>h[o]&&(h[o]=l[o]),l[o]<g[o]&&(g[o]=l[o])}b&&(d.add(this.lowerBound,this.lowerBound,b),d.add(this.upperBound,this.upperBound,b)),f&&(this.lowerBound[0]-=f,this.lowerBound[1]-=f,this.upperBound[0]+=f,this.upperBound[1]+=f)},c.prototype.copy=function(a){d.copy(this.lowerBound,a.lowerBound),d.copy(this.upperBound,a.upperBound)
-},c.prototype.extend=function(a){for(var b=2;b--;){var c=a.lowerBound[b];this.lowerBound[b]>c&&(this.lowerBound[b]=c);var d=a.upperBound[b];this.upperBound[b]<d&&(this.upperBound[b]=d)}},c.prototype.overlaps=function(a){var b=this.lowerBound,c=this.upperBound,d=a.lowerBound,e=a.upperBound;return(d[0]<=c[0]&&c[0]<=e[0]||b[0]<=e[0]&&e[0]<=c[0])&&(d[1]<=c[1]&&c[1]<=e[1]||b[1]<=e[1]&&e[1]<=c[1])}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/collision/AABB.js","/collision")},{"../math/vec2":33,"../utils/Utils":52,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],12:[function(a,b){(function(){function c(a){this.type=a,this.result=[],this.world=null,this.boundingVolumeType=c.AABB}var d=a("../math/vec2"),e=a("../objects/Body");b.exports=c,c.AABB=1,c.BOUNDING_CIRCLE=2,c.prototype.setWorld=function(a){this.world=a},c.prototype.getCollisionPairs=function(){throw new Error("getCollisionPairs must be implemented in a subclass!")};var f=d.create();c.boundingRadiusCheck=function(a,b){d.sub(f,a.position,b.position);var c=d.squaredLength(f),e=a.boundingRadius+b.boundingRadius;return e*e>=c},c.aabbCheck=function(a,b){return a.aabbNeedsUpdate&&a.updateAABB(),b.aabbNeedsUpdate&&b.updateAABB(),a.aabb.overlaps(b.aabb)},c.prototype.boundingVolumeCheck=function(a,b){var d;switch(this.boundingVolumeType){case c.BOUNDING_CIRCLE:d=c.boundingRadiusCheck(a,b);break;case c.AABB:d=c.aabbCheck(a,b);break;default:throw new Error("Bounding volume type not recognized: "+this.boundingVolumeType)}return d},c.canCollide=function(a,b){return a.type===e.STATIC&&b.type===e.STATIC?!1:a.type===e.KINEMATIC&&b.type===e.STATIC||a.type===e.STATIC&&b.type===e.KINEMATIC?!1:a.type===e.KINEMATIC&&b.type===e.KINEMATIC?!1:a.sleepState===e.SLEEPING&&b.sleepState===e.SLEEPING?!1:a.sleepState===e.SLEEPING&&b.type===e.STATIC||b.sleepState===e.SLEEPING&&a.type===e.STATIC?!1:!0},c.NAIVE=1,c.SAP=2}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/collision/Broadphase.js","/collision")},{"../math/vec2":33,"../objects/Body":34,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],13:[function(a,b){(function(){function c(a){d.apply(this),a=e.defaults(a,{xmin:-100,xmax:100,ymin:-100,ymax:100,nx:10,ny:10}),this.xmin=a.xmin,this.ymin=a.ymin,this.xmax=a.xmax,this.ymax=a.ymax,this.nx=a.nx,this.ny=a.ny,this.binsizeX=(this.xmax-this.xmin)/this.nx,this.binsizeY=(this.ymax-this.ymin)/this.ny}var d=(a("../shapes/Circle"),a("../shapes/Plane"),a("../shapes/Particle"),a("../collision/Broadphase")),e=(a("../math/vec2"),a("../utils/Utils"));b.exports=c,c.prototype=new d,c.prototype.getCollisionPairs=function(a){for(var b=[],c=a.bodies,e=c.length,f=(this.binsizeX,this.binsizeY,this.nx),g=this.ny,h=this.xmin,i=this.ymin,j=this.xmax,k=this.ymax,l=[],m=f*g,n=0;m>n;n++)l.push([]);for(var o=f/(j-h),p=g/(k-i),n=0;n!==e;n++)for(var q=c[n],r=q.aabb,s=Math.max(r.lowerBound[0],h),t=Math.max(r.lowerBound[1],i),u=Math.min(r.upperBound[0],j),v=Math.min(r.upperBound[1],k),w=Math.floor(o*(s-h)),x=Math.floor(p*(t-i)),y=Math.floor(o*(u-h)),z=Math.floor(p*(v-i)),A=w;y>=A;A++)for(var B=x;z>=B;B++){var C=A,D=B,E=C*(g-1)+D;E>=0&&m>E&&l[E].push(q)}for(var n=0;n!==m;n++)for(var F=l[n],A=0,G=F.length;A!==G;A++)for(var q=F[A],B=0;B!==A;B++){var H=F[B];d.canCollide(q,H)&&this.boundingVolumeCheck(q,H)&&b.push(q,H)}return b}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/collision/GridBroadphase.js","/collision")},{"../collision/Broadphase":12,"../math/vec2":33,"../shapes/Circle":40,"../shapes/Particle":44,"../shapes/Plane":45,"../utils/Utils":52,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],14:[function(a,b){(function(){function c(){d.call(this,d.NAIVE)}{var d=(a("../shapes/Circle"),a("../shapes/Plane"),a("../shapes/Shape"),a("../shapes/Particle"),a("../collision/Broadphase"));a("../math/vec2")}b.exports=c,c.prototype=new d,c.prototype.getCollisionPairs=function(a){var b=a.bodies,c=this.result;c.length=0;for(var e=0,f=b.length;e!==f;e++)for(var g=b[e],h=0;e>h;h++){var i=b[h];d.canCollide(g,i)&&this.boundingVolumeCheck(g,i)&&c.push(g,i)}return c}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/collision/NaiveBroadphase.js","/collision")},{"../collision/Broadphase":12,"../math/vec2":33,"../shapes/Circle":40,"../shapes/Particle":44,"../shapes/Plane":45,"../shapes/Shape":47,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],15:[function(a,b){(function(){function c(){this.contactEquations=[],this.frictionEquations=[],this.enableFriction=!0,this.slipForce=10,this.frictionCoefficient=.3,this.surfaceVelocity=0,this.reuseObjects=!0,this.reusableContactEquations=[],this.reusableFrictionEquations=[],this.restitution=0,this.stiffness=l.DEFAULT_STIFFNESS,this.relaxation=l.DEFAULT_RELAXATION,this.frictionStiffness=l.DEFAULT_STIFFNESS,this.frictionRelaxation=l.DEFAULT_RELAXATION,this.enableFrictionReduction=!0,this.collidingBodiesLastStep=new k,this.contactSkinSize=.01}function d(a,b){f.set(a.vertices[0],.5*-b.length,-b.radius),f.set(a.vertices[1],.5*b.length,-b.radius),f.set(a.vertices[2],.5*b.length,b.radius),f.set(a.vertices[3],.5*-b.length,b.radius)}function e(a,b,c,d){for(var e=R,i=S,j=T,k=U,l=a,m=b.vertices,n=null,o=0;o!==m.length+1;o++){var p=m[o%m.length],q=m[(o+1)%m.length];f.rotate(e,p,d),f.rotate(i,q,d),h(e,e,c),h(i,i,c),g(j,e,l),g(k,i,l);var r=f.crossLength(j,k);if(null===n&&(n=r),0>=r*n)return!1;n=r}return!0}var f=a("../math/vec2"),g=f.sub,h=f.add,i=f.dot,j=a("../utils/Utils"),k=a("../utils/TupleDictionary"),l=a("../equations/Equation"),m=a("../equations/ContactEquation"),n=a("../equations/FrictionEquation"),o=a("../shapes/Circle"),p=a("../shapes/Convex"),q=a("../shapes/Shape"),r=(a("../objects/Body"),a("../shapes/Rectangle"));b.exports=c;var s=f.fromValues(0,1),t=f.fromValues(0,0),u=f.fromValues(0,0),v=f.fromValues(0,0),w=f.fromValues(0,0),x=f.fromValues(0,0),y=f.fromValues(0,0),z=f.fromValues(0,0),A=f.fromValues(0,0),B=f.fromValues(0,0),C=f.fromValues(0,0),D=f.fromValues(0,0),E=f.fromValues(0,0),F=f.fromValues(0,0),G=f.fromValues(0,0),H=f.fromValues(0,0),I=f.fromValues(0,0),J=f.fromValues(0,0),K=f.fromValues(0,0),L=[];c.prototype.collidedLastStep=function(a,b){var c=0|a.id,d=0|b.id;return!!this.collidingBodiesLastStep.get(c,d)},c.prototype.reset=function(){this.collidingBodiesLastStep.reset();for(var a=this.contactEquations,b=a.length;b--;){var c=a[b],d=c.bodyA.id,e=c.bodyB.id;this.collidingBodiesLastStep.set(d,e,!0)}if(this.reuseObjects){var f=this.contactEquations,g=this.frictionEquations,h=this.reusableFrictionEquations,i=this.reusableContactEquations;j.appendArray(i,f),j.appendArray(h,g)}this.contactEquations.length=this.frictionEquations.length=0},c.prototype.createContactEquation=function(a,b,c,d){var e=this.reusableContactEquations.length?this.reusableContactEquations.pop():new m(a,b);return e.bodyA=a,e.bodyB=b,e.shapeA=c,e.shapeB=d,e.restitution=this.restitution,e.firstImpact=!this.collidedLastStep(a,b),e.stiffness=this.stiffness,e.relaxation=this.relaxation,e.needsUpdate=!0,e.enabled=!0,e.offset=this.contactSkinSize,e},c.prototype.createFrictionEquation=function(a,b,c,d){var e=this.reusableFrictionEquations.length?this.reusableFrictionEquations.pop():new n(a,b);return e.bodyA=a,e.bodyB=b,e.shapeA=c,e.shapeB=d,e.setSlipForce(this.slipForce),e.frictionCoefficient=this.frictionCoefficient,e.relativeVelocity=this.surfaceVelocity,e.enabled=!0,e.needsUpdate=!0,e.stiffness=this.frictionStiffness,e.relaxation=this.frictionRelaxation,e.contactEquations.length=0,e},c.prototype.createFrictionFromContact=function(a){var b=this.createFrictionEquation(a.bodyA,a.bodyB,a.shapeA,a.shapeB);return f.copy(b.contactPointA,a.contactPointA),f.copy(b.contactPointB,a.contactPointB),f.rotate90cw(b.t,a.normalA),b.contactEquations.push(a),b},c.prototype.createFrictionFromAverage=function(a){if(!a)throw new Error("numContacts == 0!");{var b=this.contactEquations[this.contactEquations.length-1],c=this.createFrictionEquation(b.bodyA,b.bodyB,b.shapeA,b.shapeB),d=b.bodyA;b.bodyB}f.set(c.contactPointA,0,0),f.set(c.contactPointB,0,0),f.set(c.t,0,0);for(var e=0;e!==a;e++)b=this.contactEquations[this.contactEquations.length-1-e],b.bodyA===d?(f.add(c.t,c.t,b.normalA),f.add(c.contactPointA,c.contactPointA,b.contactPointA),f.add(c.contactPointB,c.contactPointB,b.contactPointB)):(f.sub(c.t,c.t,b.normalA),f.add(c.contactPointA,c.contactPointA,b.contactPointB),f.add(c.contactPointB,c.contactPointB,b.contactPointA)),c.contactEquations.push(b);var g=1/a;return f.scale(c.contactPointA,c.contactPointA,g),f.scale(c.contactPointB,c.contactPointB,g),f.normalize(c.t,c.t),f.rotate90cw(c.t,c.t),c},c.prototype[q.LINE|q.CONVEX]=c.prototype.convexLine=function(a,b,c,d,e,f,g,h,i){return i?!1:0},c.prototype[q.LINE|q.RECTANGLE]=c.prototype.lineRectangle=function(a,b,c,d,e,f,g,h,i){return i?!1:0};var M=new r(1,1),N=f.create();c.prototype[q.CAPSULE|q.CONVEX]=c.prototype[q.CAPSULE|q.RECTANGLE]=c.prototype.convexCapsule=function(a,b,c,e,g,h,i,j,k){var l=N;f.set(l,h.length/2,0),f.rotate(l,l,j),f.add(l,l,i);var m=this.circleConvex(g,h,l,j,a,b,c,e,k,h.radius);f.set(l,-h.length/2,0),f.rotate(l,l,j),f.add(l,l,i);var n=this.circleConvex(g,h,l,j,a,b,c,e,k,h.radius);if(k&&(m||n))return!0;var o=M;d(o,h);var p=this.convexConvex(a,b,c,e,g,o,i,j,k);return p+m+n},c.prototype[q.CAPSULE|q.LINE]=c.prototype.lineCapsule=function(a,b,c,d,e,f,g,h,i){return i?!1:0};var O=f.create(),P=f.create(),Q=new r(1,1);c.prototype[q.CAPSULE|q.CAPSULE]=c.prototype.capsuleCapsule=function(a,b,c,e,g,h,i,j,k){for(var l,m=O,n=P,o=0,p=0;2>p;p++){f.set(m,(0===p?-1:1)*b.length/2,0),f.rotate(m,m,e),f.add(m,m,c);for(var q=0;2>q;q++){f.set(n,(0===q?-1:1)*h.length/2,0),f.rotate(n,n,j),f.add(n,n,i),this.enableFrictionReduction&&(l=this.enableFriction,this.enableFriction=!1);var r=this.circleCircle(a,b,m,e,g,h,n,j,k,b.radius,h.radius);if(this.enableFrictionReduction&&(this.enableFriction=l),k&&r)return!0;o+=r}}this.enableFrictionReduction&&(l=this.enableFriction,this.enableFriction=!1);var s=Q;d(s,b);var t=this.convexCapsule(a,s,c,e,g,h,i,j,k);if(this.enableFrictionReduction&&(this.enableFriction=l),k&&t)return!0;if(o+=t,this.enableFrictionReduction){var l=this.enableFriction;this.enableFriction=!1}d(s,h);var u=this.convexCapsule(g,s,i,j,a,b,c,e,k);return this.enableFrictionReduction&&(this.enableFriction=l),k&&u?!0:(o+=u,this.enableFrictionReduction&&o&&this.enableFriction&&this.frictionEquations.push(this.createFrictionFromAverage(o)),o)},c.prototype[q.LINE|q.LINE]=c.prototype.lineLine=function(a,b,c,d,e,f,g,h,i){return i?!1:0},c.prototype[q.PLANE|q.LINE]=c.prototype.planeLine=function(a,b,c,d,e,j,k,l,m){var n=t,o=u,p=v,q=w,r=x,C=y,D=z,E=A,F=B,G=L,H=0;f.set(n,-j.length/2,0),f.set(o,j.length/2,0),f.rotate(p,n,l),f.rotate(q,o,l),h(p,p,k),h(q,q,k),f.copy(n,p),f.copy(o,q),g(r,o,n),f.normalize(C,r),f.rotate90cw(F,C),f.rotate(E,s,d),G[0]=n,G[1]=o;for(var I=0;I<G.length;I++){var J=G[I];g(D,J,c);var K=i(D,E);if(0>K){if(m)return!0;var M=this.createContactEquation(a,e,b,j);H++,f.copy(M.normalA,E),f.normalize(M.normalA,M.normalA),f.scale(D,E,K),g(M.contactPointA,J,D),g(M.contactPointA,M.contactPointA,a.position),g(M.contactPointB,J,k),h(M.contactPointB,M.contactPointB,k),g(M.contactPointB,M.contactPointB,e.position),this.contactEquations.push(M),this.enableFrictionReduction||this.enableFriction&&this.frictionEquations.push(this.createFrictionFromContact(M))}}return m?!1:(this.enableFrictionReduction||H&&this.enableFriction&&this.frictionEquations.push(this.createFrictionFromAverage(H)),H)},c.prototype[q.PARTICLE|q.CAPSULE]=c.prototype.particleCapsule=function(a,b,c,d,e,f,g,h,i){return this.circleLine(a,b,c,d,e,f,g,h,i,f.radius,0)},c.prototype[q.CIRCLE|q.LINE]=c.prototype.circleLine=function(a,b,c,d,e,j,k,l,m,n,o){var n=n||0,o="undefined"!=typeof o?o:b.radius,p=t,q=u,r=v,s=w,H=x,I=y,J=z,K=A,M=B,N=C,O=D,P=E,Q=F,R=G,S=L;f.set(K,-j.length/2,0),f.set(M,j.length/2,0),f.rotate(N,K,l),f.rotate(O,M,l),h(N,N,k),h(O,O,k),f.copy(K,N),f.copy(M,O),g(I,M,K),f.normalize(J,I),f.rotate90cw(H,J),g(P,c,K);var T=i(P,H);g(s,K,k),g(Q,c,k);var U=o+n;if(Math.abs(T)<U){f.scale(p,H,T),g(r,c,p),f.scale(q,H,i(H,Q)),f.normalize(q,q),f.scale(q,q,n),h(r,r,q);var V=i(J,r),W=i(J,K),X=i(J,M);if(V>W&&X>V){if(m)return!0;var Y=this.createContactEquation(a,e,b,j);return f.scale(Y.normalA,p,-1),f.normalize(Y.normalA,Y.normalA),f.scale(Y.contactPointA,Y.normalA,o),h(Y.contactPointA,Y.contactPointA,c),g(Y.contactPointA,Y.contactPointA,a.position),g(Y.contactPointB,r,k),h(Y.contactPointB,Y.contactPointB,k),g(Y.contactPointB,Y.contactPointB,e.position),this.contactEquations.push(Y),this.enableFriction&&this.frictionEquations.push(this.createFrictionFromContact(Y)),1}}S[0]=K,S[1]=M;for(var Z=0;Z<S.length;Z++){var $=S[Z];if(g(P,$,c),f.squaredLength(P)<Math.pow(U,2)){if(m)return!0;var Y=this.createContactEquation(a,e,b,j);return f.copy(Y.normalA,P),f.normalize(Y.normalA,Y.normalA),f.scale(Y.contactPointA,Y.normalA,o),h(Y.contactPointA,Y.contactPointA,c),g(Y.contactPointA,Y.contactPointA,a.position),g(Y.contactPointB,$,k),f.scale(R,Y.normalA,-n),h(Y.contactPointB,Y.contactPointB,R),h(Y.contactPointB,Y.contactPointB,k),g(Y.contactPointB,Y.contactPointB,e.position),this.contactEquations.push(Y),this.enableFriction&&this.frictionEquations.push(this.createFrictionFromContact(Y)),1}}return 0},c.prototype[q.CIRCLE|q.CAPSULE]=c.prototype.circleCapsule=function(a,b,c,d,e,f,g,h,i){return this.circleLine(a,b,c,d,e,f,g,h,i,f.radius)},c.prototype[q.CIRCLE|q.CONVEX]=c.prototype[q.CIRCLE|q.RECTANGLE]=c.prototype.circleConvex=function(a,b,c,d,i,j,k,l,m,n){for(var n="number"==typeof n?n:b.radius,o=t,p=u,q=v,r=w,s=x,y=C,z=D,A=F,B=G,E=H,J=I,K=!1,L=Number.MAX_VALUE,M=j.vertices,N=0;N!==M.length+1;N++){var O=M[N%M.length],P=M[(N+1)%M.length];if(f.rotate(o,O,l),f.rotate(p,P,l),h(o,o,k),h(p,p,k),g(q,p,o),f.normalize(r,q),f.rotate90cw(s,r),f.scale(B,s,-b.radius),h(B,B,c),e(B,j,k,l)){f.sub(E,o,B);var Q=Math.abs(f.dot(E,s));L>Q&&(f.copy(J,B),L=Q,f.scale(A,s,Q),f.add(A,A,B),K=!0)}}if(K){if(m)return!0;var R=this.createContactEquation(a,i,b,j);return f.sub(R.normalA,J,c),f.normalize(R.normalA,R.normalA),f.scale(R.contactPointA,R.normalA,n),h(R.contactPointA,R.contactPointA,c),g(R.contactPointA,R.contactPointA,a.position),g(R.contactPointB,A,k),h(R.contactPointB,R.contactPointB,k),g(R.contactPointB,R.contactPointB,i.position),this.contactEquations.push(R),this.enableFriction&&this.frictionEquations.push(this.createFrictionFromContact(R)),1}if(n>0)for(var N=0;N<M.length;N++){var S=M[N];if(f.rotate(z,S,l),h(z,z,k),g(y,z,c),f.squaredLength(y)<Math.pow(n,2)){if(m)return!0;var R=this.createContactEquation(a,i,b,j);return f.copy(R.normalA,y),f.normalize(R.normalA,R.normalA),f.scale(R.contactPointA,R.normalA,n),h(R.contactPointA,R.contactPointA,c),g(R.contactPointA,R.contactPointA,a.position),g(R.contactPointB,z,k),h(R.contactPointB,R.contactPointB,k),g(R.contactPointB,R.contactPointB,i.position),this.contactEquations.push(R),this.enableFriction&&this.frictionEquations.push(this.createFrictionFromContact(R)),1}}return 0};var R=f.create(),S=f.create(),T=f.create(),U=f.create();c.prototype[q.PARTICLE|q.CONVEX]=c.prototype[q.PARTICLE|q.RECTANGLE]=c.prototype.particleConvex=function(a,b,c,d,j,k,l,m,n){var o=t,p=u,q=v,r=w,s=x,A=y,B=z,D=C,E=F,G=J,H=K,I=Number.MAX_VALUE,L=!1,M=k.vertices;if(!e(c,k,l,m))return 0;if(n)return!0;for(var N=0;N!==M.length+1;N++){var O=M[N%M.length],P=M[(N+1)%M.length];f.rotate(o,O,m),f.rotate(p,P,m),h(o,o,l),h(p,p,l),g(q,p,o),f.normalize(r,q),f.rotate90cw(s,r),g(D,c,o);{i(D,s)}g(A,o,l),g(B,c,l),f.sub(G,o,c);var Q=Math.abs(f.dot(G,s));I>Q&&(I=Q,f.scale(E,s,Q),f.add(E,E,c),f.copy(H,s),L=!0)}if(L){var R=this.createContactEquation(a,j,b,k);return f.scale(R.normalA,H,-1),f.normalize(R.normalA,R.normalA),f.set(R.contactPointA,0,0),h(R.contactPointA,R.contactPointA,c),g(R.contactPointA,R.contactPointA,a.position),g(R.contactPointB,E,l),h(R.contactPointB,R.contactPointB,l),g(R.contactPointB,R.contactPointB,j.position),this.contactEquations.push(R),this.enableFriction&&this.frictionEquations.push(this.createFrictionFromContact(R)),1}return 0},c.prototype[q.CIRCLE]=c.prototype.circleCircle=function(a,b,c,d,e,i,j,k,l,m,n){var o=t,m=m||b.radius,n=n||i.radius;g(o,c,j);var p=m+n;if(f.squaredLength(o)>Math.pow(p,2))return 0;if(l)return!0;var q=this.createContactEquation(a,e,b,i);return g(q.normalA,j,c),f.normalize(q.normalA,q.normalA),f.scale(q.contactPointA,q.normalA,m),f.scale(q.contactPointB,q.normalA,-n),h(q.contactPointA,q.contactPointA,c),g(q.contactPointA,q.contactPointA,a.position),h(q.contactPointB,q.contactPointB,j),g(q.contactPointB,q.contactPointB,e.position),this.contactEquations.push(q),this.enableFriction&&this.frictionEquations.push(this.createFrictionFromContact(q)),1},c.prototype[q.PLANE|q.CONVEX]=c.prototype[q.PLANE|q.RECTANGLE]=c.prototype.planeConvex=function(a,b,c,d,e,j,k,l,m){var n=t,o=u,p=v,q=0;f.rotate(o,s,d);for(var r=0;r!==j.vertices.length;r++){var w=j.vertices[r];if(f.rotate(n,w,l),h(n,n,k),g(p,n,c),i(p,o)<=0){if(m)return!0;q++;var x=this.createContactEquation(a,e,b,j);g(p,n,c),f.copy(x.normalA,o);var y=i(p,x.normalA);f.scale(p,x.normalA,y),g(x.contactPointB,n,e.position),g(x.contactPointA,n,p),g(x.contactPointA,x.contactPointA,a.position),this.contactEquations.push(x),this.enableFrictionReduction||this.enableFriction&&this.frictionEquations.push(this.createFrictionFromContact(x))}}return this.enableFrictionReduction&&this.enableFriction&&q&&this.frictionEquations.push(this.createFrictionFromAverage(q)),q},c.prototype[q.PARTICLE|q.PLANE]=c.prototype.particlePlane=function(a,b,c,d,e,h,j,k,l){var m=t,n=u;k=k||0,g(m,c,j),f.rotate(n,s,k);var o=i(m,n);if(o>0)return 0;if(l)return!0;var p=this.createContactEquation(e,a,h,b);return f.copy(p.normalA,n),f.scale(m,p.normalA,o),g(p.contactPointA,c,m),g(p.contactPointA,p.contactPointA,e.position),g(p.contactPointB,c,a.position),this.contactEquations.push(p),this.enableFriction&&this.frictionEquations.push(this.createFrictionFromContact(p)),1},c.prototype[q.CIRCLE|q.PARTICLE]=c.prototype.circleParticle=function(a,b,c,d,e,i,j,k,l){var m=t;if(g(m,j,c),f.squaredLength(m)>Math.pow(b.radius,2))return 0;if(l)return!0;var n=this.createContactEquation(a,e,b,i);return f.copy(n.normalA,m),f.normalize(n.normalA,n.normalA),f.scale(n.contactPointA,n.normalA,b.radius),h(n.contactPointA,n.contactPointA,c),g(n.contactPointA,n.contactPointA,a.position),g(n.contactPointB,j,e.position),this.contactEquations.push(n),this.enableFriction&&this.frictionEquations.push(this.createFrictionFromContact(n)),1};{var V=new o(1),W=f.create(),X=f.create();f.create()}c.prototype[q.PLANE|q.CAPSULE]=c.prototype.planeCapsule=function(a,b,c,d,e,g,i,j,k){var l=W,m=X,n=V;f.set(l,-g.length/2,0),f.rotate(l,l,j),h(l,l,i),f.set(m,g.length/2,0),f.rotate(m,m,j),h(m,m,i),n.radius=g.radius;var o;this.enableFrictionReduction&&(o=this.enableFriction,this.enableFriction=!1);var p=this.circlePlane(e,n,l,0,a,b,c,d,k),q=this.circlePlane(e,n,m,0,a,b,c,d,k);if(this.enableFrictionReduction&&(this.enableFriction=o),k)return p||q;var r=p+q;return this.enableFrictionReduction&&r&&this.frictionEquations.push(this.createFrictionFromAverage(r)),r},c.prototype[q.CIRCLE|q.PLANE]=c.prototype.circlePlane=function(a,b,c,d,e,j,k,l,m){var n=a,o=b,p=c,q=e,r=k,w=l;w=w||0;var x=t,y=u,z=v;g(x,p,r),f.rotate(y,s,w);var A=i(y,x);if(A>o.radius)return 0;if(m)return!0;var B=this.createContactEquation(q,n,j,b);return f.copy(B.normalA,y),f.scale(B.contactPointB,B.normalA,-o.radius),h(B.contactPointB,B.contactPointB,p),g(B.contactPointB,B.contactPointB,n.position),f.scale(z,B.normalA,A),g(B.contactPointA,x,z),h(B.contactPointA,B.contactPointA,r),g(B.contactPointA,B.contactPointA,q.position),this.contactEquations.push(B),this.enableFriction&&this.frictionEquations.push(this.createFrictionFromContact(B)),1},c.prototype[q.CONVEX]=c.prototype[q.CONVEX|q.RECTANGLE]=c.prototype[q.RECTANGLE]=c.prototype.convexConvex=function(a,b,d,e,j,k,l,m,n,o){var p=t,q=u,r=v,s=w,y=x,C=z,D=A,E=B,F=0,o="number"==typeof o?o:0,G=c.findSeparatingAxis(b,d,e,k,l,m,p);if(!G)return 0;g(D,l,d),i(p,D)>0&&f.scale(p,p,-1);var H=c.getClosestEdge(b,e,p,!0),I=c.getClosestEdge(k,m,p);if(-1===H||-1===I)return 0;for(var J=0;2>J;J++){var K=H,L=I,M=b,N=k,O=d,P=l,Q=e,R=m,S=a,T=j;if(0===J){var U;U=K,K=L,L=U,U=M,M=N,N=U,U=O,O=P,P=U,U=Q,Q=R,R=U,U=S,S=T,T=U}for(var V=L;L+2>V;V++){var W=N.vertices[(V+N.vertices.length)%N.vertices.length];f.rotate(q,W,R),h(q,q,P);for(var X=0,Y=K-1;K+2>Y;Y++){var Z=M.vertices[(Y+M.vertices.length)%M.vertices.length],$=M.vertices[(Y+1+M.vertices.length)%M.vertices.length];f.rotate(r,Z,Q),f.rotate(s,$,Q),h(r,r,O),h(s,s,O),g(y,s,r),f.rotate90cw(E,y),f.normalize(E,E),g(D,q,r);var _=i(E,D);(Y===K&&o>=_||Y!==K&&0>=_)&&X++}if(X>=3){if(n)return!0;var ab=this.createContactEquation(S,T,M,N);F++;var Z=M.vertices[K%M.vertices.length],$=M.vertices[(K+1)%M.vertices.length];f.rotate(r,Z,Q),f.rotate(s,$,Q),h(r,r,O),h(s,s,O),g(y,s,r),f.rotate90cw(ab.normalA,y),f.normalize(ab.normalA,ab.normalA),g(D,q,r);var _=i(ab.normalA,D);f.scale(C,ab.normalA,_),g(ab.contactPointA,q,O),g(ab.contactPointA,ab.contactPointA,C),h(ab.contactPointA,ab.contactPointA,O),g(ab.contactPointA,ab.contactPointA,S.position),g(ab.contactPointB,q,P),h(ab.contactPointB,ab.contactPointB,P),g(ab.contactPointB,ab.contactPointB,T.position),this.contactEquations.push(ab),this.enableFrictionReduction||this.enableFriction&&this.frictionEquations.push(this.createFrictionFromContact(ab))}}}return this.enableFrictionReduction&&this.enableFriction&&F&&this.frictionEquations.push(this.createFrictionFromAverage(F)),F};var Y=f.fromValues(0,0);c.projectConvexOntoAxis=function(a,b,c,d,e){var g,h,j=null,k=null,l=Y;f.rotate(l,d,-c);for(var m=0;m<a.vertices.length;m++)g=a.vertices[m],h=i(g,l),(null===j||h>j)&&(j=h),(null===k||k>h)&&(k=h);if(k>j){var n=k;k=j,j=n}var o=i(b,d);f.set(e,k+o,j+o)};var Z=f.fromValues(0,0),$=f.fromValues(0,0),_=f.fromValues(0,0),ab=f.fromValues(0,0),bb=f.fromValues(0,0),cb=f.fromValues(0,0);c.findSeparatingAxis=function(a,b,d,e,h,i,j){var k=null,l=!1,m=!1,n=Z,o=$,p=_,q=ab,s=bb,t=cb;if(a instanceof r&&e instanceof r)for(var u=0;2!==u;u++){var v=a,w=d;1===u&&(v=e,w=i);for(var x=0;2!==x;x++){0===x?f.set(q,0,1):1===x&&f.set(q,1,0),0!==w&&f.rotate(q,q,w),c.projectConvexOntoAxis(a,b,d,q,s),c.projectConvexOntoAxis(e,h,i,q,t);var y=s,z=t,A=!1;s[0]>t[0]&&(z=s,y=t,A=!0);var B=z[0]-y[1];l=0>=B,(null===k||B>k)&&(f.copy(j,q),k=B,m=l)}}else for(var u=0;2!==u;u++){var v=a,w=d;1===u&&(v=e,w=i);for(var x=0;x!==v.vertices.length;x++){f.rotate(o,v.vertices[x],w),f.rotate(p,v.vertices[(x+1)%v.vertices.length],w),g(n,p,o),f.rotate90cw(q,n),f.normalize(q,q),c.projectConvexOntoAxis(a,b,d,q,s),c.projectConvexOntoAxis(e,h,i,q,t);var y=s,z=t,A=!1;s[0]>t[0]&&(z=s,y=t,A=!0);var B=z[0]-y[1];l=0>=B,(null===k||B>k)&&(f.copy(j,q),k=B,m=l)}}return m};var db=f.fromValues(0,0),eb=f.fromValues(0,0),fb=f.fromValues(0,0);c.getClosestEdge=function(a,b,c,d){var e=db,h=eb,j=fb;f.rotate(e,c,-b),d&&f.scale(e,e,-1);for(var k=-1,l=a.vertices.length,m=-1,n=0;n!==l;n++){g(h,a.vertices[(n+1)%l],a.vertices[n%l]),f.rotate90cw(j,h),f.normalize(j,j);var o=i(j,e);(-1===k||o>m)&&(k=n%l,m=o)}return k};var gb=f.create(),hb=f.create(),ib=f.create(),jb=f.create(),kb=f.create(),lb=f.create(),mb=f.create();c.prototype[q.CIRCLE|q.HEIGHTFIELD]=c.prototype.circleHeightfield=function(a,b,c,d,e,i,j,k,l,m){var n=i.data,m=m||b.radius,o=i.elementWidth,p=hb,q=gb,r=kb,s=mb,t=lb,u=ib,v=jb,w=Math.floor((c[0]-m-j[0])/o),x=Math.ceil((c[0]+m-j[0])/o);0>w&&(w=0),x>=n.length&&(x=n.length-1);for(var y=n[w],z=n[x],A=w;x>A;A++)n[A]<z&&(z=n[A]),n[A]>y&&(y=n[A]);if(c[1]-m>y)return l?!1:0;c[1]+m<z;for(var B=!1,A=w;x>A;A++){f.set(u,A*o,n[A]),f.set(v,(A+1)*o,n[A+1]),f.add(u,u,j),f.add(v,v,j),f.sub(t,v,u),f.rotate(t,t,Math.PI/2),f.normalize(t,t),f.scale(q,t,-m),f.add(q,q,c),f.sub(p,q,u);var C=f.dot(p,t);if(q[0]>=u[0]&&q[0]<v[0]&&0>=C){if(l)return!0;B=!0,f.scale(p,t,-C),f.add(r,q,p),f.copy(s,t);var D=this.createContactEquation(e,a,i,b);f.copy(D.normalA,s),f.scale(D.contactPointB,D.normalA,-m),h(D.contactPointB,D.contactPointB,c),g(D.contactPointB,D.contactPointB,a.position),f.copy(D.contactPointA,r),f.sub(D.contactPointA,D.contactPointA,e.position),this.contactEquations.push(D),this.enableFriction&&this.frictionEquations.push(this.createFrictionFromContact(D))}}if(B=!1,m>0)for(var A=w;x>=A;A++)if(f.set(u,A*o,n[A]),f.add(u,u,j),f.sub(p,c,u),f.squaredLength(p)<Math.pow(m,2)){if(l)return!0;B=!0;var D=this.createContactEquation(e,a,i,b);f.copy(D.normalA,p),f.normalize(D.normalA,D.normalA),f.scale(D.contactPointB,D.normalA,-m),h(D.contactPointB,D.contactPointB,c),g(D.contactPointB,D.contactPointB,a.position),g(D.contactPointA,u,j),h(D.contactPointA,D.contactPointA,j),g(D.contactPointA,D.contactPointA,e.position),this.contactEquations.push(D),this.enableFriction&&this.frictionEquations.push(this.createFrictionFromContact(D))}return B?1:0};var nb=f.create(),ob=f.create(),pb=f.create(),qb=new p([f.create(),f.create(),f.create(),f.create()]);c.prototype[q.RECTANGLE|q.HEIGHTFIELD]=c.prototype[q.CONVEX|q.HEIGHTFIELD]=c.prototype.convexHeightfield=function(a,b,c,d,e,g,h,i,j){var k=g.data,l=g.elementWidth,m=nb,n=ob,o=pb,p=qb,q=Math.floor((a.aabb.lowerBound[0]-h[0])/l),r=Math.ceil((a.aabb.upperBound[0]-h[0])/l);0>q&&(q=0),r>=k.length&&(r=k.length-1);for(var s=k[q],t=k[r],u=q;r>u;u++)k[u]<t&&(t=k[u]),k[u]>s&&(s=k[u]);if(a.aabb.lowerBound[1]>s)return j?!1:0;for(var v=0,u=q;r>u;u++){f.set(m,u*l,k[u]),f.set(n,(u+1)*l,k[u+1]),f.add(m,m,h),f.add(n,n,h);var w=100;f.set(o,.5*(n[0]+m[0]),.5*(n[1]+m[1]-w)),f.sub(p.vertices[0],n,o),f.sub(p.vertices[1],m,o),f.copy(p.vertices[2],p.vertices[1]),f.copy(p.vertices[3],p.vertices[0]),p.vertices[2][1]-=w,p.vertices[3][1]-=w,v+=this.convexConvex(a,b,c,d,e,p,o,0,j)}return v}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/collision/Narrowphase.js","/collision")},{"../equations/ContactEquation":24,"../equations/Equation":25,"../equations/FrictionEquation":26,"../math/vec2":33,"../objects/Body":34,"../shapes/Circle":40,"../shapes/Convex":41,"../shapes/Rectangle":46,"../shapes/Shape":47,"../utils/TupleDictionary":51,"../utils/Utils":52,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],16:[function(a,b){(function(){function c(){e.call(this,e.SAP),this.axisList=[],this.world=null,this.axisIndex=0;var a=this.axisList;this._addBodyHandler=function(b){a.push(b.body)},this._removeBodyHandler=function(b){var c=a.indexOf(b.body);-1!==c&&a.splice(c,1)}}var d=a("../utils/Utils"),e=a("../collision/Broadphase");b.exports=c,c.prototype=new e,c.prototype.setWorld=function(a){this.axisList.length=0,d.appendArray(this.axisList,a.bodies),a.off("addBody",this._addBodyHandler).off("removeBody",this._removeBodyHandler),a.on("addBody",this._addBodyHandler).on("removeBody",this._removeBodyHandler),this.world=a},c.sortAxisList=function(a,b){b=0|b;for(var c=1,d=a.length;d>c;c++){for(var e=a[c],f=c-1;f>=0&&!(a[f].aabb.lowerBound[b]<=e.aabb.lowerBound[b]);f--)a[f+1]=a[f];a[f+1]=e}return a},c.prototype.getCollisionPairs=function(){var a=this.axisList,b=this.result,d=this.axisIndex;b.length=0;for(var f=a.length;f--;){var g=a[f];g.aabbNeedsUpdate&&g.updateAABB()}c.sortAxisList(a,d);for(var h=0,i=0|a.length;h!==i;h++)for(var j=a[h],k=h+1;i>k;k++){var l=a[k],m=l.aabb.lowerBound[d]<=j.aabb.upperBound[d];if(!m)break;e.canCollide(j,l)&&this.boundingVolumeCheck(j,l)&&b.push(j,l)}return b}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/collision/SAPBroadphase.js","/collision")},{"../collision/Broadphase":12,"../utils/Utils":52,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],17:[function(a,b){(function(){function c(a,b,c,e){this.type=c,e=d.defaults(e,{collideConnected:!0,wakeUpBodies:!0}),this.equations=[],this.bodyA=a,this.bodyB=b,this.collideConnected=e.collideConnected,e.wakeUpBodies&&(a&&a.wakeUp(),b&&b.wakeUp())}b.exports=c;var d=a("../utils/Utils");c.prototype.update=function(){throw new Error("method update() not implmemented in this Constraint subclass!")},c.DISTANCE=1,c.GEAR=2,c.LOCK=3,c.PRISMATIC=4,c.REVOLUTE=5,c.prototype.setStiffness=function(a){for(var b=this.equations,c=0;c!==b.length;c++){var d=b[c];d.stiffness=a,d.needsUpdate=!0}},c.prototype.setRelaxation=function(a){for(var b=this.equations,c=0;c!==b.length;c++){var d=b[c];d.relaxation=a,d.needsUpdate=!0}}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/constraints/Constraint.js","/constraints")},{"../utils/Utils":52,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],18:[function(a,b){(function(){function c(a,b,c){c=g.defaults(c,{localAnchorA:[0,0],localAnchorB:[0,0]}),d.call(this,a,b,d.DISTANCE,c),this.localAnchorA=f.fromValues(c.localAnchorA[0],c.localAnchorA[1]),this.localAnchorB=f.fromValues(c.localAnchorB[0],c.localAnchorB[1]);var h=this.localAnchorA,i=this.localAnchorB;if(this.distance=0,"number"==typeof c.distance)this.distance=c.distance;else{var j=f.create(),k=f.create(),l=f.create();f.rotate(j,h,a.angle),f.rotate(k,i,b.angle),f.add(l,b.position,k),f.sub(l,l,j),f.sub(l,l,a.position),this.distance=f.length(l)}var m;m="undefined"==typeof c.maxForce?Number.MAX_VALUE:c.maxForce;var n=new e(a,b,-m,m);this.equations=[n],this.maxForce=m;var l=f.create(),o=f.create(),p=f.create(),q=this;n.computeGq=function(){var a=this.bodyA,b=this.bodyB,c=a.position,d=b.position;return f.rotate(o,h,a.angle),f.rotate(p,i,b.angle),f.add(l,d,p),f.sub(l,l,o),f.sub(l,l,c),f.length(l)-q.distance},this.setMaxForce(m),this.upperLimitEnabled=!1,this.upperLimit=1,this.lowerLimitEnabled=!1,this.lowerLimit=0,this.position=0}var d=a("./Constraint"),e=a("../equations/Equation"),f=a("../math/vec2"),g=a("../utils/Utils");
-b.exports=c,c.prototype=new d;var h=f.create(),i=f.create(),j=f.create();c.prototype.update=function(){var a=this.equations[0],b=this.bodyA,c=this.bodyB,d=(this.distance,b.position),e=c.position,g=this.equations[0],k=a.G;f.rotate(i,this.localAnchorA,b.angle),f.rotate(j,this.localAnchorB,c.angle),f.add(h,e,j),f.sub(h,h,i),f.sub(h,h,d),this.position=f.length(h);var l=!1;if(this.upperLimitEnabled&&this.position>this.upperLimit&&(g.maxForce=0,g.minForce=-this.maxForce,this.distance=this.upperLimit,l=!0),this.lowerLimitEnabled&&this.position<this.lowerLimit&&(g.maxForce=this.maxForce,g.minForce=0,this.distance=this.lowerLimit,l=!0),(this.lowerLimitEnabled||this.upperLimitEnabled)&&!l)return void(g.enabled=!1);g.enabled=!0,f.normalize(h,h);var m=f.crossLength(i,h),n=f.crossLength(j,h);k[0]=-h[0],k[1]=-h[1],k[2]=-m,k[3]=h[0],k[4]=h[1],k[5]=n},c.prototype.setMaxForce=function(a){var b=this.equations[0];b.minForce=-a,b.maxForce=a},c.prototype.getMaxForce=function(){var a=this.equations[0];return a.maxForce}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/constraints/DistanceConstraint.js","/constraints")},{"../equations/Equation":25,"../math/vec2":33,"../utils/Utils":52,"./Constraint":17,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],19:[function(a,b){(function(){function c(a,b,c){c=c||{},d.call(this,a,b,d.GEAR,c),this.ratio="number"==typeof c.ratio?c.ratio:1,this.angle="number"==typeof c.angle?c.angle:b.angle-this.ratio*a.angle,c.angle=this.angle,c.ratio=this.ratio,this.equations=[new e(a,b,c)],"number"==typeof c.maxTorque&&this.setMaxTorque(c.maxTorque)}{var d=a("./Constraint"),e=(a("../equations/Equation"),a("../equations/AngleLockEquation"));a("../math/vec2")}b.exports=c,c.prototype=new d,c.prototype.update=function(){var a=this.equations[0];a.ratio!==this.ratio&&a.setRatio(this.ratio),a.angle=this.angle},c.prototype.setMaxTorque=function(a){this.equations[0].setMaxTorque(a)},c.prototype.getMaxTorque=function(){return this.equations[0].maxForce}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/constraints/GearConstraint.js","/constraints")},{"../equations/AngleLockEquation":23,"../equations/Equation":25,"../math/vec2":33,"./Constraint":17,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],20:[function(a,b){(function(){function c(a,b,c){c=c||{},d.call(this,a,b,d.LOCK,c);var g="undefined"==typeof c.maxForce?Number.MAX_VALUE:c.maxForce,h=(c.localAngleB||0,new f(a,b,-g,g)),i=new f(a,b,-g,g),j=new f(a,b,-g,g),k=e.create(),l=e.create(),m=this;h.computeGq=function(){return e.rotate(k,m.localOffsetB,a.angle),e.sub(l,b.position,a.position),e.sub(l,l,k),l[0]},i.computeGq=function(){return e.rotate(k,m.localOffsetB,a.angle),e.sub(l,b.position,a.position),e.sub(l,l,k),l[1]};var n=e.create(),o=e.create();j.computeGq=function(){return e.rotate(n,m.localOffsetB,b.angle-m.localAngleB),e.scale(n,n,-1),e.sub(l,a.position,b.position),e.add(l,l,n),e.rotate(o,n,-Math.PI/2),e.normalize(o,o),e.dot(l,o)},this.localOffsetB=e.create(),c.localOffsetB?e.copy(this.localOffsetB,c.localOffsetB):(e.sub(this.localOffsetB,b.position,a.position),e.rotate(this.localOffsetB,this.localOffsetB,-a.angle)),this.localAngleB=0,this.localAngleB="number"==typeof c.localAngleB?c.localAngleB:b.angle-a.angle,this.equations.push(h,i,j),this.setMaxForce(g)}var d=a("./Constraint"),e=a("../math/vec2"),f=a("../equations/Equation");b.exports=c,c.prototype=new d,c.prototype.setMaxForce=function(a){for(var b=this.equations,c=0;c<this.equations.length;c++)b[c].maxForce=a,b[c].minForce=-a},c.prototype.getMaxForce=function(){return this.equations[0].maxForce};var g=e.create(),h=e.create(),i=e.create(),j=e.fromValues(1,0),k=e.fromValues(0,1);c.prototype.update=function(){var a=this.equations[0],b=this.equations[1],c=this.equations[2],d=this.bodyA,f=this.bodyB;e.rotate(g,this.localOffsetB,d.angle),e.rotate(h,this.localOffsetB,f.angle-this.localAngleB),e.scale(h,h,-1),e.rotate(i,h,Math.PI/2),e.normalize(i,i),a.G[0]=-1,a.G[1]=0,a.G[2]=-e.crossLength(g,j),a.G[3]=1,b.G[0]=0,b.G[1]=-1,b.G[2]=-e.crossLength(g,k),b.G[4]=1,c.G[0]=-i[0],c.G[1]=-i[1],c.G[3]=i[0],c.G[4]=i[1],c.G[5]=e.crossLength(h,i)}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/constraints/LockConstraint.js","/constraints")},{"../equations/Equation":25,"../math/vec2":33,"./Constraint":17,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],21:[function(a,b){(function(){function c(a,b,c){c=c||{},d.call(this,a,b,d.PRISMATIC,c);var i=g.fromValues(0,0),j=g.fromValues(1,0),k=g.fromValues(0,0);c.localAnchorA&&g.copy(i,c.localAnchorA),c.localAxisA&&g.copy(j,c.localAxisA),c.localAnchorB&&g.copy(k,c.localAnchorB),this.localAnchorA=i,this.localAnchorB=k,this.localAxisA=j;var l=this.maxForce="undefined"!=typeof c.maxForce?c.maxForce:Number.MAX_VALUE,m=new f(a,b,-l,l),n=new g.create,o=new g.create,p=new g.create,q=new g.create;if(m.computeGq=function(){return g.dot(p,q)},m.updateJacobian=function(){var c=this.G,d=a.position,e=b.position;g.rotate(n,i,a.angle),g.rotate(o,k,b.angle),g.add(p,e,o),g.sub(p,p,d),g.sub(p,p,n),g.rotate(q,j,a.angle+Math.PI/2),c[0]=-q[0],c[1]=-q[1],c[2]=-g.crossLength(n,q)+g.crossLength(q,p),c[3]=q[0],c[4]=q[1],c[5]=g.crossLength(o,q)},this.equations.push(m),!c.disableRotationalLock){var r=new h(a,b,-l,l);this.equations.push(r)}this.position=0,this.velocity=0,this.lowerLimitEnabled="undefined"!=typeof c.lowerLimit?!0:!1,this.upperLimitEnabled="undefined"!=typeof c.upperLimit?!0:!1,this.lowerLimit="undefined"!=typeof c.lowerLimit?c.lowerLimit:0,this.upperLimit="undefined"!=typeof c.upperLimit?c.upperLimit:1,this.upperLimitEquation=new e(a,b),this.lowerLimitEquation=new e(a,b),this.upperLimitEquation.minForce=this.lowerLimitEquation.minForce=0,this.upperLimitEquation.maxForce=this.lowerLimitEquation.maxForce=l,this.motorEquation=new f(a,b),this.motorEnabled=!1,this.motorSpeed=0;{var s=this,t=this.motorEquation;t.computeGW}t.computeGq=function(){return 0},t.computeGW=function(){var a=this.G,b=this.bodyA,c=this.bodyB,d=b.velocity,e=c.velocity,f=b.angularVelocity,g=c.angularVelocity;return this.gmult(a,d,f,e,g)+s.motorSpeed}}var d=a("./Constraint"),e=a("../equations/ContactEquation"),f=a("../equations/Equation"),g=a("../math/vec2"),h=a("../equations/RotationalLockEquation");b.exports=c,c.prototype=new d;var i=g.create(),j=g.create(),k=g.create(),l=g.create(),m=g.create(),n=g.create();c.prototype.update=function(){var a=this.equations,b=a[0],c=this.upperLimit,d=this.lowerLimit,e=this.upperLimitEquation,f=this.lowerLimitEquation,h=this.bodyA,o=this.bodyB,p=this.localAxisA,q=this.localAnchorA,r=this.localAnchorB;b.updateJacobian(),g.rotate(i,p,h.angle),g.rotate(l,q,h.angle),g.add(j,l,h.position),g.rotate(m,r,o.angle),g.add(k,m,o.position);var s=this.position=g.dot(k,i)-g.dot(j,i);if(this.motorEnabled){var t=this.motorEquation.G;t[0]=i[0],t[1]=i[1],t[2]=g.crossLength(i,m),t[3]=-i[0],t[4]=-i[1],t[5]=-g.crossLength(i,l)}if(this.upperLimitEnabled&&s>c)g.scale(e.normalA,i,-1),g.sub(e.contactPointA,j,h.position),g.sub(e.contactPointB,k,o.position),g.scale(n,i,c),g.add(e.contactPointA,e.contactPointA,n),-1===a.indexOf(e)&&a.push(e);else{var u=a.indexOf(e);-1!==u&&a.splice(u,1)}if(this.lowerLimitEnabled&&d>s)g.scale(f.normalA,i,1),g.sub(f.contactPointA,j,h.position),g.sub(f.contactPointB,k,o.position),g.scale(n,i,d),g.sub(f.contactPointB,f.contactPointB,n),-1===a.indexOf(f)&&a.push(f);else{var u=a.indexOf(f);-1!==u&&a.splice(u,1)}},c.prototype.enableMotor=function(){this.motorEnabled||(this.equations.push(this.motorEquation),this.motorEnabled=!0)},c.prototype.disableMotor=function(){if(this.motorEnabled){var a=this.equations.indexOf(this.motorEquation);this.equations.splice(a,1),this.motorEnabled=!1}},c.prototype.setLimits=function(a,b){"number"==typeof a?(this.lowerLimit=a,this.lowerLimitEnabled=!0):(this.lowerLimit=a,this.lowerLimitEnabled=!1),"number"==typeof b?(this.upperLimit=b,this.upperLimitEnabled=!0):(this.upperLimit=b,this.upperLimitEnabled=!1)}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/constraints/PrismaticConstraint.js","/constraints")},{"../equations/ContactEquation":24,"../equations/Equation":25,"../equations/RotationalLockEquation":27,"../math/vec2":33,"./Constraint":17,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],22:[function(a,b){(function(){function c(a,b,c){c=c||{},d.call(this,a,b,d.REVOLUTE,c);var n=this.maxForce="undefined"!=typeof c.maxForce?c.maxForce:Number.MAX_VALUE;this.pivotA=h.create(),this.pivotB=h.create(),c.worldPivot?(h.sub(this.pivotA,c.worldPivot,a.position),h.sub(this.pivotB,c.worldPivot,b.position),h.rotate(this.pivotA,this.pivotA,-a.angle),h.rotate(this.pivotB,this.pivotB,-b.angle)):(h.copy(this.pivotA,c.localPivotA),h.copy(this.pivotB,c.localPivotB));var o=this.equations=[new e(a,b,-n,n),new e(a,b,-n,n)],p=o[0],q=o[1],r=this;p.computeGq=function(){return h.rotate(i,r.pivotA,a.angle),h.rotate(j,r.pivotB,b.angle),h.add(m,b.position,j),h.sub(m,m,a.position),h.sub(m,m,i),h.dot(m,k)},q.computeGq=function(){return h.rotate(i,r.pivotA,a.angle),h.rotate(j,r.pivotB,b.angle),h.add(m,b.position,j),h.sub(m,m,a.position),h.sub(m,m,i),h.dot(m,l)},q.minForce=p.minForce=-n,q.maxForce=p.maxForce=n,this.motorEquation=new f(a,b),this.motorEnabled=!1,this.angle=0,this.lowerLimitEnabled=!1,this.upperLimitEnabled=!1,this.lowerLimit=0,this.upperLimit=0,this.upperLimitEquation=new g(a,b),this.lowerLimitEquation=new g(a,b),this.upperLimitEquation.minForce=0,this.lowerLimitEquation.maxForce=0}var d=a("./Constraint"),e=a("../equations/Equation"),f=a("../equations/RotationalVelocityEquation"),g=a("../equations/RotationalLockEquation"),h=a("../math/vec2");b.exports=c;var i=h.create(),j=h.create(),k=h.fromValues(1,0),l=h.fromValues(0,1),m=h.create();c.prototype=new d,c.prototype.setLimits=function(a,b){"number"==typeof a?(this.lowerLimit=a,this.lowerLimitEnabled=!0):(this.lowerLimit=a,this.lowerLimitEnabled=!1),"number"==typeof b?(this.upperLimit=b,this.upperLimitEnabled=!0):(this.upperLimit=b,this.upperLimitEnabled=!1)},c.prototype.update=function(){var a=this.bodyA,b=this.bodyB,c=this.pivotA,d=this.pivotB,e=this.equations,f=(e[0],e[1],e[0]),g=e[1],m=this.upperLimit,n=this.lowerLimit,o=this.upperLimitEquation,p=this.lowerLimitEquation,q=this.angle=b.angle-a.angle;if(this.upperLimitEnabled&&q>m)o.angle=m,-1===e.indexOf(o)&&e.push(o);else{var r=e.indexOf(o);-1!==r&&e.splice(r,1)}if(this.lowerLimitEnabled&&n>q)p.angle=n,-1===e.indexOf(p)&&e.push(p);else{var r=e.indexOf(p);-1!==r&&e.splice(r,1)}h.rotate(i,c,a.angle),h.rotate(j,d,b.angle),f.G[0]=-1,f.G[1]=0,f.G[2]=-h.crossLength(i,k),f.G[3]=1,f.G[4]=0,f.G[5]=h.crossLength(j,k),g.G[0]=0,g.G[1]=-1,g.G[2]=-h.crossLength(i,l),g.G[3]=0,g.G[4]=1,g.G[5]=h.crossLength(j,l)},c.prototype.enableMotor=function(){this.motorEnabled||(this.equations.push(this.motorEquation),this.motorEnabled=!0)},c.prototype.disableMotor=function(){if(this.motorEnabled){var a=this.equations.indexOf(this.motorEquation);this.equations.splice(a,1),this.motorEnabled=!1}},c.prototype.motorIsEnabled=function(){return!!this.motorEnabled},c.prototype.setMotorSpeed=function(a){if(this.motorEnabled){var b=this.equations.indexOf(this.motorEquation);this.equations[b].relativeVelocity=a}},c.prototype.getMotorSpeed=function(){return this.motorEnabled?this.motorEquation.relativeVelocity:!1}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/constraints/RevoluteConstraint.js","/constraints")},{"../equations/Equation":25,"../equations/RotationalLockEquation":27,"../equations/RotationalVelocityEquation":28,"../math/vec2":33,"./Constraint":17,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],23:[function(a,b){(function(){function c(a,b,c){c=c||{},d.call(this,a,b,-Number.MAX_VALUE,Number.MAX_VALUE),this.angle=c.angle||0,this.ratio="number"==typeof c.ratio?c.ratio:1,this.setRatio(this.ratio)}{var d=a("./Equation");a("../math/vec2")}b.exports=c,c.prototype=new d,c.prototype.constructor=c,c.prototype.computeGq=function(){return this.ratio*this.bodyA.angle-this.bodyB.angle+this.angle},c.prototype.setRatio=function(a){var b=this.G;b[2]=a,b[5]=-1,this.ratio=a},c.prototype.setMaxTorque=function(a){this.maxForce=a,this.minForce=-a}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/equations/AngleLockEquation.js","/equations")},{"../math/vec2":33,"./Equation":25,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],24:[function(a,b){(function(){function c(a,b){d.call(this,a,b,0,Number.MAX_VALUE),this.contactPointA=e.create(),this.penetrationVec=e.create(),this.contactPointB=e.create(),this.normalA=e.create(),this.restitution=0,this.firstImpact=!1,this.shapeA=null,this.shapeB=null}var d=a("./Equation"),e=a("../math/vec2");b.exports=c,c.prototype=new d,c.prototype.constructor=c,c.prototype.computeB=function(a,b,c){var d=this.bodyA,f=this.bodyB,g=this.contactPointA,h=this.contactPointB,i=d.position,j=f.position,k=this.penetrationVec,l=this.normalA,m=this.G,n=e.crossLength(g,l),o=e.crossLength(h,l);m[0]=-l[0],m[1]=-l[1],m[2]=-n,m[3]=l[0],m[4]=l[1],m[5]=o,e.add(k,j,h),e.sub(k,k,i),e.sub(k,k,g);var p,q;this.firstImpact&&0!==this.restitution?(q=0,p=1/b*(1+this.restitution)*this.computeGW()):(q=e.dot(l,k)+this.offset,p=this.computeGW());var r=this.computeGiMf(),s=-q*a-p*b-c*r;return s}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/equations/ContactEquation.js","/equations")},{"../math/vec2":33,"./Equation":25,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],25:[function(a,b){(function(){function c(a,b,d,f){this.minForce="undefined"==typeof d?-Number.MAX_VALUE:d,this.maxForce="undefined"==typeof f?Number.MAX_VALUE:f,this.bodyA=a,this.bodyB=b,this.stiffness=c.DEFAULT_STIFFNESS,this.relaxation=c.DEFAULT_RELAXATION,this.G=new e.ARRAY_TYPE(6);for(var g=0;6>g;g++)this.G[g]=0;this.offset=0,this.a=0,this.b=0,this.epsilon=0,this.timeStep=1/60,this.needsUpdate=!0,this.multiplier=0,this.relativeVelocity=0,this.enabled=!0}b.exports=c;{var d=a("../math/vec2"),e=a("../utils/Utils");a("../objects/Body")}c.prototype.constructor=c,c.DEFAULT_STIFFNESS=1e6,c.DEFAULT_RELAXATION=4,c.prototype.update=function(){var a=this.stiffness,b=this.relaxation,c=this.timeStep;this.a=4/(c*(1+4*b)),this.b=4*b/(1+4*b),this.epsilon=4/(c*c*a*(1+4*b)),this.needsUpdate=!1},c.prototype.gmult=function(a,b,c,d,e){return a[0]*b[0]+a[1]*b[1]+a[2]*c+a[3]*d[0]+a[4]*d[1]+a[5]*e},c.prototype.computeB=function(a,b,c){var d=this.computeGW(),e=this.computeGq(),f=this.computeGiMf();return-e*a-d*b-f*c};var f=d.create(),g=d.create();c.prototype.computeGq=function(){var a=this.G,b=this.bodyA,c=this.bodyB,d=(b.position,c.position,b.angle),e=c.angle;return this.gmult(a,f,d,g,e)+this.offset},c.prototype.computeGW=function(){var a=this.G,b=this.bodyA,c=this.bodyB,d=b.velocity,e=c.velocity,f=b.angularVelocity,g=c.angularVelocity;return this.gmult(a,d,f,e,g)+this.relativeVelocity},c.prototype.computeGWlambda=function(){var a=this.G,b=this.bodyA,c=this.bodyB,d=b.vlambda,e=c.vlambda,f=b.wlambda,g=c.wlambda;return this.gmult(a,d,f,e,g)};var h=d.create(),i=d.create();c.prototype.computeGiMf=function(){var a=this.bodyA,b=this.bodyB,c=a.force,e=a.angularForce,f=b.force,g=b.angularForce,j=a.invMassSolve,k=b.invMassSolve,l=a.invInertiaSolve,m=b.invInertiaSolve,n=this.G;return d.scale(h,c,j),d.scale(i,f,k),this.gmult(n,h,e*l,i,g*m)},c.prototype.computeGiMGt=function(){var a=this.bodyA,b=this.bodyB,c=a.invMassSolve,d=b.invMassSolve,e=a.invInertiaSolve,f=b.invInertiaSolve,g=this.G;return g[0]*g[0]*c+g[1]*g[1]*c+g[2]*g[2]*e+g[3]*g[3]*d+g[4]*g[4]*d+g[5]*g[5]*f};{var j=d.create(),k=d.create(),l=d.create();d.create(),d.create(),d.create()}c.prototype.addToWlambda=function(a){var b=this.bodyA,c=this.bodyB,e=j,f=k,g=l,h=b.invMassSolve,i=c.invMassSolve,m=b.invInertiaSolve,n=c.invInertiaSolve,o=this.G;f[0]=o[0],f[1]=o[1],g[0]=o[3],g[1]=o[4],d.scale(e,f,h*a),d.add(b.vlambda,b.vlambda,e),b.wlambda+=m*o[2]*a,d.scale(e,g,i*a),d.add(c.vlambda,c.vlambda,e),c.wlambda+=n*o[5]*a},c.prototype.computeInvC=function(a){return 1/(this.computeGiMGt()+a)}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/equations/Equation.js","/equations")},{"../math/vec2":33,"../objects/Body":34,"../utils/Utils":52,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],26:[function(a,b){(function(){function c(a,b,c){e.call(this,a,b,-c,c),this.contactPointA=d.create(),this.contactPointB=d.create(),this.t=d.create(),this.contactEquations=[],this.shapeA=null,this.shapeB=null,this.frictionCoefficient=.3}{var d=a("../math/vec2"),e=a("./Equation");a("../utils/Utils")}b.exports=c,c.prototype=new e,c.prototype.constructor=c,c.prototype.setSlipForce=function(a){this.maxForce=a,this.minForce=-a},c.prototype.getSlipForce=function(){return this.maxForce},c.prototype.computeB=function(a,b,c){var e=(this.bodyA,this.bodyB,this.contactPointA),f=this.contactPointB,g=this.t,h=this.G;h[0]=-g[0],h[1]=-g[1],h[2]=-d.crossLength(e,g),h[3]=g[0],h[4]=g[1],h[5]=d.crossLength(f,g);var i=this.computeGW(),j=this.computeGiMf(),k=-i*b-c*j;return k}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/equations/FrictionEquation.js","/equations")},{"../math/vec2":33,"../utils/Utils":52,"./Equation":25,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],27:[function(a,b){(function(){function c(a,b,c){c=c||{},d.call(this,a,b,-Number.MAX_VALUE,Number.MAX_VALUE),this.angle=c.angle||0;var e=this.G;e[2]=1,e[5]=-1}var d=a("./Equation"),e=a("../math/vec2");b.exports=c,c.prototype=new d,c.prototype.constructor=c;var f=e.create(),g=e.create(),h=e.fromValues(1,0),i=e.fromValues(0,1);c.prototype.computeGq=function(){return e.rotate(f,h,this.bodyA.angle+this.angle),e.rotate(g,i,this.bodyB.angle),e.dot(f,g)}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/equations/RotationalLockEquation.js","/equations")},{"../math/vec2":33,"./Equation":25,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],28:[function(a,b){(function(){function c(a,b){d.call(this,a,b,-Number.MAX_VALUE,Number.MAX_VALUE),this.relativeVelocity=1,this.ratio=1}{var d=a("./Equation");a("../math/vec2")}b.exports=c,c.prototype=new d,c.prototype.constructor=c,c.prototype.computeB=function(a,b,c){var d=this.G;d[2]=-1,d[5]=this.ratio;var e=this.computeGiMf(),f=this.computeGW(),g=-f*b-c*e;return g}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/equations/RotationalVelocityEquation.js","/equations")},{"../math/vec2":33,"./Equation":25,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],29:[function(a,b){(function(){var a=function(){};b.exports=a,a.prototype={constructor:a,on:function(a,b,c){b.context=c||this,void 0===this._listeners&&(this._listeners={});var d=this._listeners;return void 0===d[a]&&(d[a]=[]),-1===d[a].indexOf(b)&&d[a].push(b),this},has:function(a,b){if(void 0===this._listeners)return!1;var c=this._listeners;if(b){if(void 0!==c[a]&&-1!==c[a].indexOf(b))return!0}else if(void 0!==c[a])return!0;return!1},off:function(a,b){if(void 0===this._listeners)return this;var c=this._listeners,d=c[a].indexOf(b);return-1!==d&&c[a].splice(d,1),this},emit:function(a){if(void 0===this._listeners)return this;var b=this._listeners,c=b[a.type];if(void 0!==c){a.target=this;for(var d=0,e=c.length;e>d;d++){var f=c[d];f.call(f.context,a)}}return this}}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/events/EventEmitter.js","/events")},{"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],30:[function(a,b){(function(){function c(a,b,f){if(f=f||{},!(a instanceof d&&b instanceof d))throw new Error("First two arguments must be Material instances.");this.id=c.idCounter++,this.materialA=a,this.materialB=b,this.friction="undefined"!=typeof f.friction?Number(f.friction):.3,this.restitution="undefined"!=typeof f.restitution?Number(f.restitution):0,this.stiffness="undefined"!=typeof f.stiffness?Number(f.stiffness):e.DEFAULT_STIFFNESS,this.relaxation="undefined"!=typeof f.relaxation?Number(f.relaxation):e.DEFAULT_RELAXATION,this.frictionStiffness="undefined"!=typeof f.frictionStiffness?Number(f.frictionStiffness):e.DEFAULT_STIFFNESS,this.frictionRelaxation="undefined"!=typeof f.frictionRelaxation?Number(f.frictionRelaxation):e.DEFAULT_RELAXATION,this.surfaceVelocity="undefined"!=typeof f.surfaceVelocity?Number(f.surfaceVelocity):0,this.contactSkinSize=.005}var d=a("./Material"),e=a("../equations/Equation");b.exports=c,c.idCounter=0}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/material/ContactMaterial.js","/material")},{"../equations/Equation":25,"./Material":31,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],31:[function(a,b){(function(){function a(b){this.id=b||a.idCounter++}b.exports=a,a.idCounter=0}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/material/Material.js","/material")},{"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],32:[function(a,b){(function(){var a={};a.GetArea=function(a){if(a.length<6)return 0;for(var b=a.length-2,c=0,d=0;b>d;d+=2)c+=(a[d+2]-a[d])*(a[d+1]+a[d+3]);return c+=(a[0]-a[b])*(a[b+1]+a[1]),.5*-c},a.Triangulate=function(b){var c=b.length>>1;if(3>c)return[];for(var d=[],e=[],f=0;c>f;f++)e.push(f);for(var f=0,g=c;g>3;){var h=e[(f+0)%g],i=e[(f+1)%g],j=e[(f+2)%g],k=b[2*h],l=b[2*h+1],m=b[2*i],n=b[2*i+1],o=b[2*j],p=b[2*j+1],q=!1;if(a._convex(k,l,m,n,o,p)){q=!0;for(var r=0;g>r;r++){var s=e[r];if(s!=h&&s!=i&&s!=j&&a._PointInTriangle(b[2*s],b[2*s+1],k,l,m,n,o,p)){q=!1;break}}}if(q)d.push(h,i,j),e.splice((f+1)%g,1),g--,f=0;else if(f++>3*g)break}return d.push(e[0],e[1],e[2]),d},a._PointInTriangle=function(a,b,c,d,e,f,g,h){var i=g-c,j=h-d,k=e-c,l=f-d,m=a-c,n=b-d,o=i*i+j*j,p=i*k+j*l,q=i*m+j*n,r=k*k+l*l,s=k*m+l*n,t=1/(o*r-p*p),u=(r*q-p*s)*t,v=(o*s-p*q)*t;return u>=0&&v>=0&&1>u+v},a._convex=function(a,b,c,d,e,f){return(b-d)*(e-c)+(c-a)*(f-d)>=0},b.exports=a}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/math/polyk.js","/math")},{"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],33:[function(a,b){(function(){var c=b.exports={},d=a("../utils/Utils");c.crossLength=function(a,b){return a[0]*b[1]-a[1]*b[0]},c.crossVZ=function(a,b,d){return c.rotate(a,b,-Math.PI/2),c.scale(a,a,d),a},c.crossZV=function(a,b,d){return c.rotate(a,d,Math.PI/2),c.scale(a,a,b),a},c.rotate=function(a,b,c){if(0!==c){var d=Math.cos(c),e=Math.sin(c),f=b[0],g=b[1];a[0]=d*f-e*g,a[1]=e*f+d*g}else a[0]=b[0],a[1]=b[1]},c.rotate90cw=function(a,b){var c=b[0],d=b[1];a[0]=d,a[1]=-c},c.toLocalFrame=function(a,b,d,e){c.copy(a,b),c.sub(a,a,d),c.rotate(a,a,-e)},c.toGlobalFrame=function(a,b,d,e){c.copy(a,b),c.rotate(a,a,e),c.add(a,a,d)},c.centroid=function(a,b,d,e){return c.add(a,b,d),c.add(a,a,e),c.scale(a,a,1/3),a},c.create=function(){var a=new d.ARRAY_TYPE(2);return a[0]=0,a[1]=0,a},c.clone=function(a){var b=new d.ARRAY_TYPE(2);return b[0]=a[0],b[1]=a[1],b},c.fromValues=function(a,b){var c=new d.ARRAY_TYPE(2);return c[0]=a,c[1]=b,c},c.copy=function(a,b){return a[0]=b[0],a[1]=b[1],a},c.set=function(a,b,c){return a[0]=b,a[1]=c,a},c.add=function(a,b,c){return a[0]=b[0]+c[0],a[1]=b[1]+c[1],a},c.subtract=function(a,b,c){return a[0]=b[0]-c[0],a[1]=b[1]-c[1],a},c.sub=c.subtract,c.multiply=function(a,b,c){return a[0]=b[0]*c[0],a[1]=b[1]*c[1],a},c.mul=c.multiply,c.divide=function(a,b,c){return a[0]=b[0]/c[0],a[1]=b[1]/c[1],a},c.div=c.divide,c.scale=function(a,b,c){return a[0]=b[0]*c,a[1]=b[1]*c,a},c.distance=function(a,b){var c=b[0]-a[0],d=b[1]-a[1];return Math.sqrt(c*c+d*d)},c.dist=c.distance,c.squaredDistance=function(a,b){var c=b[0]-a[0],d=b[1]-a[1];return c*c+d*d},c.sqrDist=c.squaredDistance,c.length=function(a){var b=a[0],c=a[1];return Math.sqrt(b*b+c*c)},c.len=c.length,c.squaredLength=function(a){var b=a[0],c=a[1];return b*b+c*c},c.sqrLen=c.squaredLength,c.negate=function(a,b){return a[0]=-b[0],a[1]=-b[1],a},c.normalize=function(a,b){var c=b[0],d=b[1],e=c*c+d*d;return e>0&&(e=1/Math.sqrt(e),a[0]=b[0]*e,a[1]=b[1]*e),a},c.dot=function(a,b){return a[0]*b[0]+a[1]*b[1]},c.str=function(a){return"vec2("+a[0]+", "+a[1]+")"}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/math/vec2.js","/math")},{"../utils/Utils":52,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],34:[function(a,b){(function(){function c(a){a=a||{},h.call(this),this.id=++c._idCounter,this.world=null,this.shapes=[],this.shapeOffsets=[],this.shapeAngles=[],this.mass=a.mass||0,this.invMass=0,this.inertia=0,this.invInertia=0,this.invMassSolve=0,this.invInertiaSolve=0,this.fixedRotation=!!a.fixedRotation||!1,this.position=d.fromValues(0,0),a.position&&d.copy(this.position,a.position),this.interpolatedPosition=d.fromValues(0,0),this.interpolatedAngle=0,this.previousPosition=d.fromValues(0,0),this.previousAngle=0,this.velocity=d.fromValues(0,0),a.velocity&&d.copy(this.velocity,a.velocity),this.vlambda=d.fromValues(0,0),this.wlambda=0,this.angle=a.angle||0,this.angularVelocity=a.angularVelocity||0,this.force=d.create(),a.force&&d.copy(this.force,a.force),this.angularForce=a.angularForce||0,this.damping="number"==typeof a.damping?a.damping:.1,this.angularDamping="number"==typeof a.angularDamping?a.angularDamping:.1,this.type=c.STATIC,this.type="undefined"!=typeof a.type?a.type:a.mass?c.DYNAMIC:c.STATIC,this.boundingRadius=0,this.aabb=new g,this.aabbNeedsUpdate=!0,this.allowSleep=!0,this.wantsToSleep=!1,this.sleepState=c.AWAKE,this.sleepSpeedLimit=.2,this.sleepTimeLimit=1,this.gravityScale=1,this.timeLastSleepy=0,this.concavePath=null,this.lastDampingScale=1,this.lastAngularDampingScale=1,this.lastDampingTimeStep=-1,this._wakeUpAfterNarrowphase=!1,this.updateMassProperties()}var d=a("../math/vec2"),e=a("poly-decomp"),f=a("../shapes/Convex"),g=a("../collision/AABB"),h=a("../events/EventEmitter");b.exports=c,c.prototype=new h,c._idCounter=0,c.prototype.updateSolveMassProperties=function(){this.sleepState===c.SLEEPING||this.type===c.KINEMATIC?(this.invMassSolve=0,this.invInertiaSolve=0):(this.invMassSolve=this.invMass,this.invInertiaSolve=this.invInertia)},c.prototype.setDensity=function(a){var b=this.getArea();this.mass=b*a,this.updateMassProperties()},c.prototype.getArea=function(){for(var a=0,b=0;b<this.shapes.length;b++)a+=this.shapes[b].area;return a},c.prototype.getAABB=function(){return this.aabbNeedsUpdate&&this.updateAABB(),this.aabb};var i=new g,j=d.create();c.prototype.updateAABB=function(){for(var a=this.shapes,b=this.shapeOffsets,c=this.shapeAngles,e=a.length,f=j,g=this.angle,h=0;h!==e;h++){var k=a[h],l=c[h]+g;d.rotate(f,b[h],g),d.add(f,f,this.position),k.computeAABB(i,f,l),0===h?this.aabb.copy(i):this.aabb.extend(i)}this.aabbNeedsUpdate=!1
-},c.prototype.updateBoundingRadius=function(){for(var a=this.shapes,b=this.shapeOffsets,c=a.length,e=0,f=0;f!==c;f++){var g=a[f],h=d.length(b[f]),i=g.boundingRadius;h+i>e&&(e=h+i)}this.boundingRadius=e},c.prototype.addShape=function(a,b,c){c=c||0,b=b?d.fromValues(b[0],b[1]):d.fromValues(0,0),this.shapes.push(a),this.shapeOffsets.push(b),this.shapeAngles.push(c),this.updateMassProperties(),this.updateBoundingRadius(),this.aabbNeedsUpdate=!0},c.prototype.removeShape=function(a){var b=this.shapes.indexOf(a);return-1!==b?(this.shapes.splice(b,1),this.shapeOffsets.splice(b,1),this.shapeAngles.splice(b,1),this.aabbNeedsUpdate=!0,!0):!1},c.prototype.updateMassProperties=function(){if(this.type===c.STATIC||this.type===c.KINEMATIC)this.mass=Number.MAX_VALUE,this.invMass=0,this.inertia=Number.MAX_VALUE,this.invInertia=0;else{var a=this.shapes,b=a.length,e=this.mass/b,f=0;if(this.fixedRotation)this.inertia=Number.MAX_VALUE,this.invInertia=0;else{for(var g=0;b>g;g++){var h=a[g],i=d.squaredLength(this.shapeOffsets[g]),j=h.computeMomentOfInertia(e);f+=j+e*i}this.inertia=f,this.invInertia=f>0?1/f:0}this.invMass=1/this.mass}};var k=d.create();c.prototype.applyForce=function(a,b){var c=k;d.sub(c,b,this.position),d.add(this.force,this.force,a);var e=d.crossLength(c,a);this.angularForce+=e},c.prototype.toLocalFrame=function(a,b){d.toLocalFrame(a,b,this.position,this.angle)},c.prototype.toWorldFrame=function(a,b){d.toGlobalFrame(a,b,this.position,this.angle)},c.prototype.fromPolygon=function(a,b){b=b||{};for(var c=this.shapes.length;c>=0;--c)this.removeShape(this.shapes[c]);var g=new e.Polygon;if(g.vertices=a,g.makeCCW(),"number"==typeof b.removeCollinearPoints&&g.removeCollinearPoints(b.removeCollinearPoints),"undefined"==typeof b.skipSimpleCheck&&!g.isSimple())return!1;this.concavePath=g.vertices.slice(0);for(var c=0;c<this.concavePath.length;c++){var h=[0,0];d.copy(h,this.concavePath[c]),this.concavePath[c]=h}var i;i=b.optimalDecomp?g.decomp():g.quickDecomp();for(var j=d.create(),c=0;c!==i.length;c++){for(var k=new f(i[c].vertices),l=0;l!==k.vertices.length;l++){var h=k.vertices[l];d.sub(h,h,k.centerOfMass)}d.scale(j,k.centerOfMass,1),k.updateTriangles(),k.updateCenterOfMass(),k.updateBoundingRadius(),this.addShape(k,j)}return this.adjustCenterOfMass(),this.aabbNeedsUpdate=!0,!0};var l=(d.fromValues(0,0),d.fromValues(0,0)),m=d.fromValues(0,0),n=d.fromValues(0,0);c.prototype.adjustCenterOfMass=function(){var a=l,b=m,c=n,e=0;d.set(b,0,0);for(var f=0;f!==this.shapes.length;f++){var g=this.shapes[f],h=this.shapeOffsets[f];d.scale(a,h,g.area),d.add(b,b,a),e+=g.area}d.scale(c,b,1/e);for(var f=0;f!==this.shapes.length;f++){var g=this.shapes[f],h=this.shapeOffsets[f];h||(h=this.shapeOffsets[f]=d.create()),d.sub(h,h,c)}d.add(this.position,this.position,c);for(var f=0;this.concavePath&&f<this.concavePath.length;f++)d.sub(this.concavePath[f],this.concavePath[f],c);this.updateMassProperties(),this.updateBoundingRadius()},c.prototype.setZeroForce=function(){d.set(this.force,0,0),this.angularForce=0},c.prototype.resetConstraintVelocity=function(){var a=this,b=a.vlambda;d.set(b,0,0),a.wlambda=0},c.prototype.addConstraintVelocity=function(){var a=this,b=a.velocity;d.add(b,b,a.vlambda),a.angularVelocity+=a.wlambda},c.prototype.applyDamping=function(a){if(this.type===c.DYNAMIC){a!==this.lastDampingTimeStep&&(this.lastDampingScale=Math.pow(1-this.damping,a),this.lastAngularDampingScale=Math.pow(1-this.angularDamping,a),this.lastDampingTimeStep=a);var b=this.velocity;d.scale(b,b,this.lastDampingScale),this.angularVelocity*=this.lastAngularDampingScale}},c.prototype.wakeUp=function(){var a=this.sleepState;this.sleepState=c.AWAKE,this.idleTime=0,a!==c.AWAKE&&this.emit(c.wakeUpEvent)},c.prototype.sleep=function(){this.sleepState=c.SLEEPING,this.angularVelocity=0,this.angularForce=0,d.set(this.velocity,0,0),d.set(this.force,0,0),this.emit(c.sleepEvent)},c.prototype.sleepTick=function(a,b,e){if(this.allowSleep&&this.type!==c.SLEEPING){this.wantsToSleep=!1;var f=(this.sleepState,d.squaredLength(this.velocity)+Math.pow(this.angularVelocity,2)),g=Math.pow(this.sleepSpeedLimit,2);f>=g?(this.idleTime=0,this.sleepState=c.AWAKE):(this.idleTime+=e,this.sleepState=c.SLEEPY),this.idleTime>this.sleepTimeLimit&&(b?this.wantsToSleep=!0:this.sleep())}},c.prototype.getVelocityFromPosition=function(a,b){return a=a||d.create(),d.sub(a,this.position,this.previousPosition),d.scale(a,a,1/b),a},c.prototype.getAngularVelocityFromPosition=function(a){return(this.angle-this.previousAngle)/a},c.prototype.overlaps=function(a){return this.world.overlapKeeper.bodiesAreOverlapping(this,a)},c.sleepyEvent={type:"sleepy"},c.sleepEvent={type:"sleep"},c.wakeUpEvent={type:"wakeup"},c.DYNAMIC=1,c.STATIC=2,c.KINEMATIC=4,c.AWAKE=0,c.SLEEPY=1,c.SLEEPING=2}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/objects/Body.js","/objects")},{"../collision/AABB":11,"../events/EventEmitter":29,"../math/vec2":33,"../shapes/Convex":41,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1,"poly-decomp":9}],35:[function(a,b){(function(){function c(a,b,c){c=c||{},e.call(this,a,b,c),this.localAnchorA=d.fromValues(0,0),this.localAnchorB=d.fromValues(0,0),c.localAnchorA&&d.copy(this.localAnchorA,c.localAnchorA),c.localAnchorB&&d.copy(this.localAnchorB,c.localAnchorB),c.worldAnchorA&&this.setWorldAnchorA(c.worldAnchorA),c.worldAnchorB&&this.setWorldAnchorB(c.worldAnchorB);var f=d.create(),g=d.create();this.getWorldAnchorA(f),this.getWorldAnchorB(g);var h=d.distance(f,g);this.restLength="number"==typeof c.restLength?c.restLength:h}{var d=a("../math/vec2"),e=a("./Spring");a("../utils/Utils")}b.exports=c,c.prototype=new e,c.prototype.setWorldAnchorA=function(a){this.bodyA.toLocalFrame(this.localAnchorA,a)},c.prototype.setWorldAnchorB=function(a){this.bodyB.toLocalFrame(this.localAnchorB,a)},c.prototype.getWorldAnchorA=function(a){this.bodyA.toWorldFrame(a,this.localAnchorA)},c.prototype.getWorldAnchorB=function(a){this.bodyB.toWorldFrame(a,this.localAnchorB)};var f=d.create(),g=d.create(),h=d.create(),i=d.create(),j=d.create(),k=d.create(),l=d.create(),m=d.create(),n=d.create();c.prototype.applyForce=function(){var a=this.stiffness,b=this.damping,c=this.restLength,e=this.bodyA,o=this.bodyB,p=f,q=g,r=h,s=i,t=n,u=j,v=k,w=l,x=m;this.getWorldAnchorA(u),this.getWorldAnchorB(v),d.sub(w,u,e.position),d.sub(x,v,o.position),d.sub(p,v,u);var y=d.len(p);d.normalize(q,p),d.sub(r,o.velocity,e.velocity),d.crossZV(t,o.angularVelocity,x),d.add(r,r,t),d.crossZV(t,e.angularVelocity,w),d.sub(r,r,t),d.scale(s,q,-a*(y-c)-b*d.dot(r,q)),d.sub(e.force,e.force,s),d.add(o.force,o.force,s);var z=d.crossLength(w,s),A=d.crossLength(x,s);e.angularForce-=z,o.angularForce+=A}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/objects/LinearSpring.js","/objects")},{"../math/vec2":33,"../utils/Utils":52,"./Spring":37,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],36:[function(a,b){(function(){function c(a,b,c){c=c||{},d.call(this,a,b,c),this.restAngle="number"==typeof c.restAngle?c.restAngle:b.angle-a.angle}var d=(a("../math/vec2"),a("./Spring"));b.exports=c,c.prototype=new d,c.prototype.applyForce=function(){var a=this.stiffness,b=this.damping,c=this.restAngle,d=this.bodyA,e=this.bodyB,f=e.angle-d.angle,g=e.angularVelocity-d.angularVelocity,h=-a*(f-c)-b*g*0;d.angularForce-=h,e.angularForce+=h}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/objects/RotationalSpring.js","/objects")},{"../math/vec2":33,"./Spring":37,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],37:[function(a,b){(function(){function c(a,b,c){c=d.defaults(c,{stiffness:100,damping:1}),this.stiffness=c.stiffness,this.damping=c.damping,this.bodyA=a,this.bodyB=b}var d=(a("../math/vec2"),a("../utils/Utils"));b.exports=c,c.prototype.applyForce=function(){}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/objects/Spring.js","/objects")},{"../math/vec2":33,"../utils/Utils":52,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],38:[function(a,b){(function(){b.exports={AABB:a("./collision/AABB"),AngleLockEquation:a("./equations/AngleLockEquation"),Body:a("./objects/Body"),Broadphase:a("./collision/Broadphase"),Capsule:a("./shapes/Capsule"),Circle:a("./shapes/Circle"),Constraint:a("./constraints/Constraint"),ContactEquation:a("./equations/ContactEquation"),ContactMaterial:a("./material/ContactMaterial"),Convex:a("./shapes/Convex"),DistanceConstraint:a("./constraints/DistanceConstraint"),Equation:a("./equations/Equation"),EventEmitter:a("./events/EventEmitter"),FrictionEquation:a("./equations/FrictionEquation"),GearConstraint:a("./constraints/GearConstraint"),GridBroadphase:a("./collision/GridBroadphase"),GSSolver:a("./solver/GSSolver"),Heightfield:a("./shapes/Heightfield"),Line:a("./shapes/Line"),LockConstraint:a("./constraints/LockConstraint"),Material:a("./material/Material"),Narrowphase:a("./collision/Narrowphase"),NaiveBroadphase:a("./collision/NaiveBroadphase"),Particle:a("./shapes/Particle"),Plane:a("./shapes/Plane"),RevoluteConstraint:a("./constraints/RevoluteConstraint"),PrismaticConstraint:a("./constraints/PrismaticConstraint"),Rectangle:a("./shapes/Rectangle"),RotationalVelocityEquation:a("./equations/RotationalVelocityEquation"),SAPBroadphase:a("./collision/SAPBroadphase"),Shape:a("./shapes/Shape"),Solver:a("./solver/Solver"),Spring:a("./objects/Spring"),LinearSpring:a("./objects/LinearSpring"),RotationalSpring:a("./objects/RotationalSpring"),Utils:a("./utils/Utils"),World:a("./world/World"),vec2:a("./math/vec2"),version:a("../package.json").version}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/p2.js","/")},{"../package.json":10,"./collision/AABB":11,"./collision/Broadphase":12,"./collision/GridBroadphase":13,"./collision/NaiveBroadphase":14,"./collision/Narrowphase":15,"./collision/SAPBroadphase":16,"./constraints/Constraint":17,"./constraints/DistanceConstraint":18,"./constraints/GearConstraint":19,"./constraints/LockConstraint":20,"./constraints/PrismaticConstraint":21,"./constraints/RevoluteConstraint":22,"./equations/AngleLockEquation":23,"./equations/ContactEquation":24,"./equations/Equation":25,"./equations/FrictionEquation":26,"./equations/RotationalVelocityEquation":28,"./events/EventEmitter":29,"./material/ContactMaterial":30,"./material/Material":31,"./math/vec2":33,"./objects/Body":34,"./objects/LinearSpring":35,"./objects/RotationalSpring":36,"./objects/Spring":37,"./shapes/Capsule":39,"./shapes/Circle":40,"./shapes/Convex":41,"./shapes/Heightfield":42,"./shapes/Line":43,"./shapes/Particle":44,"./shapes/Plane":45,"./shapes/Rectangle":46,"./shapes/Shape":47,"./solver/GSSolver":48,"./solver/Solver":49,"./utils/Utils":52,"./world/World":56,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],39:[function(a,b){(function(){function c(a,b){this.length=a||1,this.radius=b||1,d.call(this,d.CAPSULE)}var d=a("./Shape"),e=a("../math/vec2");b.exports=c,c.prototype=new d,c.prototype.computeMomentOfInertia=function(a){var b=this.radius,c=this.length+b,d=2*b;return a*(d*d+c*c)/12},c.prototype.updateBoundingRadius=function(){this.boundingRadius=this.radius+this.length/2},c.prototype.updateArea=function(){this.area=Math.PI*this.radius*this.radius+2*this.radius*this.length};var f=e.create();c.prototype.computeAABB=function(a,b,c){var d=this.radius;e.set(f,this.length/2,0),0!==c&&e.rotate(f,f,c),e.set(a.upperBound,Math.max(f[0]+d,-f[0]+d),Math.max(f[1]+d,-f[1]+d)),e.set(a.lowerBound,Math.min(f[0]-d,-f[0]-d),Math.min(f[1]-d,-f[1]-d)),e.add(a.lowerBound,a.lowerBound,b),e.add(a.upperBound,a.upperBound,b)}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/shapes/Capsule.js","/shapes")},{"../math/vec2":33,"./Shape":47,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],40:[function(a,b){(function(){function c(a){this.radius=a||1,d.call(this,d.CIRCLE)}var d=a("./Shape"),e=a("../math/vec2");b.exports=c,c.prototype=new d,c.prototype.computeMomentOfInertia=function(a){var b=this.radius;return a*b*b/2},c.prototype.updateBoundingRadius=function(){this.boundingRadius=this.radius},c.prototype.updateArea=function(){this.area=Math.PI*this.radius*this.radius},c.prototype.computeAABB=function(a,b){var c=this.radius;e.set(a.upperBound,c,c),e.set(a.lowerBound,-c,-c),b&&(e.add(a.lowerBound,a.lowerBound,b),e.add(a.upperBound,a.upperBound,b))}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/shapes/Circle.js","/shapes")},{"../math/vec2":33,"./Shape":47,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],41:[function(a,b){(function(){function c(a,b){this.vertices=[],this.axes=[];for(var c=0;c<a.length;c++){var f=e.create();e.copy(f,a[c]),this.vertices.push(f)}if(b)for(var c=0;c<b.length;c++){var g=e.create();e.copy(g,b[c]),this.axes.push(g)}else for(var c=0;c<a.length;c++){var h=a[c],i=a[(c+1)%a.length],j=e.create();e.sub(j,i,h),e.rotate90cw(j,j),e.normalize(j,j),this.axes.push(j)}if(this.centerOfMass=e.fromValues(0,0),this.triangles=[],this.vertices.length&&(this.updateTriangles(),this.updateCenterOfMass()),this.boundingRadius=0,d.call(this,d.CONVEX),this.updateBoundingRadius(),this.updateArea(),this.area<0)throw new Error("Convex vertices must be given in conter-clockwise winding.")}{var d=a("./Shape"),e=a("../math/vec2"),f=a("../math/polyk");a("poly-decomp")}b.exports=c,c.prototype=new d;var g=e.create(),h=e.create();c.prototype.projectOntoLocalAxis=function(a,b){for(var c,d,f=null,h=null,a=g,i=0;i<this.vertices.length;i++)c=this.vertices[i],d=e.dot(c,a),(null===f||d>f)&&(f=d),(null===h||h>d)&&(h=d);if(h>f){var j=h;h=f,f=j}e.set(b,h,f)},c.prototype.projectOntoWorldAxis=function(a,b,c,d){var f=h;this.projectOntoLocalAxis(a,d),0!==c?e.rotate(f,a,c):f=a;var g=e.dot(b,f);e.set(d,d[0]+g,d[1]+g)},c.prototype.updateTriangles=function(){this.triangles.length=0;for(var a=[],b=0;b<this.vertices.length;b++){var c=this.vertices[b];a.push(c[0],c[1])}for(var d=f.Triangulate(a),b=0;b<d.length;b+=3){var e=d[b],g=d[b+1],h=d[b+2];this.triangles.push([e,g,h])}};{var i=e.create(),j=e.create(),k=e.create(),l=e.create(),m=e.create();e.create(),e.create(),e.create(),e.create()}c.prototype.updateCenterOfMass=function(){var a=this.triangles,b=this.vertices,d=this.centerOfMass,f=i,g=k,h=l,n=m,o=j;e.set(d,0,0);for(var p=0,q=0;q!==a.length;q++){var r=a[q],g=b[r[0]],h=b[r[1]],n=b[r[2]];e.centroid(f,g,h,n);var s=c.triangleArea(g,h,n);p+=s,e.scale(o,f,s),e.add(d,d,o)}e.scale(d,d,1/p)},c.prototype.computeMomentOfInertia=function(a){for(var b=0,c=0,d=this.vertices.length,f=d-1,g=0;d>g;f=g,g++){var h=this.vertices[f],i=this.vertices[g],j=Math.abs(e.crossLength(h,i)),k=e.dot(i,i)+e.dot(i,h)+e.dot(h,h);b+=j*k,c+=j}return a/6*(b/c)},c.prototype.updateBoundingRadius=function(){for(var a=this.vertices,b=0,c=0;c!==a.length;c++){var d=e.squaredLength(a[c]);d>b&&(b=d)}this.boundingRadius=Math.sqrt(b)},c.triangleArea=function(a,b,c){return.5*((b[0]-a[0])*(c[1]-a[1])-(c[0]-a[0])*(b[1]-a[1]))},c.prototype.updateArea=function(){this.updateTriangles(),this.area=0;for(var a=this.triangles,b=this.vertices,d=0;d!==a.length;d++){var e=a[d],f=b[e[0]],g=b[e[1]],h=b[e[2]],i=c.triangleArea(f,g,h);this.area+=i}},c.prototype.computeAABB=function(a,b,c){a.setFromPoints(this.vertices,b,c,0)}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/shapes/Convex.js","/shapes")},{"../math/polyk":32,"../math/vec2":33,"./Shape":47,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1,"poly-decomp":9}],42:[function(a,b){(function(){function c(a,b){if(b=e.defaults(b,{maxValue:null,minValue:null,elementWidth:.1}),null===b.minValue||null===b.maxValue){b.maxValue=a[0],b.minValue=a[0];for(var c=0;c!==a.length;c++){var f=a[c];f>b.maxValue&&(b.maxValue=f),f<b.minValue&&(b.minValue=f)}}this.data=a,this.maxValue=b.maxValue,this.minValue=b.minValue,this.elementWidth=b.elementWidth,d.call(this,d.HEIGHTFIELD)}var d=a("./Shape"),e=(a("../math/vec2"),a("../utils/Utils"));b.exports=c,c.prototype=new d,c.prototype.computeMomentOfInertia=function(){return Number.MAX_VALUE},c.prototype.updateBoundingRadius=function(){this.boundingRadius=Number.MAX_VALUE},c.prototype.updateArea=function(){for(var a=this.data,b=0,c=0;c<a.length-1;c++)b+=(a[c]+a[c+1])/2*this.elementWidth;this.area=b},c.prototype.computeAABB=function(a,b){a.upperBound[0]=this.elementWidth*this.data.length+b[0],a.upperBound[1]=this.maxValue+b[1],a.lowerBound[0]=b[0],a.lowerBound[1]=-Number.MAX_VALUE}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/shapes/Heightfield.js","/shapes")},{"../math/vec2":33,"../utils/Utils":52,"./Shape":47,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],43:[function(a,b){(function(){function c(a){this.length=a||1,d.call(this,d.LINE)}var d=a("./Shape"),e=a("../math/vec2");b.exports=c,c.prototype=new d,c.prototype.computeMomentOfInertia=function(a){return a*Math.pow(this.length,2)/12},c.prototype.updateBoundingRadius=function(){this.boundingRadius=this.length/2};var f=[e.create(),e.create()];c.prototype.computeAABB=function(a,b,c){var d=this.length/2;e.set(f[0],-d,0),e.set(f[1],d,0),a.setFromPoints(f,b,c,0)}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/shapes/Line.js","/shapes")},{"../math/vec2":33,"./Shape":47,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],44:[function(a,b){(function(){function c(){d.call(this,d.PARTICLE)}var d=a("./Shape"),e=a("../math/vec2");b.exports=c,c.prototype=new d,c.prototype.computeMomentOfInertia=function(){return 0},c.prototype.updateBoundingRadius=function(){this.boundingRadius=0},c.prototype.computeAABB=function(a,b){e.copy(a.lowerBound,b),e.copy(a.upperBound,b)}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/shapes/Particle.js","/shapes")},{"../math/vec2":33,"./Shape":47,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],45:[function(a,b){(function(){function c(){d.call(this,d.PLANE)}{var d=a("./Shape"),e=a("../math/vec2");a("../utils/Utils")}b.exports=c,c.prototype=new d,c.prototype.computeMomentOfInertia=function(){return 0},c.prototype.updateBoundingRadius=function(){this.boundingRadius=Number.MAX_VALUE},c.prototype.computeAABB=function(a,b,c){var d=0,f=e.set;"number"==typeof c&&(d=c%(2*Math.PI)),0===d?(f(a.lowerBound,-Number.MAX_VALUE,-Number.MAX_VALUE),f(a.upperBound,Number.MAX_VALUE,0)):d===Math.PI/2?(f(a.lowerBound,0,-Number.MAX_VALUE),f(a.upperBound,Number.MAX_VALUE,Number.MAX_VALUE)):d===Math.PI?(f(a.lowerBound,-Number.MAX_VALUE,0),f(a.upperBound,Number.MAX_VALUE,Number.MAX_VALUE)):d===3*Math.PI/2?(f(a.lowerBound,-Number.MAX_VALUE,-Number.MAX_VALUE),f(a.upperBound,0,Number.MAX_VALUE)):(f(a.lowerBound,-Number.MAX_VALUE,-Number.MAX_VALUE),f(a.upperBound,Number.MAX_VALUE,Number.MAX_VALUE)),e.add(a.lowerBound,a.lowerBound,b),e.add(a.upperBound,a.upperBound,b)},c.prototype.updateArea=function(){this.area=Number.MAX_VALUE}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/shapes/Plane.js","/shapes")},{"../math/vec2":33,"../utils/Utils":52,"./Shape":47,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],46:[function(a,b){(function(){function c(a,b){this.width=a||1,this.height=b||1;var c=[d.fromValues(-a/2,-b/2),d.fromValues(a/2,-b/2),d.fromValues(a/2,b/2),d.fromValues(-a/2,b/2)],g=[d.fromValues(1,0),d.fromValues(0,1)];f.call(this,c,g),this.type=e.RECTANGLE}var d=a("../math/vec2"),e=a("./Shape"),f=a("./Convex");b.exports=c,c.prototype=new f([]),c.prototype.computeMomentOfInertia=function(a){var b=this.width,c=this.height;return a*(c*c+b*b)/12},c.prototype.updateBoundingRadius=function(){var a=this.width,b=this.height;this.boundingRadius=Math.sqrt(a*a+b*b)/2};d.create(),d.create(),d.create(),d.create();c.prototype.computeAABB=function(a,b,c){a.setFromPoints(this.vertices,b,c,0)},c.prototype.updateArea=function(){this.area=this.width*this.height}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/shapes/Rectangle.js","/shapes")},{"../math/vec2":33,"./Convex":41,"./Shape":47,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],47:[function(a,b){(function(){function a(b){this.type=b,this.id=a.idCounter++,this.boundingRadius=0,this.collisionGroup=1,this.collisionMask=1,b&&this.updateBoundingRadius(),this.material=null,this.area=0,this.sensor=!1,this.updateArea()}b.exports=a,a.idCounter=0,a.CIRCLE=1,a.PARTICLE=2,a.PLANE=4,a.CONVEX=8,a.LINE=16,a.RECTANGLE=32,a.CAPSULE=64,a.HEIGHTFIELD=128,a.prototype.computeMomentOfInertia=function(){throw new Error("Shape.computeMomentOfInertia is not implemented in this Shape...")},a.prototype.updateBoundingRadius=function(){throw new Error("Shape.updateBoundingRadius is not implemented in this Shape...")},a.prototype.updateArea=function(){},a.prototype.computeAABB=function(){}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/shapes/Shape.js","/shapes")},{"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],48:[function(a,b){(function(){function c(a){f.call(this,a,f.GS),a=a||{},this.iterations=a.iterations||10,this.tolerance=a.tolerance||1e-10,this.arrayStep=30,this.lambda=new g.ARRAY_TYPE(this.arrayStep),this.Bs=new g.ARRAY_TYPE(this.arrayStep),this.invCs=new g.ARRAY_TYPE(this.arrayStep),this.useZeroRHS=!1,this.frictionIterations=0,this.usedIterations=0}function d(a){for(var b=a.length;b--;)a[b]=0}var e=a("../math/vec2"),f=a("./Solver"),g=a("../utils/Utils"),h=a("../equations/FrictionEquation");b.exports=c,c.prototype=new f,c.prototype.solve=function(a,b){this.sortEquations();var f=0,i=this.iterations,j=this.frictionIterations,k=this.equations,l=k.length,m=Math.pow(this.tolerance*l,2),n=b.bodies,o=b.bodies.length,p=(e.add,e.set,this.useZeroRHS),q=this.lambda;if(this.usedIterations=0,l)for(var r=0;r!==o;r++){var s=n[r];s.updateSolveMassProperties()}q.length<l&&(q=this.lambda=new g.ARRAY_TYPE(l+this.arrayStep),this.Bs=new g.ARRAY_TYPE(l+this.arrayStep),this.invCs=new g.ARRAY_TYPE(l+this.arrayStep)),d(q);for(var t=this.invCs,u=this.Bs,q=this.lambda,r=0;r!==k.length;r++){var v=k[r];(v.timeStep!==a||v.needsUpdate)&&(v.timeStep=a,v.update()),u[r]=v.computeB(v.a,v.b,a),t[r]=v.computeInvC(v.epsilon)}var v,w,r,x;if(0!==l){for(r=0;r!==o;r++){var s=n[r];s.resetConstraintVelocity()}if(j){for(f=0;f!==j;f++){for(w=0,x=0;x!==l;x++){v=k[x];var y=c.iterateEquation(x,v,v.epsilon,u,t,q,p,a,f);w+=Math.abs(y)}if(this.usedIterations++,m>=w*w)break}for(c.updateMultipliers(k,q,1/a),x=0;x!==l;x++){var z=k[x];if(z instanceof h){for(var A=0,B=0;B!==z.contactEquations.length;B++)A+=z.contactEquations[B].multiplier;A*=z.frictionCoefficient/z.contactEquations.length,z.maxForce=A,z.minForce=-A}}}for(f=0;f!==i;f++){for(w=0,x=0;x!==l;x++){v=k[x];var y=c.iterateEquation(x,v,v.epsilon,u,t,q,p,a,f);w+=Math.abs(y)}if(this.usedIterations++,m>=w*w)break}for(r=0;r!==o;r++)n[r].addConstraintVelocity();c.updateMultipliers(k,q,1/a)}},c.updateMultipliers=function(a,b,c){for(var d=a.length;d--;)a[d].multiplier=b[d]*c},c.iterateEquation=function(a,b,c,d,e,f,g,h){var i=d[a],j=e[a],k=f[a],l=b.computeGWlambda(),m=b.maxForce,n=b.minForce;g&&(i=0);var o=j*(i-l-c*k),p=k+o;return n*h>p?o=n*h-k:p>m*h&&(o=m*h-k),f[a]+=o,b.addToWlambda(o),o}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/solver/GSSolver.js","/solver")},{"../equations/FrictionEquation":26,"../math/vec2":33,"../utils/Utils":52,"./Solver":49,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],49:[function(a,b){(function(){function c(a,b){a=a||{},d.call(this),this.type=b,this.equations=[],this.equationSortFunction=a.equationSortFunction||!1}var d=(a("../utils/Utils"),a("../events/EventEmitter"));b.exports=c,c.prototype=new d,c.prototype.solve=function(){throw new Error("Solver.solve should be implemented by subclasses!")};var e={bodies:[]};c.prototype.solveIsland=function(a,b){this.removeAllEquations(),b.equations.length&&(this.addEquations(b.equations),e.bodies.length=0,b.getBodies(e.bodies),e.bodies.length&&this.solve(a,e))},c.prototype.sortEquations=function(){this.equationSortFunction&&this.equations.sort(this.equationSortFunction)},c.prototype.addEquation=function(a){a.enabled&&this.equations.push(a)},c.prototype.addEquations=function(a){for(var b=0,c=a.length;b!==c;b++){var d=a[b];d.enabled&&this.equations.push(d)}},c.prototype.removeEquation=function(a){var b=this.equations.indexOf(a);-1!==b&&this.equations.splice(b,1)},c.prototype.removeAllEquations=function(){this.equations.length=0},c.GS=1,c.ISLAND=2}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/solver/Solver.js","/solver")},{"../events/EventEmitter":29,"../utils/Utils":52,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],50:[function(a,b){(function(){function c(){this.overlappingShapesLastState=new e,this.overlappingShapesCurrentState=new e,this.recordPool=[],this.tmpDict=new e,this.tmpArray1=[]}function d(a,b,c,d){this.shapeA=b,this.shapeB=d,this.bodyA=a,this.bodyB=c}{var e=a("./TupleDictionary");a("./Utils")}b.exports=c,c.prototype.tick=function(){for(var a=this.overlappingShapesLastState,b=this.overlappingShapesCurrentState,c=a.keys.length;c--;){var d=a.keys[c],e=a.getByKey(d),f=b.getByKey(d);e&&!f&&this.recordPool.push(e)}a.reset(),a.copy(b),b.reset()},c.prototype.setOverlapping=function(a,b,c,e){var f=(this.overlappingShapesLastState,this.overlappingShapesCurrentState);if(!f.get(b.id,e.id)){var g;this.recordPool.length?(g=this.recordPool.pop(),g.set(a,b,c,e)):g=new d(a,b,c,e),f.set(b.id,e.id,g)}},c.prototype.getNewOverlaps=function(a){return this.getDiff(this.overlappingShapesLastState,this.overlappingShapesCurrentState,a)},c.prototype.getEndOverlaps=function(a){return this.getDiff(this.overlappingShapesCurrentState,this.overlappingShapesLastState,a)},c.prototype.bodiesAreOverlapping=function(a,b){for(var c=this.overlappingShapesCurrentState,d=c.keys.length;d--;){var e=c.keys[d],f=c.data[e];if(f.bodyA===a&&f.bodyB===b||f.bodyA===b&&f.bodyB===a)return!0}return!1},c.prototype.getDiff=function(a,b,c){var c=c||[],d=a,e=b;c.length=0;for(var f=e.keys.length;f--;){var g=e.keys[f],h=e.data[g];if(!h)throw new Error("Key "+g+" had no data!");var i=d.data[g];i||c.push(h)}return c},c.prototype.isNewOverlap=function(a,b){var c=0|a.id,d=0|b.id,e=this.overlappingShapesLastState,f=this.overlappingShapesCurrentState;return!e.get(c,d)&&!!f.get(c,d)},c.prototype.getNewBodyOverlaps=function(a){this.tmpArray1.length=0;var b=this.getNewOverlaps(this.tmpArray1);return this.getBodyDiff(b,a)},c.prototype.getEndBodyOverlaps=function(a){this.tmpArray1.length=0;var b=this.getEndOverlaps(this.tmpArray1);return this.getBodyDiff(b,a)},c.prototype.getBodyDiff=function(a,b){b=b||[];for(var c=this.tmpDict,d=a.length;d--;){var e=a[d];
-c.set(0|e.bodyA.id,0|e.bodyB.id,e)}for(d=c.keys.length;d--;){var e=c.getByKey(c.keys[d]);e&&b.push(e.bodyA,e.bodyB)}return c.reset(),b},d.prototype.set=function(a,b,c,e){d.call(this,a,b,c,e)}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/utils/OverlapKeeper.js","/utils")},{"./TupleDictionary":51,"./Utils":52,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],51:[function(a,b){(function(){function c(){this.data={},this.keys=[]}var d=a("./Utils");b.exports=c,c.prototype.getKey=function(a,b){return a=0|a,b=0|b,(0|a)===(0|b)?-1:0|((0|a)>(0|b)?a<<16|65535&b:b<<16|65535&a)},c.prototype.getByKey=function(a){return a=0|a,this.data[a]},c.prototype.get=function(a,b){return this.data[this.getKey(a,b)]},c.prototype.set=function(a,b,c){if(!c)throw new Error("No data!");var d=this.getKey(a,b);return this.data[d]||this.keys.push(d),this.data[d]=c,d},c.prototype.reset=function(){for(var a=this.data,b=this.keys,c=b.length;c--;)delete a[b[c]];b.length=0},c.prototype.copy=function(a){this.reset(),d.appendArray(this.keys,a.keys);for(var b=a.keys.length;b--;){var c=a.keys[b];this.data[c]=a.data[c]}}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/utils/TupleDictionary.js","/utils")},{"./Utils":52,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],52:[function(a,b){(function(){function a(){}b.exports=a,a.appendArray=function(a,b){if(b.length<15e4)a.push.apply(a,b);else for(var c=0,d=b.length;c!==d;++c)a.push(b[c])},a.splice=function(a,b,c){c=c||1;for(var d=b,e=a.length-c;e>d;d++)a[d]=a[d+c];a.length=e},a.ARRAY_TYPE="undefined"!=typeof P2_ARRAY_TYPE?P2_ARRAY_TYPE:"undefined"!=typeof Float32Array?Float32Array:Array,a.extend=function(a,b){for(var c in b)a[c]=b[c]},a.defaults=function(a,b){a=a||{};for(var c in b)c in a||(a[c]=b[c]);return a}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/utils/Utils.js","/utils")},{"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],53:[function(a,b){(function(){function c(){this.equations=[],this.bodies=[]}var d=a("../objects/Body");b.exports=c,c.prototype.reset=function(){this.equations.length=this.bodies.length=0};var e=[];c.prototype.getBodies=function(a){var b=a||[],c=this.equations;e.length=0;for(var d=0;d!==c.length;d++){var f=c[d];-1===e.indexOf(f.bodyA.id)&&(b.push(f.bodyA),e.push(f.bodyA.id)),-1===e.indexOf(f.bodyB.id)&&(b.push(f.bodyB),e.push(f.bodyB.id))}return b},c.prototype.wantsToSleep=function(){for(var a=0;a<this.bodies.length;a++){var b=this.bodies[a];if(b.type===d.DYNAMIC&&!b.wantsToSleep)return!1}return!0},c.prototype.sleep=function(){for(var a=0;a<this.bodies.length;a++){var b=this.bodies[a];b.sleep()}return!0}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/world/Island.js","/world")},{"../objects/Body":34,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],54:[function(a,b){(function(){function c(){this._nodePool=[],this._islandPool=[],this.equations=[],this.islands=[],this.nodes=[],this.queue=[]}var d=(a("../math/vec2"),a("./Island")),e=a("./IslandNode"),f=a("../objects/Body");b.exports=c,c.getUnvisitedNode=function(a){for(var b=a.length,c=0;c!==b;c++){var d=a[c];if(!d.visited&&d.body.type===f.DYNAMIC)return d}return!1},c.prototype.visit=function(a,b,c){b.push(a.body);for(var d=a.equations.length,e=0;e!==d;e++){var f=a.equations[e];-1===c.indexOf(f)&&c.push(f)}},c.prototype.bfs=function(a,b,d){var e=this.queue;for(e.length=0,e.push(a),a.visited=!0,this.visit(a,b,d);e.length;)for(var g,h=e.pop();g=c.getUnvisitedNode(h.neighbors);)g.visited=!0,this.visit(g,b,d),g.body.type===f.DYNAMIC&&e.push(g)},c.prototype.split=function(a){for(var b=a.bodies,f=this.nodes,g=this.equations;f.length;)this._nodePool.push(f.pop());for(var h=0;h!==b.length;h++)if(this._nodePool.length){var i=this._nodePool.pop();i.reset(),i.body=b[h],f.push(i)}else f.push(new e(b[h]));for(var j=0;j!==g.length;j++){var k=g[j],h=b.indexOf(k.bodyA),l=b.indexOf(k.bodyB),m=f[h],n=f[l];m.neighbors.push(n),n.neighbors.push(m),m.equations.push(k),n.equations.push(k)}for(var o=this.islands;o.length;){var p=o.pop();p.reset(),this._islandPool.push(p)}for(var q;q=c.getUnvisitedNode(f);){var p=this._islandPool.length?this._islandPool.pop():new d;this.bfs(q,p.bodies,p.equations),o.push(p)}return o}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/world/IslandManager.js","/world")},{"../math/vec2":33,"../objects/Body":34,"./Island":53,"./IslandNode":55,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],55:[function(a,b){(function(){function a(a){this.body=a,this.neighbors=[],this.equations=[],this.visited=!1}b.exports=a,a.prototype.reset=function(){this.equations.length=0,this.neighbors.length=0,this.visited=!1,this.body=null}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/world/IslandNode.js","/world")},{"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}],56:[function(a,b){(function(){function c(a){l.apply(this),a=a||{},this.springs=[],this.bodies=[],this.disabledBodyCollisionPairs=[],this.solver=a.solver||new d,this.narrowphase=new p(this),this.islandManager=new s,this.gravity=f.fromValues(0,-9.78),a.gravity&&f.copy(this.gravity,a.gravity),this.frictionGravity=f.length(this.gravity)||10,this.useWorldGravityAsFrictionGravity=!0,this.useFrictionGravityOnZeroGravity=!0,this.doProfiling=a.doProfiling||!1,this.lastStepTime=0,this.broadphase=a.broadphase||new e,this.broadphase.setWorld(this),this.constraints=[],this.defaultMaterial=new n,this.defaultContactMaterial=new o(this.defaultMaterial,this.defaultMaterial),this.lastTimeStep=1/60,this.applySpringForces=!0,this.applyDamping=!0,this.applyGravity=!0,this.solveConstraints=!0,this.contactMaterials=[],this.time=0,this.stepping=!1,this.bodiesToBeRemoved=[],this.fixedStepTime=0,this.islandSplit="undefined"!=typeof a.islandSplit?!!a.islandSplit:!1,this.emitImpactEvent=!0,this._constraintIdCounter=0,this._bodyIdCounter=0,this.postStepEvent={type:"postStep"},this.addBodyEvent={type:"addBody",body:null},this.removeBodyEvent={type:"removeBody",body:null},this.addSpringEvent={type:"addSpring",spring:null},this.impactEvent={type:"impact",bodyA:null,bodyB:null,shapeA:null,shapeB:null,contactEquation:null},this.postBroadphaseEvent={type:"postBroadphase",pairs:null},this.sleepMode=c.NO_SLEEPING,this.beginContactEvent={type:"beginContact",shapeA:null,shapeB:null,bodyA:null,bodyB:null,contactEquations:[]},this.endContactEvent={type:"endContact",shapeA:null,shapeB:null,bodyA:null,bodyB:null},this.preSolveEvent={type:"preSolve",contactEquations:null,frictionEquations:null},this.overlappingShapesLastState={keys:[]},this.overlappingShapesCurrentState={keys:[]},this.overlapKeeper=new r}{var d=a("../solver/GSSolver"),e=(a("../solver/Solver"),a("../collision/NaiveBroadphase")),f=a("../math/vec2"),g=a("../shapes/Circle"),h=(a("../shapes/Rectangle"),a("../shapes/Convex")),i=(a("../shapes/Line"),a("../shapes/Plane")),j=a("../shapes/Capsule"),k=a("../shapes/Particle"),l=a("../events/EventEmitter"),m=a("../objects/Body"),n=(a("../shapes/Shape"),a("../objects/LinearSpring"),a("../material/Material")),o=a("../material/ContactMaterial"),p=(a("../constraints/DistanceConstraint"),a("../constraints/Constraint"),a("../constraints/LockConstraint"),a("../constraints/RevoluteConstraint"),a("../constraints/PrismaticConstraint"),a("../constraints/GearConstraint"),a("../../package.json"),a("../collision/Broadphase"),a("../collision/SAPBroadphase"),a("../collision/Narrowphase")),q=a("../utils/Utils"),r=a("../utils/OverlapKeeper"),s=a("./IslandManager");a("../objects/RotationalSpring")}if(b.exports=c,"undefined"==typeof performance&&(performance={}),!performance.now){var t=Date.now();performance.timing&&performance.timing.navigationStart&&(t=performance.timing.navigationStart),performance.now=function(){return Date.now()-t}}c.prototype=new Object(l.prototype),c.NO_SLEEPING=1,c.BODY_SLEEPING=2,c.ISLAND_SLEEPING=4,c.prototype.addConstraint=function(a){this.constraints.push(a)},c.prototype.addContactMaterial=function(a){this.contactMaterials.push(a)},c.prototype.removeContactMaterial=function(a){var b=this.contactMaterials.indexOf(a);-1!==b&&q.splice(this.contactMaterials,b,1)},c.prototype.getContactMaterial=function(a,b){for(var c=this.contactMaterials,d=0,e=c.length;d!==e;d++){var f=c[d];if(f.materialA.id===a.id&&f.materialB.id===b.id||f.materialA.id===b.id&&f.materialB.id===a.id)return f}return!1},c.prototype.removeConstraint=function(a){var b=this.constraints.indexOf(a);-1!==b&&q.splice(this.constraints,b,1)};var u=(f.create(),f.create(),f.create(),f.create(),f.create(),f.create(),f.create()),v=f.fromValues(0,0),w=f.fromValues(0,0),x=(f.fromValues(0,0),f.fromValues(0,0));c.prototype.step=function(a,b,c){if(c=c||10,b=b||0,0===b)this.internalStep(a),this.time+=a;else{var d=Math.floor((this.time+b)/a)-Math.floor(this.time/a);d=Math.min(d,c);for(var e=performance.now(),g=0;g!==d&&(this.internalStep(a),!(performance.now()-e>1e3*a));g++);this.time+=b;for(var h=this.time%a,i=h/a,j=0;j!==this.bodies.length;j++){var k=this.bodies[j];k.type!==m.STATIC&&k.sleepState!==m.SLEEPING?(f.sub(x,k.position,k.previousPosition),f.scale(x,x,i),f.add(k.interpolatedPosition,k.position,x),k.interpolatedAngle=k.angle+(k.angle-k.previousAngle)*i):(f.copy(k.interpolatedPosition,k.position),k.interpolatedAngle=k.angle)}}};var y=[];c.prototype.internalStep=function(a){this.stepping=!0;var b,d,e=this,g=this.doProfiling,h=this.springs.length,i=this.springs,j=this.bodies,k=this.gravity,l=this.solver,n=this.bodies.length,o=this.broadphase,p=this.narrowphase,r=this.constraints,s=u,t=(f.scale,f.add),v=(f.rotate,this.islandManager);if(this.overlapKeeper.tick(),this.lastTimeStep=a,g&&(b=performance.now()),this.useWorldGravityAsFrictionGravity){var w=f.length(this.gravity);0===w&&this.useFrictionGravityOnZeroGravity||(this.frictionGravity=w)}if(this.applyGravity)for(var x=0;x!==n;x++){var z=j[x],A=z.force;z.type===m.DYNAMIC&&z.sleepState!==m.SLEEPING&&(f.scale(s,k,z.mass*z.gravityScale),t(A,A,s))}if(this.applySpringForces)for(var x=0;x!==h;x++){var B=i[x];B.applyForce()}if(this.applyDamping)for(var x=0;x!==n;x++){var z=j[x];z.type===m.DYNAMIC&&z.applyDamping(a)}for(var C=o.getCollisionPairs(this),D=this.disabledBodyCollisionPairs,x=D.length-2;x>=0;x-=2)for(var E=C.length-2;E>=0;E-=2)(D[x]===C[E]&&D[x+1]===C[E+1]||D[x+1]===C[E]&&D[x]===C[E+1])&&C.splice(E,2);var F=r.length;for(x=0;x!==F;x++){var G=r[x];if(!G.collideConnected)for(var E=C.length-2;E>=0;E-=2)(G.bodyA===C[E]&&G.bodyB===C[E+1]||G.bodyB===C[E]&&G.bodyA===C[E+1])&&C.splice(E,2)}this.postBroadphaseEvent.pairs=C,this.emit(this.postBroadphaseEvent),p.reset(this);for(var x=0,H=C.length;x!==H;x+=2)for(var I=C[x],J=C[x+1],K=0,L=I.shapes.length;K!==L;K++)for(var M=I.shapes[K],N=I.shapeOffsets[K],O=I.shapeAngles[K],P=0,Q=J.shapes.length;P!==Q;P++){var R=J.shapes[P],S=J.shapeOffsets[P],T=J.shapeAngles[P],U=this.defaultContactMaterial;if(M.material&&R.material){var V=this.getContactMaterial(M.material,R.material);V&&(U=V)}this.runNarrowphase(p,I,M,N,O,J,R,S,T,U,this.frictionGravity)}for(var x=0;x!==n;x++){var W=j[x];W._wakeUpAfterNarrowphase&&(W.wakeUp(),W._wakeUpAfterNarrowphase=!1)}if(this.has("endContact")){this.overlapKeeper.getEndOverlaps(y);for(var X=this.endContactEvent,P=y.length;P--;){var Y=y[P];X.shapeA=Y.shapeA,X.shapeB=Y.shapeB,X.bodyA=Y.bodyA,X.bodyB=Y.bodyA,this.emit(X)}}var Z=this.preSolveEvent;Z.contactEquations=p.contactEquations,Z.frictionEquations=p.frictionEquations,this.emit(Z);var F=r.length;for(x=0;x!==F;x++)r[x].update();if(p.contactEquations.length||p.frictionEquations.length||r.length)if(this.islandSplit){for(v.equations.length=0,q.appendArray(v.equations,p.contactEquations),q.appendArray(v.equations,p.frictionEquations),x=0;x!==F;x++)q.appendArray(v.equations,r[x].equations);v.split(this);for(var x=0;x!==v.islands.length;x++){var $=v.islands[x];$.equations.length&&l.solveIsland(a,$)}}else{for(l.addEquations(p.contactEquations),l.addEquations(p.frictionEquations),x=0;x!==F;x++)l.addEquations(r[x].equations);this.solveConstraints&&l.solve(a,this),l.removeAllEquations()}for(var x=0;x!==n;x++){var W=j[x];W.sleepState!==m.SLEEPING&&W.type!==m.STATIC&&c.integrateBody(W,a)}for(var x=0;x!==n;x++)j[x].setZeroForce();if(g&&(d=performance.now(),e.lastStepTime=d-b),this.emitImpactEvent&&this.has("impact"))for(var _=this.impactEvent,x=0;x!==p.contactEquations.length;x++){var ab=p.contactEquations[x];ab.firstImpact&&(_.bodyA=ab.bodyA,_.bodyB=ab.bodyB,_.shapeA=ab.shapeA,_.shapeB=ab.shapeB,_.contactEquation=ab,this.emit(_))}if(this.sleepMode===c.BODY_SLEEPING)for(x=0;x!==n;x++)j[x].sleepTick(this.time,!1,a);else if(this.sleepMode===c.ISLAND_SLEEPING&&this.islandSplit){for(x=0;x!==n;x++)j[x].sleepTick(this.time,!0,a);for(var x=0;x<this.islandManager.islands.length;x++){var $=this.islandManager.islands[x];$.wantsToSleep()&&$.sleep()}}if(this.stepping=!1,this.bodiesToBeRemoved.length){for(var x=0;x!==this.bodiesToBeRemoved.length;x++)this.removeBody(this.bodiesToBeRemoved[x]);this.bodiesToBeRemoved.length=0}this.emit(this.postStepEvent)};var z=f.create(),A=f.create();c.integrateBody=function(a,b){var c=a.invMass,d=a.force,e=a.position,g=a.velocity;f.copy(a.previousPosition,a.position),a.previousAngle=a.angle,a.fixedRotation||(a.angularVelocity+=a.angularForce*a.invInertia*b,a.angle+=a.angularVelocity*b),f.scale(z,d,b*c),f.add(g,z,g),f.scale(A,g,b),f.add(e,e,A),a.aabbNeedsUpdate=!0},c.prototype.runNarrowphase=function(a,b,c,d,e,g,h,i,j,k,l){if(0!==(c.collisionGroup&h.collisionMask)&&0!==(h.collisionGroup&c.collisionMask)){f.rotate(v,d,b.angle),f.rotate(w,i,g.angle),f.add(v,v,b.position),f.add(w,w,g.position);var n=e+b.angle,o=j+g.angle;a.enableFriction=k.friction>0,a.frictionCoefficient=k.friction;var p;p=b.type===m.STATIC||b.type===m.KINEMATIC?g.mass:g.type===m.STATIC||g.type===m.KINEMATIC?b.mass:b.mass*g.mass/(b.mass+g.mass),a.slipForce=k.friction*l*p,a.restitution=k.restitution,a.surfaceVelocity=k.surfaceVelocity,a.frictionStiffness=k.frictionStiffness,a.frictionRelaxation=k.frictionRelaxation,a.stiffness=k.stiffness,a.relaxation=k.relaxation,a.contactSkinSize=k.contactSkinSize;var q=a[c.type|h.type],r=0;if(q){var s=c.sensor||h.sensor,t=a.frictionEquations.length;r=c.type<h.type?q.call(a,b,c,v,n,g,h,w,o,s):q.call(a,g,h,w,o,b,c,v,n,s);var u=a.frictionEquations.length-t;if(r){if(b.allowSleep&&b.type===m.DYNAMIC&&b.sleepState===m.SLEEPING&&g.sleepState===m.AWAKE&&g.type!==m.STATIC){var x=f.squaredLength(g.velocity)+Math.pow(g.angularVelocity,2),y=Math.pow(g.sleepSpeedLimit,2);x>=2*y&&(b._wakeUpAfterNarrowphase=!0)}if(g.allowSleep&&g.type===m.DYNAMIC&&g.sleepState===m.SLEEPING&&b.sleepState===m.AWAKE&&b.type!==m.STATIC){var z=f.squaredLength(b.velocity)+Math.pow(b.angularVelocity,2),A=Math.pow(b.sleepSpeedLimit,2);z>=2*A&&(g._wakeUpAfterNarrowphase=!0)}if(this.overlapKeeper.setOverlapping(b,c,g,h),this.has("beginContact")&&this.overlapKeeper.isNewOverlap(c,h)){var B=this.beginContactEvent;if(B.shapeA=c,B.shapeB=h,B.bodyA=b,B.bodyB=g,B.contactEquations.length=0,"number"==typeof r)for(var C=a.contactEquations.length-r;C<a.contactEquations.length;C++)B.contactEquations.push(a.contactEquations[C]);this.emit(B)}if("number"==typeof r&&u>1)for(var C=a.frictionEquations.length-u;C<a.frictionEquations.length;C++){var D=a.frictionEquations[C];D.setSlipForce(D.getSlipForce()/u)}}}}},c.prototype.addSpring=function(a){this.springs.push(a),this.addSpringEvent.spring=a,this.emit(this.addSpringEvent)},c.prototype.removeSpring=function(a){var b=this.springs.indexOf(a);-1!==b&&q.splice(this.springs,b,1)},c.prototype.addBody=function(a){-1===this.bodies.indexOf(a)&&(this.bodies.push(a),a.world=this,this.addBodyEvent.body=a,this.emit(this.addBodyEvent))},c.prototype.removeBody=function(a){if(this.stepping)this.bodiesToBeRemoved.push(a);else{a.world=null;var b=this.bodies.indexOf(a);-1!==b&&(q.splice(this.bodies,b,1),this.removeBodyEvent.body=a,a.resetConstraintVelocity(),this.emit(this.removeBodyEvent))}},c.prototype.getBodyById=function(a){for(var b=this.bodies,c=0;c<b.length;c++){var d=b[c];if(d.id===a)return d}return!1},c.prototype.disableBodyCollision=function(a,b){this.disabledBodyCollisionPairs.push(a,b)},c.prototype.enableBodyCollision=function(a,b){for(var c=this.disabledBodyCollisionPairs,d=0;d<c.length;d+=2)if(c[d]===a&&c[d+1]===b||c[d+1]===a&&c[d]===b)return void c.splice(d,2)},c.prototype.clear=function(){this.time=0,this.fixedStepTime=0,this.solver&&this.solver.equations.length&&this.solver.removeAllEquations();for(var a=this.constraints,b=a.length-1;b>=0;b--)this.removeConstraint(a[b]);for(var d=this.bodies,b=d.length-1;b>=0;b--)this.removeBody(d[b]);for(var e=this.springs,b=e.length-1;b>=0;b--)this.removeSpring(e[b]);for(var f=this.contactMaterials,b=f.length-1;b>=0;b--)this.removeContactMaterial(f[b]);c.apply(this)},c.prototype.clone=function(){var a=new c;return a.fromJSON(this.toJSON()),a};var B=f.create(),C=f.fromValues(0,0),D=f.fromValues(0,0);c.prototype.hitTest=function(a,b,c){c=c||0;var d=new m({position:a}),e=new k,l=a,n=0,o=B,p=C,q=D;d.addShape(e);for(var r=this.narrowphase,s=[],t=0,u=b.length;t!==u;t++)for(var v=b[t],w=0,x=v.shapes.length;w!==x;w++){var y=v.shapes[w],z=v.shapeOffsets[w]||p,A=v.shapeAngles[w]||0;f.rotate(o,z,v.angle),f.add(o,o,v.position);var E=A+v.angle;(y instanceof g&&r.circleParticle(v,y,o,E,d,e,l,n,!0)||y instanceof h&&r.particleConvex(d,e,l,n,v,y,o,E,!0)||y instanceof i&&r.particlePlane(d,e,l,n,v,y,o,E,!0)||y instanceof j&&r.particleCapsule(d,e,l,n,v,y,o,E,!0)||y instanceof k&&f.squaredLength(f.sub(q,o,a))<c*c)&&s.push(v)}return s},c.prototype.setGlobalEquationParameters=function(a){a=a||{};for(var b=0;b!==this.constraints.length;b++)for(var c=this.constraints[b],d=0;d!==c.equations.length;d++){var e=c.equations[d];"undefined"!=typeof a.stiffness&&(e.stiffness=a.stiffness),"undefined"!=typeof a.relaxation&&(e.relaxation=a.relaxation),e.needsUpdate=!0}for(var b=0;b!==this.contactMaterials.length;b++){var c=this.contactMaterials[b];"undefined"!=typeof a.stiffness&&(c.stiffness=a.stiffness,c.frictionStiffness=a.stiffness),"undefined"!=typeof a.relaxation&&(c.relaxation=a.relaxation,c.frictionRelaxation=a.relaxation)}var c=this.defaultContactMaterial;"undefined"!=typeof a.stiffness&&(c.stiffness=a.stiffness,c.frictionStiffness=a.stiffness),"undefined"!=typeof a.relaxation&&(c.relaxation=a.relaxation,c.frictionRelaxation=a.relaxation)},c.prototype.setGlobalStiffness=function(a){this.setGlobalEquationParameters({stiffness:a})},c.prototype.setGlobalRelaxation=function(a){this.setGlobalEquationParameters({relaxation:a})}}).call(this,a("/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js"),"undefined"!=typeof self?self:"undefined"!=typeof window?window:{},a("buffer").Buffer,arguments[3],arguments[4],arguments[5],arguments[6],"/world/World.js","/world")},{"../../package.json":10,"../collision/Broadphase":12,"../collision/NaiveBroadphase":14,"../collision/Narrowphase":15,"../collision/SAPBroadphase":16,"../constraints/Constraint":17,"../constraints/DistanceConstraint":18,"../constraints/GearConstraint":19,"../constraints/LockConstraint":20,"../constraints/PrismaticConstraint":21,"../constraints/RevoluteConstraint":22,"../events/EventEmitter":29,"../material/ContactMaterial":30,"../material/Material":31,"../math/vec2":33,"../objects/Body":34,"../objects/LinearSpring":35,"../objects/RotationalSpring":36,"../shapes/Capsule":39,"../shapes/Circle":40,"../shapes/Convex":41,"../shapes/Line":43,"../shapes/Particle":44,"../shapes/Plane":45,"../shapes/Rectangle":46,"../shapes/Shape":47,"../solver/GSSolver":48,"../solver/Solver":49,"../utils/OverlapKeeper":50,"../utils/Utils":52,"./IslandManager":54,"/Users/schteppe/git/p2.js/node_modules/grunt-browserify/node_modules/browserify/node_modules/insert-module-globals/node_modules/process/browser.js":4,buffer:1}]},{},[38])(38)});
-/**
- * @classdesc 该类是soya中应用物理系统的统一接口，默认使用p2(https://github.com/schteppe/p2.js)物理引擎，
- * 其他引擎还在扩展中。<br/>物理引擎本身的设置参数请参考引擎对应文档</br>
- * 该类提供如下事件:<br/>
- * <ul>
- *     <li>contactstart</li>
- *     <li>contactend</li>
- * </ul>
- * 所有事件的唯一回调参数为物理事件对象{@link soya2d.PhysicsEvent}
- * @class 
- * @param {Object} opts 物理系统参数
- * @param {Array} opts.gravity 重力向量[x,y]
- * @param {Number} opts.friction 全局摩擦力
- * @param {Number} opts.bounce 全局弹力
- * @param {Number} opts.stiffness 全局物体刚度
- * @param {Number} opts.relaxation 全局弛豫度
- * @param {Number} opts.tolerance 全局公差
- * @author {@link http://weibo.com/soya2d MrSoya}
- */
-soya2d.Physics = function(opts){
-	opts = opts || {};
-
-	opts.gravity = opts.gravity || [0,9.8];
-	opts.gravity[0] = opts.gravity[0] || 0;
-    opts.gravity[1] = opts.gravity[1] || 9.8;
-	opts.friction = opts.friction || 1;
-	opts.bounce = opts.bounce || 0.5;
-	opts.stiffness = opts.stiffness || 100000;
-	opts.relaxation = opts.relaxation || 20;
-	opts.tolerance = opts.tolerance || 0.01;
-
-	/**
-	 * 物理世界
-	 * @type {Object}
-	 */
-	this.world = new p2.World(opts);
-
-	this.world.defaultContactMaterial.friction = 1 || opts.friction;
-	this.world.defaultContactMaterial.restitution = opts.bounce;
-	this.world.defaultContactMaterial.stiffness = opts.stiffness;
-	this.world.defaultContactMaterial.relaxation = opts.relaxation;
-
-	this.world.solver.tolerance = opts.tolerance;
-	//todo 根据世界内的物体量，自动控制iterations
-	//this.world.solver.iterations = 20;
-	
-	var bcs = [],
-		ecs = [];
-
-	var thisGame;
-	/**
-     * 启动监听
-     * @return this
-     * @private
-     */
-    this.startListen = function(game){
-        thisGame = game;
-        //监听碰撞开始事件
-		this.world.on("beginContact", function(event) {
-
-			bcs.push({a:event.bodyA.ro,b:event.bodyB.ro});
-		}, this);
-
-		//监听碰撞结束事件
-		this.world.on("endContact", function(event) {
-
-			ecs.push({a:event.bodyA.ro,b:event.bodyB.ro});
-		}, this);
-
-        return this;
-    }
-
-    /**
-     * 停止监听
-     * @return this
-     * @private
-     */
-    this.stopListen = function(game){
-        
-        return this;
-    }
-
-    /**
-     * 扫描是否需要执行事件，如果需要，执行
-     * @private
-     */
-	this.scan = function(){
-		if(bcs.length>0){
-			var events = this.__eventMap['contactstart'];
-            fireEvent(events,'contactstart');
-		}
-		if(ecs.length>0){
-			var events = this.__eventMap['contactend'];
-            fireEvent(events,'contactend');
-		}
-
-        reset();
-    }
-    function reset(){
-        bcs = [];
-        ecs = [];
-    }
-    var eventObj = {
-    	collisionPairs:null,
-    	otherCollider:null
-    };
-    function fireEvent(events,type){
-        if(!events)return;
-
-        //排序
-        events.sort(function(a,b){
-            return a.order - b.order;
-        });
-
-        var scene = thisGame.scene;
-
-        for(var i=events.length;i--;){
-            var target = events[i].context;
-            var pairs = null,
-            	otherCollider = null;
-            if(type == 'contactstart' ||
-                type == 'contactend'){
-                pairs = type == 'contactstart'?bcs:ecs;
-            }
-            if(target instanceof soya2d.DisplayObject && target != scene){
-                if(type == 'contactstart' ||
-                	type == 'contactend'){
-
-                	var canfire = false;
-                	for(var j=pairs.length;j--;){
-                		var obj = pairs[j];
-                		if(obj.a == target || obj.b == target){
-                			canfire = true;
-                			otherCollider = obj.a == target?obj.b:obj.a;
-                			break;
-                		}
-                	}
-                	if(!canfire)continue;
-                }
-            }
-            eventObj.collisionPairs = pairs;
-            eventObj.otherCollider = otherCollider;
-
-            events[i].fn.call(target,eventObj);
-        }
-    }
-	/***************** 外部接口 ******************/
-	
-	/**
-	 * 绑定一个soya2d可渲染对象到物理环境中
-	 * @param  {soya2d.DisplayObject} ro soya2d可渲染对象
-	 * @param  {Object} opts 绑定参数对象，参数如下：
-	 * @param  {int} [opts.type=soya2d.PHY_DYNAMIC] 响应类型，控制该物体是应用物理效果。
-	 * 如果mass为0时，又想应用物理效果，可以设置该属性为soya2d.PHY_DYNAMIC
-	 * @param  {Number} [opts.mass=1] 物体质量，如果为0，则默认该物体不应用物理效果
-	 * @param  {Number} [opts.angularVelocity=0] 角速度
-	 * @param  {boolean} [opts.fixedRotation=false] 是否固定旋转
-	 * @param  {boolean} [opts.sensor=false] 是否不与其他物体碰撞
-	 * 
-	 * @see soya2d.PHY_DYNAMIC
-	 */
-	this.bind = function(ro, opts) {
-		opts = opts||{};
-		var shape;
-
-		var offx = 0,offy = 0;
-		offx = ro.w/2,offy = ro.h/2;
-
-		if (ro.bounds instanceof soya2d.Rectangle) {
-			shape = new p2.Rectangle(ro.w, ro.h);
-		} else if (ro.bounds instanceof soya2d.Circle) {
-			shape = new p2.Circle(ro.bounds.r);
-		}else if (ro.bounds instanceof soya2d.Polygon) {
-			var vtx = ro.bounds.vtx;
-			//转换1维数组
-			var convex = [];
-			for(var i=0;i<vtx.length;i+=2){
-				convex.push([vtx[i] - offx,vtx[i+1] - offy]);
-			}
-			shape = new p2.Convex(convex);
-		}
-
-
-		//刚体默认参数
-		opts.mass = opts.mass === 0?0:opts.mass || 1;
-		opts.sensor = opts.sensor || false;
-		opts.position = [ro.x + offx, ro.y  + offy];
-		opts.angularVelocity = opts.angularVelocity || 0;
-		opts.fixedRotation = opts.fixedRotation || false;
-		opts.angle = ro.rotation;
-		switch(opts.type){
-			case soya2d.PHY_STATIC:
-				opts.type = p2.Body.STATIC;
-				break;
-			case soya2d.PHY_DYNAMIC:
-			default:
-				opts.type = p2.Body.DYNAMIC;
-				if(opts.mass == 0)opts.type = p2.Body.KINEMATIC;
-				break;
-		}
-
-		//创建刚体
-		var body = new p2.Body(opts);
-
-		shape.sensor = opts.sensor;
-		body.addShape(shape);
-		this.world.addBody(body);
-		
-		//用于方便相互查找
-		ro.body = body;
-		body.ro = ro;
-
-	};
-
-	/**
-	 * 从物理环境中解除soya2d可渲染对象
-	 * @param  {soya2d.DisplayObject} ro soya2d可渲染对象
-	 */
-	this.unbind = function(ro) {
-		this.world.removeBody(ro.body);
-		ro.body = null;
-		delete ro.body;
-	};
-
-	/**
-	 * 更新物理世界，通常不需要手动调用
-	 * @private
-	 */
-	this.update = function(dt) {
-		this.world.step(dt);
-		for(var i=this.world.bodies.length; i--;){
-			var body = this.world.bodies[i];
-			var ro = body.ro;
-			if(!ro)continue;
-			if(isNaN(body.position[0]))continue;
-
-			//传给绘图引擎的偏移量
-			var offx = 0,offy = 0;
-			offx = ro.w/2,offy = ro.h/2;
-			
-			
-			ro.x = body.position[0] - offx;
-			ro.y = body.position[1] - offy;
-			ro.rotation = body.angle * soya2d.Math.ONEANG;
-		}
-	};
-
-	soya2d.EventHandler.call(this);
-};
-soya2d.inherits(soya2d.Physics,soya2d.EventHandler);
-Object.defineProperties(p2.Body.prototype,{
-    x:{
-        set:function(v){
-            this.position[0] = v + this.ro.w / 2;
-        },
-        get:function(){
-            return this.position[0] - this.ro.w / 2;
-        },
-        enumerable:true
-    },
-    y:{
-        set:function(v){
-            this.position[1] = v + this.ro.h / 2;
-        },
-        get:function(){
-            return this.position[1] - this.ro.h / 2;
-        },
-        enumerable:true
-    },
-    rotation:{
-        set:function(v){
-            this.angle = v;
-        },
-        get:function(){
-            return this.angle * soya2d.Math.ONEANG;
-        },
-        enumerable:true
-    }
-});
-/**
- * 物理响应类型，静态
- * @type {Number}
- */
-soya2d.PHY_STATIC = 1;
-/**
- * 物理响应类型，动态
- * @type {Number}
- */
-soya2d.PHY_DYNAMIC = 2;
-
-/**
- * 事件类型 - 碰撞开始
- * @type {String}
- */
-soya2d.EVENT_CONTACTSTART = 'contactstart';
-/**
- * 事件类型 - 碰撞结束
- * @type {String}
- */
-soya2d.EVENT_CONTACTEND = 'contactend';
-/**
- * 物理事件对象
- * @type {Object}
- * @typedef {Object} soya2d.PhysicsEvent
- * @property {Array} collisionPairs - 碰撞对一维数组[{a:xx,b:xx},{a:yy,b:yy}, ...]
- * @property {soya2d.DisplayObject} otherCollider - 与当前对象产生碰撞的显示对象
- */
-
-
+* matter-js 0.10.0 by @liabru 2016-05-01
+* http://brm.io/matter-js/
+* License MIT
+*/
+!function(e){if("object"==typeof exports&&"undefined"!=typeof module)module.exports=e();else if("function"==typeof define&&define.amd)define([],e);else{var t;t="undefined"!=typeof window?window:"undefined"!=typeof global?global:"undefined"!=typeof self?self:this,t.Matter=e()}}(function(){return function e(t,o,n){function i(s,a){if(!o[s]){if(!t[s]){var l="function"==typeof require&&require;if(!a&&l)return l(s,!0);if(r)return r(s,!0);var c=new Error("Cannot find module '"+s+"'");throw c.code="MODULE_NOT_FOUND",c}var d=o[s]={exports:{}};t[s][0].call(d.exports,function(e){var o=t[s][1][e];return i(o?o:e)},d,d.exports,e,t,o,n)}return o[s].exports}for(var r="function"==typeof require&&require,s=0;s<n.length;s++)i(n[s]);return i}({1:[function(e,t,o){var n={};t.exports=n;var i=e("../geometry/Vertices"),r=e("../geometry/Vector"),s=e("../core/Sleeping"),a=(e("../render/Render"),e("../core/Common")),l=e("../geometry/Bounds"),c=e("../geometry/Axes");!function(){n._inertiaScale=4,n._nextCollidingGroupId=1,
+n._nextNonCollidingGroupId=-1,n._nextCategory=1,n.create=function(t){var o={id:a.nextId(),type:"body",label:"Body",parts:[],angle:0,vertices:i.fromPath("L 0 0 L 40 0 L 40 40 L 0 40"),position:{x:0,y:0},force:{x:0,y:0},torque:0,positionImpulse:{x:0,y:0},constraintImpulse:{x:0,y:0,angle:0},totalContacts:0,speed:0,angularSpeed:0,velocity:{x:0,y:0},angularVelocity:0,isSensor:!1,isStatic:!1,isSleeping:!1,motion:0,sleepThreshold:60,density:.001,restitution:0,friction:.1,frictionStatic:.5,frictionAir:.01,collisionFilter:{category:1,mask:4294967295,group:0},slop:.05,timeScale:1,render:{visible:!0,opacity:1,sprite:{xScale:1,yScale:1,xOffset:0,yOffset:0},lineWidth:1.5}},n=a.extend(o,t);return e(n,t),n},n.nextGroup=function(e){return e?n._nextNonCollidingGroupId--:n._nextCollidingGroupId++},n.nextCategory=function(){return n._nextCategory=n._nextCategory<<1,n._nextCategory};var e=function(e,t){n.set(e,{bounds:e.bounds||l.create(e.vertices),positionPrev:e.positionPrev||r.clone(e.position),anglePrev:e.anglePrev||e.angle,
+vertices:e.vertices,parts:e.parts||[e],isStatic:e.isStatic,isSleeping:e.isSleeping,parent:e.parent||e}),i.rotate(e.vertices,e.angle,e.position),c.rotate(e.axes,e.angle),l.update(e.bounds,e.vertices,e.velocity),n.set(e,{axes:t.axes||e.axes,area:t.area||e.area,mass:t.mass||e.mass,inertia:t.inertia||e.inertia});var o=e.isStatic?"#eeeeee":a.choose(["#556270","#4ECDC4","#C7F464","#FF6B6B","#C44D58"]),s=a.shadeColor(o,-20);e.render.fillStyle=e.render.fillStyle||o,e.render.strokeStyle=e.render.strokeStyle||s,e.render.sprite.xOffset+=-(e.bounds.min.x-e.position.x)/(e.bounds.max.x-e.bounds.min.x),e.render.sprite.yOffset+=-(e.bounds.min.y-e.position.y)/(e.bounds.max.y-e.bounds.min.y)};n.set=function(e,t,o){var i;"string"==typeof t&&(i=t,t={},t[i]=o);for(i in t)if(o=t[i],t.hasOwnProperty(i))switch(i){case"isStatic":n.setStatic(e,o);break;case"isSleeping":s.set(e,o);break;case"mass":n.setMass(e,o);break;case"density":n.setDensity(e,o);break;case"inertia":n.setInertia(e,o);break;case"vertices":n.setVertices(e,o);
+break;case"position":n.setPosition(e,o);break;case"angle":n.setAngle(e,o);break;case"velocity":n.setVelocity(e,o);break;case"angularVelocity":n.setAngularVelocity(e,o);break;case"parts":n.setParts(e,o);break;default:e[i]=o}},n.setStatic=function(e,t){for(var o=0;o<e.parts.length;o++){var n=e.parts[o];n.isStatic=t,t&&(n.restitution=0,n.friction=1,n.mass=n.inertia=n.density=1/0,n.inverseMass=n.inverseInertia=0,n.positionPrev.x=n.position.x,n.positionPrev.y=n.position.y,n.anglePrev=n.angle,n.angularVelocity=0,n.speed=0,n.angularSpeed=0,n.motion=0)}},n.setMass=function(e,t){e.mass=t,e.inverseMass=1/e.mass,e.density=e.mass/e.area},n.setDensity=function(e,t){n.setMass(e,t*e.area),e.density=t},n.setInertia=function(e,t){e.inertia=t,e.inverseInertia=1/e.inertia},n.setVertices=function(e,t){t[0].body===e?e.vertices=t:e.vertices=i.create(t,e),e.axes=c.fromVertices(e.vertices),e.area=i.area(e.vertices),n.setMass(e,e.density*e.area);var o=i.centre(e.vertices);i.translate(e.vertices,o,-1),n.setInertia(e,n._inertiaScale*i.inertia(e.vertices,e.mass)),
+i.translate(e.vertices,e.position),l.update(e.bounds,e.vertices,e.velocity)},n.setParts=function(e,o,r){var s;for(o=o.slice(0),e.parts.length=0,e.parts.push(e),e.parent=e,s=0;s<o.length;s++){var a=o[s];a!==e&&(a.parent=e,e.parts.push(a))}if(1!==e.parts.length){if(r="undefined"!=typeof r?r:!0){var l=[];for(s=0;s<o.length;s++)l=l.concat(o[s].vertices);i.clockwiseSort(l);var c=i.hull(l),d=i.centre(c);n.setVertices(e,c),i.translate(e.vertices,d)}var u=t(e);e.area=u.area,e.parent=e,e.position.x=u.centre.x,e.position.y=u.centre.y,e.positionPrev.x=u.centre.x,e.positionPrev.y=u.centre.y,n.setMass(e,u.mass),n.setInertia(e,u.inertia),n.setPosition(e,u.centre)}},n.setPosition=function(e,t){var o=r.sub(t,e.position);e.positionPrev.x+=o.x,e.positionPrev.y+=o.y;for(var n=0;n<e.parts.length;n++){var s=e.parts[n];s.position.x+=o.x,s.position.y+=o.y,i.translate(s.vertices,o),l.update(s.bounds,s.vertices,e.velocity)}},n.setAngle=function(e,t){var o=t-e.angle;e.anglePrev+=o;for(var n=0;n<e.parts.length;n++){
+var s=e.parts[n];s.angle+=o,i.rotate(s.vertices,o,e.position),c.rotate(s.axes,o),l.update(s.bounds,s.vertices,e.velocity),n>0&&r.rotateAbout(s.position,o,e.position,s.position)}},n.setVelocity=function(e,t){e.positionPrev.x=e.position.x-t.x,e.positionPrev.y=e.position.y-t.y,e.velocity.x=t.x,e.velocity.y=t.y,e.speed=r.magnitude(e.velocity)},n.setAngularVelocity=function(e,t){e.anglePrev=e.angle-t,e.angularVelocity=t,e.angularSpeed=Math.abs(e.angularVelocity)},n.translate=function(e,t){n.setPosition(e,r.add(e.position,t))},n.rotate=function(e,t){n.setAngle(e,e.angle+t)},n.scale=function(e,o,r,s){for(var a=0;a<e.parts.length;a++){var d=e.parts[a];i.scale(d.vertices,o,r,e.position),d.axes=c.fromVertices(d.vertices),e.isStatic||(d.area=i.area(d.vertices),n.setMass(d,e.density*d.area),i.translate(d.vertices,{x:-d.position.x,y:-d.position.y}),n.setInertia(d,i.inertia(d.vertices,d.mass)),i.translate(d.vertices,{x:d.position.x,y:d.position.y})),l.update(d.bounds,d.vertices,e.velocity)}if(e.circleRadius&&(o===r?e.circleRadius*=o:e.circleRadius=null),
+!e.isStatic){var u=t(e);e.area=u.area,n.setMass(e,u.mass),n.setInertia(e,u.inertia)}},n.update=function(e,t,o,n){var s=Math.pow(t*o*e.timeScale,2),a=1-e.frictionAir*o*e.timeScale,d=e.position.x-e.positionPrev.x,u=e.position.y-e.positionPrev.y;e.velocity.x=d*a*n+e.force.x/e.mass*s,e.velocity.y=u*a*n+e.force.y/e.mass*s,e.positionPrev.x=e.position.x,e.positionPrev.y=e.position.y,e.position.x+=e.velocity.x,e.position.y+=e.velocity.y,e.angularVelocity=(e.angle-e.anglePrev)*a*n+e.torque/e.inertia*s,e.anglePrev=e.angle,e.angle+=e.angularVelocity,e.speed=r.magnitude(e.velocity),e.angularSpeed=Math.abs(e.angularVelocity);for(var p=0;p<e.parts.length;p++){var f=e.parts[p];i.translate(f.vertices,e.velocity),p>0&&(f.position.x+=e.velocity.x,f.position.y+=e.velocity.y),0!==e.angularVelocity&&(i.rotate(f.vertices,e.angularVelocity,e.position),c.rotate(f.axes,e.angularVelocity),p>0&&r.rotateAbout(f.position,e.angularVelocity,e.position,f.position)),l.update(f.bounds,f.vertices,e.velocity)}},n.applyForce=function(e,t,o){
+e.force.x+=o.x,e.force.y+=o.y;var n={x:t.x-e.position.x,y:t.y-e.position.y};e.torque+=n.x*o.y-n.y*o.x};var t=function(e){for(var t={mass:0,area:0,inertia:0,centre:{x:0,y:0}},o=1===e.parts.length?0:1;o<e.parts.length;o++){var n=e.parts[o];t.mass+=n.mass,t.area+=n.area,t.inertia+=n.inertia,t.centre=r.add(t.centre,r.mult(n.position,n.mass!==1/0?n.mass:1))}return t.centre=r.div(t.centre,t.mass!==1/0?t.mass:e.parts.length),t}}()},{"../core/Common":14,"../core/Sleeping":20,"../geometry/Axes":23,"../geometry/Bounds":24,"../geometry/Vector":26,"../geometry/Vertices":27,"../render/Render":29}],2:[function(e,t,o){var n={};t.exports=n;var i=e("../core/Events"),r=e("../core/Common"),s=e("./Body");!function(){n.create=function(e){return r.extend({id:r.nextId(),type:"composite",parent:null,isModified:!1,bodies:[],constraints:[],composites:[],label:"Composite"},e)},n.setModified=function(e,t,o,i){if(e.isModified=t,o&&e.parent&&n.setModified(e.parent,t,o,i),i)for(var r=0;r<e.composites.length;r++){var s=e.composites[r];
+n.setModified(s,t,o,i)}},n.add=function(e,t){var o=[].concat(t);i.trigger(e,"beforeAdd",{object:t});for(var s=0;s<o.length;s++){var a=o[s];switch(a.type){case"body":if(a.parent!==a){r.log("Composite.add: skipped adding a compound body part (you must add its parent instead)","warn");break}n.addBody(e,a);break;case"constraint":n.addConstraint(e,a);break;case"composite":n.addComposite(e,a);break;case"mouseConstraint":n.addConstraint(e,a.constraint)}}return i.trigger(e,"afterAdd",{object:t}),e},n.remove=function(e,t,o){var r=[].concat(t);i.trigger(e,"beforeRemove",{object:t});for(var s=0;s<r.length;s++){var a=r[s];switch(a.type){case"body":n.removeBody(e,a,o);break;case"constraint":n.removeConstraint(e,a,o);break;case"composite":n.removeComposite(e,a,o);break;case"mouseConstraint":n.removeConstraint(e,a.constraint)}}return i.trigger(e,"afterRemove",{object:t}),e},n.addComposite=function(e,t){return e.composites.push(t),t.parent=e,n.setModified(e,!0,!0,!1),e},n.removeComposite=function(e,t,o){
+var i=r.indexOf(e.composites,t);if(-1!==i&&(n.removeCompositeAt(e,i),n.setModified(e,!0,!0,!1)),o)for(var s=0;s<e.composites.length;s++)n.removeComposite(e.composites[s],t,!0);return e},n.removeCompositeAt=function(e,t){return e.composites.splice(t,1),n.setModified(e,!0,!0,!1),e},n.addBody=function(e,t){return e.bodies.push(t),n.setModified(e,!0,!0,!1),e},n.removeBody=function(e,t,o){var i=r.indexOf(e.bodies,t);if(-1!==i&&(n.removeBodyAt(e,i),n.setModified(e,!0,!0,!1)),o)for(var s=0;s<e.composites.length;s++)n.removeBody(e.composites[s],t,!0);return e},n.removeBodyAt=function(e,t){return e.bodies.splice(t,1),n.setModified(e,!0,!0,!1),e},n.addConstraint=function(e,t){return e.constraints.push(t),n.setModified(e,!0,!0,!1),e},n.removeConstraint=function(e,t,o){var i=r.indexOf(e.constraints,t);if(-1!==i&&n.removeConstraintAt(e,i),o)for(var s=0;s<e.composites.length;s++)n.removeConstraint(e.composites[s],t,!0);return e},n.removeConstraintAt=function(e,t){return e.constraints.splice(t,1),n.setModified(e,!0,!0,!1),
+e},n.clear=function(e,t,o){if(o)for(var i=0;i<e.composites.length;i++)n.clear(e.composites[i],t,!0);return t?e.bodies=e.bodies.filter(function(e){return e.isStatic}):e.bodies.length=0,e.constraints.length=0,e.composites.length=0,n.setModified(e,!0,!0,!1),e},n.allBodies=function(e){for(var t=[].concat(e.bodies),o=0;o<e.composites.length;o++)t=t.concat(n.allBodies(e.composites[o]));return t},n.allConstraints=function(e){for(var t=[].concat(e.constraints),o=0;o<e.composites.length;o++)t=t.concat(n.allConstraints(e.composites[o]));return t},n.allComposites=function(e){for(var t=[].concat(e.composites),o=0;o<e.composites.length;o++)t=t.concat(n.allComposites(e.composites[o]));return t},n.get=function(e,t,o){var i,r;switch(o){case"body":i=n.allBodies(e);break;case"constraint":i=n.allConstraints(e);break;case"composite":i=n.allComposites(e).concat(e)}return i?(r=i.filter(function(e){return e.id.toString()===t.toString()}),0===r.length?null:r[0]):null},n.move=function(e,t,o){return n.remove(e,t),
+n.add(o,t),e},n.rebase=function(e){for(var t=n.allBodies(e).concat(n.allConstraints(e)).concat(n.allComposites(e)),o=0;o<t.length;o++)t[o].id=r.nextId();return n.setModified(e,!0,!0,!1),e},n.translate=function(e,t,o){for(var i=o?n.allBodies(e):e.bodies,r=0;r<i.length;r++)s.translate(i[r],t);return n.setModified(e,!0,!0,!1),e},n.rotate=function(e,t,o,i){for(var r=Math.cos(t),a=Math.sin(t),l=i?n.allBodies(e):e.bodies,c=0;c<l.length;c++){var d=l[c],u=d.position.x-o.x,p=d.position.y-o.y;s.setPosition(d,{x:o.x+(u*r-p*a),y:o.y+(u*a+p*r)}),s.rotate(d,t)}return n.setModified(e,!0,!0,!1),e},n.scale=function(e,t,o,i,r){for(var a=r?n.allBodies(e):e.bodies,l=0;l<a.length;l++){var c=a[l],d=c.position.x-i.x,u=c.position.y-i.y;s.setPosition(c,{x:i.x+d*t,y:i.y+u*o}),s.scale(c,t,o)}return n.setModified(e,!0,!0,!1),e}}()},{"../core/Common":14,"../core/Events":16,"./Body":1}],3:[function(e,t,o){var n={};t.exports=n;var i=e("./Composite"),r=(e("../constraint/Constraint"),e("../core/Common"));!function(){n.create=function(e){
+var t=i.create(),o={label:"World",gravity:{x:0,y:1,scale:.001},bounds:{min:{x:-(1/0),y:-(1/0)},max:{x:1/0,y:1/0}}};return r.extend(t,o,e)}}()},{"../constraint/Constraint":12,"../core/Common":14,"./Composite":2}],4:[function(e,t,o){var n={};t.exports=n,function(){n.create=function(e){return{id:n.id(e),vertex:e,normalImpulse:0,tangentImpulse:0}},n.id=function(e){return e.body.id+"_"+e.index}}()},{}],5:[function(e,t,o){var n={};t.exports=n;var i=e("./SAT"),r=e("./Pair"),s=e("../geometry/Bounds");!function(){n.collisions=function(e,t){for(var o=[],a=t.pairs.table,l=0;l<e.length;l++){var c=e[l][0],d=e[l][1];if((!c.isStatic&&!c.isSleeping||!d.isStatic&&!d.isSleeping)&&n.canCollide(c.collisionFilter,d.collisionFilter)&&s.overlaps(c.bounds,d.bounds))for(var u=c.parts.length>1?1:0;u<c.parts.length;u++)for(var p=c.parts[u],f=d.parts.length>1?1:0;f<d.parts.length;f++){var v=d.parts[f];if(p===c&&v===d||s.overlaps(p.bounds,v.bounds)){var m,y=r.id(p,v),g=a[y];m=g&&g.isActive?g.collision:null;var x=i.collides(p,v,m);
+x.collided&&o.push(x)}}}return o},n.canCollide=function(e,t){return e.group===t.group&&0!==e.group?e.group>0:0!==(e.mask&t.category)&&0!==(t.mask&e.category)}}()},{"../geometry/Bounds":24,"./Pair":7,"./SAT":11}],6:[function(e,t,o){var n={};t.exports=n;var i=e("./Pair"),r=e("./Detector"),s=e("../core/Common");!function(){n.create=function(e){var t={controller:n,detector:r.collisions,buckets:{},pairs:{},pairsList:[],bucketWidth:48,bucketHeight:48};return s.extend(t,e)},n.update=function(o,n,i,r){var s,p,f,v,m,y=i.world,g=o.buckets,x=!1;for(s=0;s<n.length;s++){var h=n[s];if((!h.isSleeping||r)&&!(h.bounds.max.x<y.bounds.min.x||h.bounds.min.x>y.bounds.max.x||h.bounds.max.y<y.bounds.min.y||h.bounds.min.y>y.bounds.max.y)){var b=t(o,h);if(!h.region||b.id!==h.region.id||r){h.region&&!r||(h.region=b);var w=e(b,h.region);for(p=w.startCol;p<=w.endCol;p++)for(f=w.startRow;f<=w.endRow;f++){m=a(p,f),v=g[m];var S=p>=b.startCol&&p<=b.endCol&&f>=b.startRow&&f<=b.endRow,C=p>=h.region.startCol&&p<=h.region.endCol&&f>=h.region.startRow&&f<=h.region.endRow;
+!S&&C&&C&&v&&d(o,v,h),(h.region===b||S&&!C||r)&&(v||(v=l(g,m)),c(o,v,h))}h.region=b,x=!0}}}x&&(o.pairsList=u(o))},n.clear=function(e){e.buckets={},e.pairs={},e.pairsList=[]};var e=function(e,t){var n=Math.min(e.startCol,t.startCol),i=Math.max(e.endCol,t.endCol),r=Math.min(e.startRow,t.startRow),s=Math.max(e.endRow,t.endRow);return o(n,i,r,s)},t=function(e,t){var n=t.bounds,i=Math.floor(n.min.x/e.bucketWidth),r=Math.floor(n.max.x/e.bucketWidth),s=Math.floor(n.min.y/e.bucketHeight),a=Math.floor(n.max.y/e.bucketHeight);return o(i,r,s,a)},o=function(e,t,o,n){return{id:e+","+t+","+o+","+n,startCol:e,endCol:t,startRow:o,endRow:n}},a=function(e,t){return e+","+t},l=function(e,t){var o=e[t]=[];return o},c=function(e,t,o){for(var n=0;n<t.length;n++){var r=t[n];if(!(o.id===r.id||o.isStatic&&r.isStatic)){var s=i.id(o,r),a=e.pairs[s];a?a[2]+=1:e.pairs[s]=[o,r,1]}}t.push(o)},d=function(e,t,o){t.splice(s.indexOf(t,o),1);for(var n=0;n<t.length;n++){var r=t[n],a=i.id(o,r),l=e.pairs[a];l&&(l[2]-=1)}},u=function(e){
+var t,o,n=[];t=s.keys(e.pairs);for(var i=0;i<t.length;i++)o=e.pairs[t[i]],o[2]>0?n.push(o):delete e.pairs[t[i]];return n}}()},{"../core/Common":14,"./Detector":5,"./Pair":7}],7:[function(e,t,o){var n={};t.exports=n;var i=e("./Contact");!function(){n.create=function(e,t){var o=e.bodyA,i=e.bodyB,r=e.parentA,s=e.parentB,a={id:n.id(o,i),bodyA:o,bodyB:i,contacts:{},activeContacts:[],separation:0,isActive:!0,isSensor:o.isSensor||i.isSensor,timeCreated:t,timeUpdated:t,inverseMass:r.inverseMass+s.inverseMass,friction:Math.min(r.friction,s.friction),frictionStatic:Math.max(r.frictionStatic,s.frictionStatic),restitution:Math.max(r.restitution,s.restitution),slop:Math.max(r.slop,s.slop)};return n.update(a,e,t),a},n.update=function(e,t,o){var r=e.contacts,s=t.supports,a=e.activeContacts,l=t.parentA,c=t.parentB;if(e.collision=t,e.inverseMass=l.inverseMass+c.inverseMass,e.friction=Math.min(l.friction,c.friction),e.frictionStatic=Math.max(l.frictionStatic,c.frictionStatic),e.restitution=Math.max(l.restitution,c.restitution),
+e.slop=Math.max(l.slop,c.slop),a.length=0,t.collided){for(var d=0;d<s.length;d++){var u=s[d],p=i.id(u),f=r[p];f?a.push(f):a.push(r[p]=i.create(u))}e.separation=t.depth,n.setActive(e,!0,o)}else e.isActive===!0&&n.setActive(e,!1,o)},n.setActive=function(e,t,o){t?(e.isActive=!0,e.timeUpdated=o):(e.isActive=!1,e.activeContacts.length=0)},n.id=function(e,t){return e.id<t.id?e.id+"_"+t.id:t.id+"_"+e.id}}()},{"./Contact":4}],8:[function(e,t,o){var n={};t.exports=n;var i=e("./Pair"),r=e("../core/Common");!function(){var e=1e3;n.create=function(e){return r.extend({table:{},list:[],collisionStart:[],collisionActive:[],collisionEnd:[]},e)},n.update=function(e,t,o){var n,s,a,l,c=e.list,d=e.table,u=e.collisionStart,p=e.collisionEnd,f=e.collisionActive,v=[];for(u.length=0,p.length=0,f.length=0,l=0;l<t.length;l++)n=t[l],n.collided&&(s=i.id(n.bodyA,n.bodyB),v.push(s),a=d[s],a?(a.isActive?f.push(a):u.push(a),i.update(a,n,o)):(a=i.create(n,o),d[s]=a,u.push(a),c.push(a)));for(l=0;l<c.length;l++)a=c[l],a.isActive&&-1===r.indexOf(v,a.id)&&(i.setActive(a,!1,o),
+p.push(a))},n.removeOld=function(t,o){var n,i,r,s,a=t.list,l=t.table,c=[];for(s=0;s<a.length;s++)n=a[s],i=n.collision,i.bodyA.isSleeping||i.bodyB.isSleeping?n.timeUpdated=o:o-n.timeUpdated>e&&c.push(s);for(s=0;s<c.length;s++)r=c[s]-s,n=a[r],delete l[n.id],a.splice(r,1)},n.clear=function(e){return e.table={},e.list.length=0,e.collisionStart.length=0,e.collisionActive.length=0,e.collisionEnd.length=0,e}}()},{"../core/Common":14,"./Pair":7}],9:[function(e,t,o){var n={};t.exports=n;var i=e("../geometry/Vector"),r=e("./SAT"),s=e("../geometry/Bounds"),a=e("../factory/Bodies"),l=e("../geometry/Vertices");!function(){n.ray=function(e,t,o,n){n=n||1e-100;for(var l=i.angle(t,o),c=i.magnitude(i.sub(t,o)),d=.5*(o.x+t.x),u=.5*(o.y+t.y),p=a.rectangle(d,u,c,n,{angle:l}),f=[],v=0;v<e.length;v++){var m=e[v];if(s.overlaps(m.bounds,p.bounds))for(var y=1===m.parts.length?0:1;y<m.parts.length;y++){var g=m.parts[y];if(s.overlaps(g.bounds,p.bounds)){var x=r.collides(g,p);if(x.collided){x.body=x.bodyA=x.bodyB=m,
+f.push(x);break}}}}return f},n.region=function(e,t,o){for(var n=[],i=0;i<e.length;i++){var r=e[i],a=s.overlaps(r.bounds,t);(a&&!o||!a&&o)&&n.push(r)}return n},n.point=function(e,t){for(var o=[],n=0;n<e.length;n++){var i=e[n];if(s.contains(i.bounds,t))for(var r=1===i.parts.length?0:1;r<i.parts.length;r++){var a=i.parts[r];if(s.contains(a.bounds,t)&&l.contains(a.vertices,t)){o.push(i);break}}}return o}}()},{"../factory/Bodies":21,"../geometry/Bounds":24,"../geometry/Vector":26,"../geometry/Vertices":27,"./SAT":11}],10:[function(e,t,o){var n={};t.exports=n;var i=e("../geometry/Vertices"),r=e("../geometry/Vector"),s=e("../core/Common"),a=e("../geometry/Bounds");!function(){n._restingThresh=4,n._restingThreshTangent=6,n._positionDampen=.9,n._positionWarming=.8,n._frictionNormalMultiplier=5,n.preSolvePosition=function(e){var t,o,n;for(t=0;t<e.length;t++)o=e[t],o.isActive&&(n=o.activeContacts.length,o.collision.parentA.totalContacts+=n,o.collision.parentB.totalContacts+=n)},n.solvePosition=function(e,t){
+var o,i,s,a,l,c,d,u,p,f=r._temp[0],v=r._temp[1],m=r._temp[2],y=r._temp[3];for(o=0;o<e.length;o++)i=e[o],i.isActive&&!i.isSensor&&(s=i.collision,a=s.parentA,l=s.parentB,c=s.normal,d=r.sub(r.add(l.positionImpulse,l.position,f),r.add(a.positionImpulse,r.sub(l.position,s.penetration,v),m),y),i.separation=r.dot(c,d));for(o=0;o<e.length;o++)i=e[o],!i.isActive||i.isSensor||i.separation<0||(s=i.collision,a=s.parentA,l=s.parentB,c=s.normal,p=(i.separation-i.slop)*t,(a.isStatic||l.isStatic)&&(p*=2),a.isStatic||a.isSleeping||(u=n._positionDampen/a.totalContacts,a.positionImpulse.x+=c.x*p*u,a.positionImpulse.y+=c.y*p*u),l.isStatic||l.isSleeping||(u=n._positionDampen/l.totalContacts,l.positionImpulse.x-=c.x*p*u,l.positionImpulse.y-=c.y*p*u))},n.postSolvePosition=function(e){for(var t=0;t<e.length;t++){var o=e[t];if(o.totalContacts=0,0!==o.positionImpulse.x||0!==o.positionImpulse.y){for(var s=0;s<o.parts.length;s++){var l=o.parts[s];i.translate(l.vertices,o.positionImpulse),a.update(l.bounds,l.vertices,o.velocity),
+l.position.x+=o.positionImpulse.x,l.position.y+=o.positionImpulse.y}o.positionPrev.x+=o.positionImpulse.x,o.positionPrev.y+=o.positionImpulse.y,r.dot(o.positionImpulse,o.velocity)<0?(o.positionImpulse.x=0,o.positionImpulse.y=0):(o.positionImpulse.x*=n._positionWarming,o.positionImpulse.y*=n._positionWarming)}}},n.preSolveVelocity=function(e){var t,o,n,i,s,a,l,c,d,u,p,f,v,m,y=r._temp[0],g=r._temp[1];for(t=0;t<e.length;t++)if(n=e[t],n.isActive&&!n.isSensor)for(i=n.activeContacts,s=n.collision,a=s.parentA,l=s.parentB,c=s.normal,d=s.tangent,o=0;o<i.length;o++)u=i[o],p=u.vertex,f=u.normalImpulse,v=u.tangentImpulse,0===f&&0===v||(y.x=c.x*f+d.x*v,y.y=c.y*f+d.y*v,a.isStatic||a.isSleeping||(m=r.sub(p,a.position,g),a.positionPrev.x+=y.x*a.inverseMass,a.positionPrev.y+=y.y*a.inverseMass,a.anglePrev+=r.cross(m,y)*a.inverseInertia),l.isStatic||l.isSleeping||(m=r.sub(p,l.position,g),l.positionPrev.x-=y.x*l.inverseMass,l.positionPrev.y-=y.y*l.inverseMass,l.anglePrev-=r.cross(m,y)*l.inverseInertia))},n.solveVelocity=function(e,t){
+for(var o=t*t,i=r._temp[0],a=r._temp[1],l=r._temp[2],c=r._temp[3],d=r._temp[4],u=r._temp[5],p=0;p<e.length;p++){var f=e[p];if(f.isActive&&!f.isSensor){var v=f.collision,m=v.parentA,y=v.parentB,g=v.normal,x=v.tangent,h=f.activeContacts,b=1/h.length;m.velocity.x=m.position.x-m.positionPrev.x,m.velocity.y=m.position.y-m.positionPrev.y,y.velocity.x=y.position.x-y.positionPrev.x,y.velocity.y=y.position.y-y.positionPrev.y,m.angularVelocity=m.angle-m.anglePrev,y.angularVelocity=y.angle-y.anglePrev;for(var w=0;w<h.length;w++){var S=h[w],C=S.vertex,A=r.sub(C,m.position,a),B=r.sub(C,y.position,l),P=r.add(m.velocity,r.mult(r.perp(A),m.angularVelocity),c),M=r.add(y.velocity,r.mult(r.perp(B),y.angularVelocity),d),k=r.sub(P,M,u),I=r.dot(g,k),T=r.dot(x,k),V=Math.abs(T),R=s.sign(T),E=(1+f.restitution)*I,_=s.clamp(f.separation+I,0,1)*n._frictionNormalMultiplier,F=T,O=1/0;V>f.friction*f.frictionStatic*_*o&&(O=V,F=s.clamp(f.friction*R*o,-O,O));var L=r.cross(A,g),q=r.cross(B,g),W=b/(m.inverseMass+y.inverseMass+m.inverseInertia*L*L+y.inverseInertia*q*q);
+if(E*=W,F*=W,0>I&&I*I>n._restingThresh*o)S.normalImpulse=0;else{var D=S.normalImpulse;S.normalImpulse=Math.min(S.normalImpulse+E,0),E=S.normalImpulse-D}if(T*T>n._restingThreshTangent*o)S.tangentImpulse=0;else{var N=S.tangentImpulse;S.tangentImpulse=s.clamp(S.tangentImpulse+F,-O,O),F=S.tangentImpulse-N}i.x=g.x*E+x.x*F,i.y=g.y*E+x.y*F,m.isStatic||m.isSleeping||(m.positionPrev.x+=i.x*m.inverseMass,m.positionPrev.y+=i.y*m.inverseMass,m.anglePrev+=r.cross(A,i)*m.inverseInertia),y.isStatic||y.isSleeping||(y.positionPrev.x-=i.x*y.inverseMass,y.positionPrev.y-=i.y*y.inverseMass,y.anglePrev-=r.cross(B,i)*y.inverseInertia)}}}}}()},{"../core/Common":14,"../geometry/Bounds":24,"../geometry/Vector":26,"../geometry/Vertices":27}],11:[function(e,t,o){var n={};t.exports=n;var i=e("../geometry/Vertices"),r=e("../geometry/Vector");!function(){n.collides=function(t,n,s){var a,l,c,d,u=s,p=!1;if(u){var f=t.parent,v=n.parent,m=f.speed*f.speed+f.angularSpeed*f.angularSpeed+v.speed*v.speed+v.angularSpeed*v.angularSpeed;
+p=u&&u.collided&&.2>m,d=u}else d={collided:!1,bodyA:t,bodyB:n};if(u&&p){var y=d.axisBody,g=y===t?n:t,x=[y.axes[u.axisNumber]];if(c=e(y.vertices,g.vertices,x),d.reused=!0,c.overlap<=0)return d.collided=!1,d}else{if(a=e(t.vertices,n.vertices,t.axes),a.overlap<=0)return d.collided=!1,d;if(l=e(n.vertices,t.vertices,n.axes),l.overlap<=0)return d.collided=!1,d;a.overlap<l.overlap?(c=a,d.axisBody=t):(c=l,d.axisBody=n),d.axisNumber=c.axisNumber}d.bodyA=t.id<n.id?t:n,d.bodyB=t.id<n.id?n:t,d.collided=!0,d.normal=c.axis,d.depth=c.overlap,d.parentA=d.bodyA.parent,d.parentB=d.bodyB.parent,t=d.bodyA,n=d.bodyB,r.dot(d.normal,r.sub(n.position,t.position))>0&&(d.normal=r.neg(d.normal)),d.tangent=r.perp(d.normal),d.penetration={x:d.normal.x*d.depth,y:d.normal.y*d.depth};var h=o(t,n,d.normal),b=d.supports||[];if(b.length=0,i.contains(t.vertices,h[0])&&b.push(h[0]),i.contains(t.vertices,h[1])&&b.push(h[1]),b.length<2){var w=o(n,t,r.neg(d.normal));i.contains(n.vertices,w[0])&&b.push(w[0]),b.length<2&&i.contains(n.vertices,w[1])&&b.push(w[1]);
+}return b.length<1&&(b=[h[0]]),d.supports=b,d};var e=function(e,o,n){for(var i,s,a=r._temp[0],l=r._temp[1],c={overlap:Number.MAX_VALUE},d=0;d<n.length;d++){if(s=n[d],t(a,e,s),t(l,o,s),i=Math.min(a.max-l.min,l.max-a.min),0>=i)return c.overlap=i,c;i<c.overlap&&(c.overlap=i,c.axis=s,c.axisNumber=d)}return c},t=function(e,t,o){for(var n=r.dot(t[0],o),i=n,s=1;s<t.length;s+=1){var a=r.dot(t[s],o);a>i?i=a:n>a&&(n=a)}e.min=n,e.max=i},o=function(e,t,o){for(var n,i,s,a,l=Number.MAX_VALUE,c=r._temp[0],d=t.vertices,u=e.position,p=0;p<d.length;p++)i=d[p],c.x=i.x-u.x,c.y=i.y-u.y,n=-r.dot(o,c),l>n&&(l=n,s=i);var f=s.index-1>=0?s.index-1:d.length-1;i=d[f],c.x=i.x-u.x,c.y=i.y-u.y,l=-r.dot(o,c),a=i;var v=(s.index+1)%d.length;return i=d[v],c.x=i.x-u.x,c.y=i.y-u.y,n=-r.dot(o,c),l>n&&(a=i),[s,a]}}()},{"../geometry/Vector":26,"../geometry/Vertices":27}],12:[function(e,t,o){var n={};t.exports=n;var i=e("../geometry/Vertices"),r=e("../geometry/Vector"),s=e("../core/Sleeping"),a=e("../geometry/Bounds"),l=e("../geometry/Axes"),c=e("../core/Common");
+!function(){var e=1e-6,t=.001;n.create=function(t){var o=t;o.bodyA&&!o.pointA&&(o.pointA={x:0,y:0}),o.bodyB&&!o.pointB&&(o.pointB={x:0,y:0});var n=o.bodyA?r.add(o.bodyA.position,o.pointA):o.pointA,i=o.bodyB?r.add(o.bodyB.position,o.pointB):o.pointB,s=r.magnitude(r.sub(n,i));o.length=o.length||s||e;var a={visible:!0,lineWidth:2,strokeStyle:"#666"};return o.render=c.extend(a,o.render),o.id=o.id||c.nextId(),o.label=o.label||"Constraint",o.type="constraint",o.stiffness=o.stiffness||1,o.angularStiffness=o.angularStiffness||0,o.angleA=o.bodyA?o.bodyA.angle:o.angleA,o.angleB=o.bodyB?o.bodyB.angle:o.angleB,o},n.solveAll=function(e,t){for(var o=0;o<e.length;o++)n.solve(e[o],t)},n.solve=function(o,n){var i=o.bodyA,s=o.bodyB,a=o.pointA,l=o.pointB;i&&!i.isStatic&&(o.pointA=r.rotate(a,i.angle-o.angleA),o.angleA=i.angle),s&&!s.isStatic&&(o.pointB=r.rotate(l,s.angle-o.angleB),o.angleB=s.angle);var c=a,d=l;if(i&&(c=r.add(i.position,a)),s&&(d=r.add(s.position,l)),c&&d){var u=r.sub(c,d),p=r.magnitude(u);0===p&&(p=e);
+var f=(p-o.length)/p,v=r.div(u,p),m=r.mult(u,.5*f*o.stiffness*n*n);if(!(Math.abs(1-p/o.length)<t*n)){var y,g,x,h,b,w,S,C;i&&!i.isStatic?(x={x:c.x-i.position.x+m.x,y:c.y-i.position.y+m.y},i.velocity.x=i.position.x-i.positionPrev.x,i.velocity.y=i.position.y-i.positionPrev.y,i.angularVelocity=i.angle-i.anglePrev,y=r.add(i.velocity,r.mult(r.perp(x),i.angularVelocity)),b=r.dot(x,v),S=i.inverseMass+i.inverseInertia*b*b):(y={x:0,y:0},S=i?i.inverseMass:0),s&&!s.isStatic?(h={x:d.x-s.position.x-m.x,y:d.y-s.position.y-m.y},s.velocity.x=s.position.x-s.positionPrev.x,s.velocity.y=s.position.y-s.positionPrev.y,s.angularVelocity=s.angle-s.anglePrev,g=r.add(s.velocity,r.mult(r.perp(h),s.angularVelocity)),w=r.dot(h,v),C=s.inverseMass+s.inverseInertia*w*w):(g={x:0,y:0},C=s?s.inverseMass:0);var A=r.sub(g,y),B=r.dot(v,A)/(S+C);B>0&&(B=0);var P,M={x:v.x*B,y:v.y*B};i&&!i.isStatic&&(P=r.cross(x,M)*i.inverseInertia*(1-o.angularStiffness),i.constraintImpulse.x-=m.x,i.constraintImpulse.y-=m.y,i.constraintImpulse.angle+=P,
+i.position.x-=m.x,i.position.y-=m.y,i.angle+=P),s&&!s.isStatic&&(P=r.cross(h,M)*s.inverseInertia*(1-o.angularStiffness),s.constraintImpulse.x+=m.x,s.constraintImpulse.y+=m.y,s.constraintImpulse.angle-=P,s.position.x+=m.x,s.position.y+=m.y,s.angle-=P)}}},n.postSolveAll=function(e){for(var t=0;t<e.length;t++){var o=e[t],n=o.constraintImpulse;if(0!==n.x||0!==n.y||0!==n.angle){s.set(o,!1);for(var c=0;c<o.parts.length;c++){var d=o.parts[c];i.translate(d.vertices,n),c>0&&(d.position.x+=n.x,d.position.y+=n.y),0!==n.angle&&(i.rotate(d.vertices,n.angle,o.position),l.rotate(d.axes,n.angle),c>0&&r.rotateAbout(d.position,n.angle,o.position,d.position)),a.update(d.bounds,d.vertices,o.velocity)}n.angle=0,n.x=0,n.y=0}}}}()},{"../core/Common":14,"../core/Sleeping":20,"../geometry/Axes":23,"../geometry/Bounds":24,"../geometry/Vector":26,"../geometry/Vertices":27}],13:[function(e,t,o){var n={};t.exports=n;var i=e("../geometry/Vertices"),r=e("../core/Sleeping"),s=e("../core/Mouse"),a=e("../core/Events"),l=e("../collision/Detector"),c=e("./Constraint"),d=e("../body/Composite"),u=e("../core/Common"),p=e("../geometry/Bounds");
+!function(){n.create=function(t,o){var i=(t?t.mouse:null)||(o?o.mouse:null);i||(t&&t.render&&t.render.canvas?i=s.create(t.render.canvas):o&&o.element?i=s.create(o.element):(i=s.create(),u.log("MouseConstraint.create: options.mouse was undefined, options.element was undefined, may not function as expected","warn")));var r=c.create({label:"Mouse Constraint",pointA:i.position,pointB:{x:0,y:0},length:.01,stiffness:.1,angularStiffness:1,render:{strokeStyle:"#90EE90",lineWidth:3}}),l={type:"mouseConstraint",mouse:i,element:null,body:null,constraint:r,collisionFilter:{category:1,mask:4294967295,group:0}},p=u.extend(l,o);return a.on(t,"tick",function(){var o=d.allBodies(t.world);n.update(p,o),e(p)}),p},n.update=function(e,t){var o=e.mouse,n=e.constraint,s=e.body;if(0===o.button){if(n.bodyB)r.set(n.bodyB,!1),n.pointA=o.position;else for(var c=0;c<t.length;c++)if(s=t[c],p.contains(s.bounds,o.position)&&l.canCollide(s.collisionFilter,e.collisionFilter))for(var d=s.parts.length>1?1:0;d<s.parts.length;d++){
+var u=s.parts[d];if(i.contains(u.vertices,o.position)){n.pointA=o.position,n.bodyB=e.body=s,n.pointB={x:o.position.x-s.position.x,y:o.position.y-s.position.y},n.angleB=s.angle,r.set(s,!1),a.trigger(e,"startdrag",{mouse:o,body:s});break}}}else n.bodyB=e.body=null,n.pointB=null,s&&a.trigger(e,"enddrag",{mouse:o,body:s})};var e=function(e){var t=e.mouse,o=t.sourceEvents;o.mousemove&&a.trigger(e,"mousemove",{mouse:t}),o.mousedown&&a.trigger(e,"mousedown",{mouse:t}),o.mouseup&&a.trigger(e,"mouseup",{mouse:t}),s.clearSourceEvents(t)}}()},{"../body/Composite":2,"../collision/Detector":5,"../core/Common":14,"../core/Events":16,"../core/Mouse":18,"../core/Sleeping":20,"../geometry/Bounds":24,"../geometry/Vertices":27,"./Constraint":12}],14:[function(e,t,o){var n={};t.exports=n,function(){n._nextId=0,n._seed=0,n.extend=function(e,t){var o,i,r;"boolean"==typeof t?(o=2,r=t):(o=1,r=!0),i=Array.prototype.slice.call(arguments,o);for(var s=0;s<i.length;s++){var a=i[s];if(a)for(var l in a)r&&a[l]&&a[l].constructor===Object?e[l]&&e[l].constructor!==Object?e[l]=a[l]:(e[l]=e[l]||{},
+n.extend(e[l],r,a[l])):e[l]=a[l]}return e},n.clone=function(e,t){return n.extend({},t,e)},n.keys=function(e){if(Object.keys)return Object.keys(e);var t=[];for(var o in e)t.push(o);return t},n.values=function(e){var t=[];if(Object.keys){for(var o=Object.keys(e),n=0;n<o.length;n++)t.push(e[o[n]]);return t}for(var i in e)t.push(e[i]);return t},n.shadeColor=function(e,t){var o=parseInt(e.slice(1),16),n=Math.round(2.55*t),i=(o>>16)+n,r=(o>>8&255)+n,s=(255&o)+n;return"#"+(16777216+65536*(255>i?1>i?0:i:255)+256*(255>r?1>r?0:r:255)+(255>s?1>s?0:s:255)).toString(16).slice(1)},n.shuffle=function(e){for(var t=e.length-1;t>0;t--){var o=Math.floor(n.random()*(t+1)),i=e[t];e[t]=e[o],e[o]=i}return e},n.choose=function(e){return e[Math.floor(n.random()*e.length)]},n.isElement=function(e){try{return e instanceof HTMLElement}catch(t){return"object"==typeof e&&1===e.nodeType&&"object"==typeof e.style&&"object"==typeof e.ownerDocument}},n.isArray=function(e){return"[object Array]"===Object.prototype.toString.call(e);
+},n.clamp=function(e,t,o){return t>e?t:e>o?o:e},n.sign=function(e){return 0>e?-1:1},n.now=function(){var e=window.performance||{};return e.now=function(){return e.now||e.webkitNow||e.msNow||e.oNow||e.mozNow||function(){return+new Date}}(),e.now()},n.random=function(t,o){return t="undefined"!=typeof t?t:0,o="undefined"!=typeof o?o:1,t+e()*(o-t)},n.colorToNumber=function(e){return e=e.replace("#",""),3==e.length&&(e=e.charAt(0)+e.charAt(0)+e.charAt(1)+e.charAt(1)+e.charAt(2)+e.charAt(2)),parseInt(e,16)},n.log=function(e,t){if(console&&console.log&&console.warn)switch(t){case"warn":console.warn("Matter.js:",e);break;case"error":console.log("Matter.js:",e)}},n.nextId=function(){return n._nextId++},n.indexOf=function(e,t){if(e.indexOf)return e.indexOf(t);for(var o=0;o<e.length;o++)if(e[o]===t)return o;return-1};var e=function(){return n._seed=(9301*n._seed+49297)%233280,n._seed/233280}}()},{}],15:[function(e,t,o){var n={};t.exports=n;var i=e("../body/World"),r=e("./Sleeping"),s=e("../collision/Resolver"),a=e("../render/Render"),l=e("../collision/Pairs"),c=(e("./Metrics"),
+e("../collision/Grid")),d=e("./Events"),u=e("../body/Composite"),p=e("../constraint/Constraint"),f=e("./Common"),v=e("../body/Body");!function(){n.create=function(e,t){t=f.isElement(e)?t:e,e=f.isElement(e)?e:null,t=t||{},(e||t.render)&&f.log("Engine.create: engine.render is deprecated (see docs)","warn");var o={positionIterations:6,velocityIterations:4,constraintIterations:2,enableSleeping:!1,events:[],timing:{timestamp:0,timeScale:1},broadphase:{controller:c}},n=f.extend(o,t);if(e||n.render){var r={element:e,controller:a};n.render=f.extend(r,n.render)}return n.render&&n.render.controller&&(n.render=n.render.controller.create(n.render)),n.render&&(n.render.engine=n),n.world=t.world||i.create(n.world),n.pairs=l.create(),n.broadphase=n.broadphase.controller.create(n.broadphase),n.metrics=n.metrics||{extended:!1},n},n.update=function(n,i,a){i=i||1e3/60,a=a||1;var c,f=n.world,v=n.timing,m=n.broadphase,y=[];v.timestamp+=i*v.timeScale;var g={timestamp:v.timestamp};d.trigger(n,"beforeUpdate",g);
+var x=u.allBodies(f),h=u.allConstraints(f);for(n.enableSleeping&&r.update(x,v.timeScale),t(x,f.gravity),o(x,i,v.timeScale,a,f.bounds),c=0;c<n.constraintIterations;c++)p.solveAll(h,v.timeScale);p.postSolveAll(x),m.controller?(f.isModified&&m.controller.clear(m),m.controller.update(m,x,n,f.isModified),y=m.pairsList):y=x,f.isModified&&u.setModified(f,!1,!1,!0);var b=m.detector(y,n),w=n.pairs,S=v.timestamp;for(l.update(w,b,S),l.removeOld(w,S),n.enableSleeping&&r.afterCollisions(w.list,v.timeScale),w.collisionStart.length>0&&d.trigger(n,"collisionStart",{pairs:w.collisionStart}),s.preSolvePosition(w.list),c=0;c<n.positionIterations;c++)s.solvePosition(w.list,v.timeScale);for(s.postSolvePosition(x),s.preSolveVelocity(w.list),c=0;c<n.velocityIterations;c++)s.solveVelocity(w.list,v.timeScale);return w.collisionActive.length>0&&d.trigger(n,"collisionActive",{pairs:w.collisionActive}),w.collisionEnd.length>0&&d.trigger(n,"collisionEnd",{pairs:w.collisionEnd}),e(x),d.trigger(n,"afterUpdate",g),n},
+n.merge=function(e,t){if(f.extend(e,t),t.world){e.world=t.world,n.clear(e);for(var o=u.allBodies(e.world),i=0;i<o.length;i++){var s=o[i];r.set(s,!1),s.id=f.nextId()}}},n.clear=function(e){var t=e.world;l.clear(e.pairs);var o=e.broadphase;if(o.controller){var n=u.allBodies(t);o.controller.clear(o),o.controller.update(o,n,e,!0)}};var e=function(e){for(var t=0;t<e.length;t++){var o=e[t];o.force.x=0,o.force.y=0,o.torque=0}},t=function(e,t){var o="undefined"!=typeof t.scale?t.scale:.001;if((0!==t.x||0!==t.y)&&0!==o)for(var n=0;n<e.length;n++){var i=e[n];i.isStatic||i.isSleeping||(i.force.y+=i.mass*t.y*o,i.force.x+=i.mass*t.x*o)}},o=function(e,t,o,n,i){for(var r=0;r<e.length;r++){var s=e[r];s.isStatic||s.isSleeping||v.update(s,t,o,n)}}}()},{"../body/Body":1,"../body/Composite":2,"../body/World":3,"../collision/Grid":6,"../collision/Pairs":8,"../collision/Resolver":10,"../constraint/Constraint":12,"../render/Render":29,"./Common":14,"./Events":16,"./Metrics":17,"./Sleeping":20}],16:[function(e,t,o){
+var n={};t.exports=n;var i=e("./Common");!function(){n.on=function(e,t,o){for(var n,i=t.split(" "),r=0;r<i.length;r++)n=i[r],e.events=e.events||{},e.events[n]=e.events[n]||[],e.events[n].push(o);return o},n.off=function(e,t,o){if(!t)return void(e.events={});"function"==typeof t&&(o=t,t=i.keys(e.events).join(" "));for(var n=t.split(" "),r=0;r<n.length;r++){var s=e.events[n[r]],a=[];if(o&&s)for(var l=0;l<s.length;l++)s[l]!==o&&a.push(s[l]);e.events[n[r]]=a}},n.trigger=function(e,t,o){var n,r,s,a;if(e.events){o||(o={}),n=t.split(" ");for(var l=0;l<n.length;l++)if(r=n[l],s=e.events[r]){a=i.clone(o,!1),a.name=r,a.source=e;for(var c=0;c<s.length;c++)s[c].apply(e,[a])}}}}()},{"./Common":14}],17:[function(e,t,o){},{"../body/Composite":2,"./Common":14}],18:[function(e,t,o){var n={};t.exports=n;var i=e("../core/Common");!function(){n.create=function(t){var o={};return t||i.log("Mouse.create: element was undefined, defaulting to document.body","warn"),o.element=t||document.body,o.absolute={x:0,y:0
+},o.position={x:0,y:0},o.mousedownPosition={x:0,y:0},o.mouseupPosition={x:0,y:0},o.offset={x:0,y:0},o.scale={x:1,y:1},o.wheelDelta=0,o.button=-1,o.pixelRatio=o.element.getAttribute("data-pixel-ratio")||1,o.sourceEvents={mousemove:null,mousedown:null,mouseup:null,mousewheel:null},o.mousemove=function(t){var n=e(t,o.element,o.pixelRatio),i=t.changedTouches;i&&(o.button=0,t.preventDefault()),o.absolute.x=n.x,o.absolute.y=n.y,o.position.x=o.absolute.x*o.scale.x+o.offset.x,o.position.y=o.absolute.y*o.scale.y+o.offset.y,o.sourceEvents.mousemove=t},o.mousedown=function(t){var n=e(t,o.element,o.pixelRatio),i=t.changedTouches;i?(o.button=0,t.preventDefault()):o.button=t.button,o.absolute.x=n.x,o.absolute.y=n.y,o.position.x=o.absolute.x*o.scale.x+o.offset.x,o.position.y=o.absolute.y*o.scale.y+o.offset.y,o.mousedownPosition.x=o.position.x,o.mousedownPosition.y=o.position.y,o.sourceEvents.mousedown=t},o.mouseup=function(t){var n=e(t,o.element,o.pixelRatio),i=t.changedTouches;i&&t.preventDefault(),o.button=-1,
+o.absolute.x=n.x,o.absolute.y=n.y,o.position.x=o.absolute.x*o.scale.x+o.offset.x,o.position.y=o.absolute.y*o.scale.y+o.offset.y,o.mouseupPosition.x=o.position.x,o.mouseupPosition.y=o.position.y,o.sourceEvents.mouseup=t},o.mousewheel=function(e){o.wheelDelta=Math.max(-1,Math.min(1,e.wheelDelta||-e.detail)),e.preventDefault()},n.setElement(o,o.element),o},n.setElement=function(e,t){e.element=t,t.addEventListener("mousemove",e.mousemove),t.addEventListener("mousedown",e.mousedown),t.addEventListener("mouseup",e.mouseup),t.addEventListener("mousewheel",e.mousewheel),t.addEventListener("DOMMouseScroll",e.mousewheel),t.addEventListener("touchmove",e.mousemove),t.addEventListener("touchstart",e.mousedown),t.addEventListener("touchend",e.mouseup)},n.clearSourceEvents=function(e){e.sourceEvents.mousemove=null,e.sourceEvents.mousedown=null,e.sourceEvents.mouseup=null,e.sourceEvents.mousewheel=null,e.wheelDelta=0},n.setOffset=function(e,t){e.offset.x=t.x,e.offset.y=t.y,e.position.x=e.absolute.x*e.scale.x+e.offset.x,
+e.position.y=e.absolute.y*e.scale.y+e.offset.y},n.setScale=function(e,t){e.scale.x=t.x,e.scale.y=t.y,e.position.x=e.absolute.x*e.scale.x+e.offset.x,e.position.y=e.absolute.y*e.scale.y+e.offset.y};var e=function(e,t,o){var n,i,r=t.getBoundingClientRect(),s=document.documentElement||document.body.parentNode||document.body,a=void 0!==window.pageXOffset?window.pageXOffset:s.scrollLeft,l=void 0!==window.pageYOffset?window.pageYOffset:s.scrollTop,c=e.changedTouches;return c?(n=c[0].pageX-r.left-a,i=c[0].pageY-r.top-l):(n=e.pageX-r.left-a,i=e.pageY-r.top-l),{x:n/(t.clientWidth/t.width*o),y:i/(t.clientHeight/t.height*o)}}}()},{"../core/Common":14}],19:[function(e,t,o){var n={};t.exports=n;var i=e("./Events"),r=e("./Engine"),s=e("./Common");!function(){var e,t;"undefined"!=typeof window&&(e=window.requestAnimationFrame||window.webkitRequestAnimationFrame||window.mozRequestAnimationFrame||window.msRequestAnimationFrame||function(e){window.setTimeout(function(){e(s.now())},1e3/60)},t=window.cancelAnimationFrame||window.mozCancelAnimationFrame||window.webkitCancelAnimationFrame||window.msCancelAnimationFrame),
+n.create=function(e){var t={fps:60,correction:1,deltaSampleSize:60,counterTimestamp:0,frameCounter:0,deltaHistory:[],timePrev:null,timeScalePrev:1,frameRequestId:null,isFixed:!1,enabled:!0},o=s.extend(t,e);return o.delta=o.delta||1e3/o.fps,o.deltaMin=o.deltaMin||1e3/o.fps,o.deltaMax=o.deltaMax||1e3/(.5*o.fps),o.fps=1e3/o.delta,o},n.run=function(t,o){return"undefined"!=typeof t.positionIterations&&(o=t,t=n.create()),function i(r){t.frameRequestId=e(i),r&&t.enabled&&n.tick(t,o,r)}(),t},n.tick=function(e,t,o){var n,s=t.timing,a=1,l={timestamp:s.timestamp};i.trigger(e,"beforeTick",l),i.trigger(t,"beforeTick",l),e.isFixed?n=e.delta:(n=o-e.timePrev||e.delta,e.timePrev=o,e.deltaHistory.push(n),e.deltaHistory=e.deltaHistory.slice(-e.deltaSampleSize),n=Math.min.apply(null,e.deltaHistory),n=n<e.deltaMin?e.deltaMin:n,n=n>e.deltaMax?e.deltaMax:n,a=n/e.delta,e.delta=n),0!==e.timeScalePrev&&(a*=s.timeScale/e.timeScalePrev),0===s.timeScale&&(a=0),e.timeScalePrev=s.timeScale,e.correction=a,e.frameCounter+=1,
+o-e.counterTimestamp>=1e3&&(e.fps=e.frameCounter*((o-e.counterTimestamp)/1e3),e.counterTimestamp=o,e.frameCounter=0),i.trigger(e,"tick",l),i.trigger(t,"tick",l),t.world.isModified&&t.render&&t.render.controller&&t.render.controller.clear&&t.render.controller.clear(t.render),i.trigger(e,"beforeUpdate",l),r.update(t,n,a),i.trigger(e,"afterUpdate",l),t.render&&t.render.controller&&(i.trigger(e,"beforeRender",l),i.trigger(t,"beforeRender",l),t.render.controller.world(t.render),i.trigger(e,"afterRender",l),i.trigger(t,"afterRender",l)),i.trigger(e,"afterTick",l),i.trigger(t,"afterTick",l)},n.stop=function(e){t(e.frameRequestId)},n.start=function(e,t){n.run(e,t)}}()},{"./Common":14,"./Engine":15,"./Events":16}],20:[function(e,t,o){var n={};t.exports=n;var i=e("./Events");!function(){n._motionWakeThreshold=.18,n._motionSleepThreshold=.08,n._minBias=.9,n.update=function(e,t){for(var o=t*t*t,i=0;i<e.length;i++){var r=e[i],s=r.speed*r.speed+r.angularSpeed*r.angularSpeed;if(0===r.force.x&&0===r.force.y){
+var a=Math.min(r.motion,s),l=Math.max(r.motion,s);r.motion=n._minBias*a+(1-n._minBias)*l,r.sleepThreshold>0&&r.motion<n._motionSleepThreshold*o?(r.sleepCounter+=1,r.sleepCounter>=r.sleepThreshold&&n.set(r,!0)):r.sleepCounter>0&&(r.sleepCounter-=1)}else n.set(r,!1)}},n.afterCollisions=function(e,t){for(var o=t*t*t,i=0;i<e.length;i++){var r=e[i];if(r.isActive){var s=r.collision,a=s.bodyA.parent,l=s.bodyB.parent;if(!(a.isSleeping&&l.isSleeping||a.isStatic||l.isStatic)&&(a.isSleeping||l.isSleeping)){var c=a.isSleeping&&!a.isStatic?a:l,d=c===a?l:a;!c.isStatic&&d.motion>n._motionWakeThreshold*o&&n.set(c,!1)}}}},n.set=function(e,t){var o=e.isSleeping;t?(e.isSleeping=!0,e.sleepCounter=e.sleepThreshold,e.positionImpulse.x=0,e.positionImpulse.y=0,e.positionPrev.x=e.position.x,e.positionPrev.y=e.position.y,e.anglePrev=e.angle,e.speed=0,e.angularSpeed=0,e.motion=0,o||i.trigger(e,"sleepStart")):(e.isSleeping=!1,e.sleepCounter=0,o&&i.trigger(e,"sleepEnd"))}}()},{"./Events":16}],21:[function(e,t,o){var n={};
+t.exports=n;var i=e("../geometry/Vertices"),r=e("../core/Common"),s=e("../body/Body"),a=e("../geometry/Bounds"),l=e("../geometry/Vector");!function(){n.rectangle=function(e,t,o,n,a){a=a||{};var l={label:"Rectangle Body",position:{x:e,y:t},vertices:i.fromPath("L 0 0 L "+o+" 0 L "+o+" "+n+" L 0 "+n)};if(a.chamfer){var c=a.chamfer;l.vertices=i.chamfer(l.vertices,c.radius,c.quality,c.qualityMin,c.qualityMax),delete a.chamfer}return s.create(r.extend({},l,a))},n.trapezoid=function(e,t,o,n,a,l){l=l||{},a*=.5;var c,d=(1-2*a)*o,u=o*a,p=u+d,f=p+u;c=.5>a?"L 0 0 L "+u+" "+-n+" L "+p+" "+-n+" L "+f+" 0":"L 0 0 L "+p+" "+-n+" L "+f+" 0";var v={label:"Trapezoid Body",position:{x:e,y:t},vertices:i.fromPath(c)};if(l.chamfer){var m=l.chamfer;v.vertices=i.chamfer(v.vertices,m.radius,m.quality,m.qualityMin,m.qualityMax),delete l.chamfer}return s.create(r.extend({},v,l))},n.circle=function(e,t,o,i,s){i=i||{};var a={label:"Circle Body",circleRadius:o};s=s||25;var l=Math.ceil(Math.max(10,Math.min(s,o)));return l%2===1&&(l+=1),
+n.polygon(e,t,l,o,r.extend({},a,i))},n.polygon=function(e,t,o,a,l){if(l=l||{},3>o)return n.circle(e,t,a,l);for(var c=2*Math.PI/o,d="",u=.5*c,p=0;o>p;p+=1){var f=u+p*c,v=Math.cos(f)*a,m=Math.sin(f)*a;d+="L "+v.toFixed(3)+" "+m.toFixed(3)+" "}var y={label:"Polygon Body",position:{x:e,y:t},vertices:i.fromPath(d)};if(l.chamfer){var g=l.chamfer;y.vertices=i.chamfer(y.vertices,g.radius,g.quality,g.qualityMin,g.qualityMax),delete l.chamfer}return s.create(r.extend({},y,l))},n.fromVertices=function(e,t,o,n,c,d,u){var p,f,v,m,y,g,x,h,b;for(n=n||{},f=[],c="undefined"!=typeof c?c:!1,d="undefined"!=typeof d?d:.01,u="undefined"!=typeof u?u:10,window.decomp||r.log("Bodies.fromVertices: poly-decomp.js required. Could not decompose vertices. Fallback to convex hull.","warn"),r.isArray(o[0])||(o=[o]),h=0;h<o.length;h+=1)if(m=o[h],v=i.isConvex(m),v||!window.decomp)m=v?i.clockwiseSort(m):i.hull(m),f.push({position:{x:e,y:t},vertices:m});else{var w=new decomp.Polygon;for(y=0;y<m.length;y++)w.vertices.push([m[y].x,m[y].y]);
+w.makeCCW(),d!==!1&&w.removeCollinearPoints(d);var S=w.quickDecomp();for(y=0;y<S.length;y++){var C=S[y],A=[];for(g=0;g<C.vertices.length;g++)A.push({x:C.vertices[g][0],y:C.vertices[g][1]});u>0&&i.area(A)<u||f.push({position:i.centre(A),vertices:A})}}for(y=0;y<f.length;y++)f[y]=s.create(r.extend(f[y],n));if(c){var B=5;for(y=0;y<f.length;y++){var P=f[y];for(g=y+1;g<f.length;g++){var M=f[g];if(a.overlaps(P.bounds,M.bounds)){var k=P.vertices,I=M.vertices;for(x=0;x<P.vertices.length;x++)for(b=0;b<M.vertices.length;b++){var T=l.magnitudeSquared(l.sub(k[(x+1)%k.length],I[b])),V=l.magnitudeSquared(l.sub(k[x],I[(b+1)%I.length]));B>T&&B>V&&(k[x].isInternal=!0,I[b].isInternal=!0)}}}}}return f.length>1?(p=s.create(r.extend({parts:f.slice(0)},n)),s.setPosition(p,{x:e,y:t}),p):f[0]}}()},{"../body/Body":1,"../core/Common":14,"../geometry/Bounds":24,"../geometry/Vector":26,"../geometry/Vertices":27}],22:[function(e,t,o){var n={};t.exports=n;var i=e("../body/Composite"),r=e("../constraint/Constraint"),s=e("../core/Common"),a=e("../body/Body"),l=e("./Bodies");
+!function(){n.stack=function(e,t,o,n,r,s,l){for(var c,d=i.create({label:"Stack"}),u=e,p=t,f=0,v=0;n>v;v++){for(var m=0,y=0;o>y;y++){var g=l(u,p,y,v,c,f);if(g){var x=g.bounds.max.y-g.bounds.min.y,h=g.bounds.max.x-g.bounds.min.x;x>m&&(m=x),a.translate(g,{x:.5*h,y:.5*x}),u=g.bounds.max.x+r,i.addBody(d,g),c=g,f+=1}else u+=r}p+=m+s,u=e}return d},n.chain=function(e,t,o,n,a,l){for(var c=e.bodies,d=1;d<c.length;d++){var u=c[d-1],p=c[d],f=u.bounds.max.y-u.bounds.min.y,v=u.bounds.max.x-u.bounds.min.x,m=p.bounds.max.y-p.bounds.min.y,y=p.bounds.max.x-p.bounds.min.x,g={bodyA:u,pointA:{x:v*t,y:f*o},bodyB:p,pointB:{x:y*n,y:m*a}},x=s.extend(g,l);i.addConstraint(e,r.create(x))}return e.label+=" Chain",e},n.mesh=function(e,t,o,n,a){var l,c,d,u,p,f=e.bodies;for(l=0;o>l;l++){for(c=1;t>c;c++)d=f[c-1+l*t],u=f[c+l*t],i.addConstraint(e,r.create(s.extend({bodyA:d,bodyB:u},a)));if(l>0)for(c=0;t>c;c++)d=f[c+(l-1)*t],u=f[c+l*t],i.addConstraint(e,r.create(s.extend({bodyA:d,bodyB:u},a))),n&&c>0&&(p=f[c-1+(l-1)*t],i.addConstraint(e,r.create(s.extend({
+bodyA:p,bodyB:u},a)))),n&&t-1>c&&(p=f[c+1+(l-1)*t],i.addConstraint(e,r.create(s.extend({bodyA:p,bodyB:u},a))))}return e.label+=" Mesh",e},n.pyramid=function(e,t,o,i,r,s,l){return n.stack(e,t,o,i,r,s,function(t,n,s,c,d,u){var p=Math.min(i,Math.ceil(o/2)),f=d?d.bounds.max.x-d.bounds.min.x:0;if(!(c>p)){c=p-c;var v=c,m=o-1-c;if(!(v>s||s>m)){1===u&&a.translate(d,{x:(s+(o%2===1?1:-1))*f,y:0});var y=d?s*f:0;return l(e+y+s*r,n,s,c,d,u)}}})},n.newtonsCradle=function(e,t,o,n,s){for(var a=i.create({label:"Newtons Cradle"}),c=0;o>c;c++){var d=1.9,u=l.circle(e+c*(n*d),t+s,n,{inertia:1/0,restitution:1,friction:0,frictionAir:1e-4,slop:1}),p=r.create({pointA:{x:e+c*(n*d),y:t},bodyB:u});i.addBody(a,u),i.addConstraint(a,p)}return a},n.car=function(e,t,o,n,s){var c=a.nextGroup(!0),d=-20,u=.5*-o+d,p=.5*o-d,f=0,v=i.create({label:"Car"}),m=l.trapezoid(e,t,o,n,.3,{collisionFilter:{group:c},friction:.01,chamfer:{radius:10}}),y=l.circle(e+u,t+f,s,{collisionFilter:{group:c},friction:.8,density:.01}),g=l.circle(e+p,t+f,s,{
+collisionFilter:{group:c},friction:.8,density:.01}),x=r.create({bodyA:m,pointA:{x:u,y:f},bodyB:y,stiffness:.2}),h=r.create({bodyA:m,pointA:{x:p,y:f},bodyB:g,stiffness:.2});return i.addBody(v,m),i.addBody(v,y),i.addBody(v,g),i.addConstraint(v,x),i.addConstraint(v,h),v},n.softBody=function(e,t,o,i,r,a,c,d,u,p){u=s.extend({inertia:1/0},u),p=s.extend({stiffness:.4},p);var f=n.stack(e,t,o,i,r,a,function(e,t){return l.circle(e,t,d,u)});return n.mesh(f,o,i,c,p),f.label="Soft Body",f}}()},{"../body/Body":1,"../body/Composite":2,"../constraint/Constraint":12,"../core/Common":14,"./Bodies":21}],23:[function(e,t,o){var n={};t.exports=n;var i=e("../geometry/Vector"),r=e("../core/Common");!function(){n.fromVertices=function(e){for(var t={},o=0;o<e.length;o++){var n=(o+1)%e.length,s=i.normalise({x:e[n].y-e[o].y,y:e[o].x-e[n].x}),a=0===s.y?1/0:s.x/s.y;a=a.toFixed(3).toString(),t[a]=s}return r.values(t)},n.rotate=function(e,t){if(0!==t)for(var o=Math.cos(t),n=Math.sin(t),i=0;i<e.length;i++){var r,s=e[i];
+r=s.x*o-s.y*n,s.y=s.x*n+s.y*o,s.x=r}}}()},{"../core/Common":14,"../geometry/Vector":26}],24:[function(e,t,o){var n={};t.exports=n,function(){n.create=function(e){var t={min:{x:0,y:0},max:{x:0,y:0}};return e&&n.update(t,e),t},n.update=function(e,t,o){e.min.x=1/0,e.max.x=-(1/0),e.min.y=1/0,e.max.y=-(1/0);for(var n=0;n<t.length;n++){var i=t[n];i.x>e.max.x&&(e.max.x=i.x),i.x<e.min.x&&(e.min.x=i.x),i.y>e.max.y&&(e.max.y=i.y),i.y<e.min.y&&(e.min.y=i.y)}o&&(o.x>0?e.max.x+=o.x:e.min.x+=o.x,o.y>0?e.max.y+=o.y:e.min.y+=o.y)},n.contains=function(e,t){return t.x>=e.min.x&&t.x<=e.max.x&&t.y>=e.min.y&&t.y<=e.max.y},n.overlaps=function(e,t){return e.min.x<=t.max.x&&e.max.x>=t.min.x&&e.max.y>=t.min.y&&e.min.y<=t.max.y},n.translate=function(e,t){e.min.x+=t.x,e.max.x+=t.x,e.min.y+=t.y,e.max.y+=t.y},n.shift=function(e,t){var o=e.max.x-e.min.x,n=e.max.y-e.min.y;e.min.x=t.x,e.max.x=t.x+o,e.min.y=t.y,e.max.y=t.y+n}}()},{}],25:[function(e,t,o){var n={};t.exports=n;e("../geometry/Bounds");!function(){n.pathToVertices=function(t,o){
+var n,i,r,s,a,l,c,d,u,p,f,v,m=[],y=0,g=0,x=0;o=o||15;var h=function(e,t,o){var n=o%2===1&&o>1;if(!u||e!=u.x||t!=u.y){u&&n?(f=u.x,v=u.y):(f=0,v=0);var i={x:f+e,y:v+t};!n&&u||(u=i),m.push(i),g=f+e,x=v+t}},b=function(e){var t=e.pathSegTypeAsLetter.toUpperCase();if("Z"!==t){switch(t){case"M":case"L":case"T":case"C":case"S":case"Q":g=e.x,x=e.y;break;case"H":g=e.x;break;case"V":x=e.y}h(g,x,e.pathSegType)}};for(e(t),r=t.getTotalLength(),l=[],n=0;n<t.pathSegList.numberOfItems;n+=1)l.push(t.pathSegList.getItem(n));for(c=l.concat();r>y;){if(p=t.getPathSegAtLength(y),a=l[p],a!=d){for(;c.length&&c[0]!=a;)b(c.shift());d=a}switch(a.pathSegTypeAsLetter.toUpperCase()){case"C":case"T":case"S":case"Q":case"A":s=t.getPointAtLength(y),h(s.x,s.y,0)}y+=o}for(n=0,i=c.length;i>n;++n)b(c[n]);return m};var e=function(e){for(var t,o,n,i,r,s,a=e.pathSegList,l=0,c=0,d=a.numberOfItems,u=0;d>u;++u){var p=a.getItem(u),f=p.pathSegTypeAsLetter;if(/[MLHVCSQTA]/.test(f))"x"in p&&(l=p.x),"y"in p&&(c=p.y);else switch("x1"in p&&(n=l+p.x1),
+"x2"in p&&(r=l+p.x2),"y1"in p&&(i=c+p.y1),"y2"in p&&(s=c+p.y2),"x"in p&&(l+=p.x),"y"in p&&(c+=p.y),f){case"m":a.replaceItem(e.createSVGPathSegMovetoAbs(l,c),u);break;case"l":a.replaceItem(e.createSVGPathSegLinetoAbs(l,c),u);break;case"h":a.replaceItem(e.createSVGPathSegLinetoHorizontalAbs(l),u);break;case"v":a.replaceItem(e.createSVGPathSegLinetoVerticalAbs(c),u);break;case"c":a.replaceItem(e.createSVGPathSegCurvetoCubicAbs(l,c,n,i,r,s),u);break;case"s":a.replaceItem(e.createSVGPathSegCurvetoCubicSmoothAbs(l,c,r,s),u);break;case"q":a.replaceItem(e.createSVGPathSegCurvetoQuadraticAbs(l,c,n,i),u);break;case"t":a.replaceItem(e.createSVGPathSegCurvetoQuadraticSmoothAbs(l,c),u);break;case"a":a.replaceItem(e.createSVGPathSegArcAbs(l,c,p.r1,p.r2,p.angle,p.largeArcFlag,p.sweepFlag),u);break;case"z":case"Z":l=t,c=o}"M"!=f&&"m"!=f||(t=l,o=c)}}}()},{"../geometry/Bounds":24}],26:[function(e,t,o){var n={};t.exports=n,function(){n.create=function(e,t){return{x:e||0,y:t||0}},n.clone=function(e){return{
+x:e.x,y:e.y}},n.magnitude=function(e){return Math.sqrt(e.x*e.x+e.y*e.y)},n.magnitudeSquared=function(e){return e.x*e.x+e.y*e.y},n.rotate=function(e,t){var o=Math.cos(t),n=Math.sin(t);return{x:e.x*o-e.y*n,y:e.x*n+e.y*o}},n.rotateAbout=function(e,t,o,n){var i=Math.cos(t),r=Math.sin(t);n||(n={});var s=o.x+((e.x-o.x)*i-(e.y-o.y)*r);return n.y=o.y+((e.x-o.x)*r+(e.y-o.y)*i),n.x=s,n},n.normalise=function(e){var t=n.magnitude(e);return 0===t?{x:0,y:0}:{x:e.x/t,y:e.y/t}},n.dot=function(e,t){return e.x*t.x+e.y*t.y},n.cross=function(e,t){return e.x*t.y-e.y*t.x},n.cross3=function(e,t,o){return(t.x-e.x)*(o.y-e.y)-(t.y-e.y)*(o.x-e.x)},n.add=function(e,t,o){return o||(o={}),o.x=e.x+t.x,o.y=e.y+t.y,o},n.sub=function(e,t,o){return o||(o={}),o.x=e.x-t.x,o.y=e.y-t.y,o},n.mult=function(e,t){return{x:e.x*t,y:e.y*t}},n.div=function(e,t){return{x:e.x/t,y:e.y/t}},n.perp=function(e,t){return t=t===!0?-1:1,{x:t*-e.y,y:t*e.x}},n.neg=function(e){return{x:-e.x,y:-e.y}},n.angle=function(e,t){return Math.atan2(t.y-e.y,t.x-e.x);
+},n._temp=[n.create(),n.create(),n.create(),n.create(),n.create(),n.create()]}()},{}],27:[function(e,t,o){var n={};t.exports=n;var i=e("../geometry/Vector"),r=e("../core/Common");!function(){n.create=function(e,t){for(var o=[],n=0;n<e.length;n++){var i=e[n],r={x:i.x,y:i.y,index:n,body:t,isInternal:!1};o.push(r)}return o},n.fromPath=function(e,t){var o=/L?\s*([\-\d\.e]+)[\s,]*([\-\d\.e]+)*/gi,i=[];return e.replace(o,function(e,t,o){i.push({x:parseFloat(t),y:parseFloat(o)})}),n.create(i,t)},n.centre=function(e){for(var t,o,r,s=n.area(e,!0),a={x:0,y:0},l=0;l<e.length;l++)r=(l+1)%e.length,t=i.cross(e[l],e[r]),o=i.mult(i.add(e[l],e[r]),t),a=i.add(a,o);return i.div(a,6*s)},n.mean=function(e){for(var t={x:0,y:0},o=0;o<e.length;o++)t.x+=e[o].x,t.y+=e[o].y;return i.div(t,e.length)},n.area=function(e,t){for(var o=0,n=e.length-1,i=0;i<e.length;i++)o+=(e[n].x-e[i].x)*(e[n].y+e[i].y),n=i;return t?o/2:Math.abs(o)/2},n.inertia=function(e,t){for(var o,n,r=0,s=0,a=e,l=0;l<a.length;l++)n=(l+1)%a.length,o=Math.abs(i.cross(a[n],a[l])),
+r+=o*(i.dot(a[n],a[n])+i.dot(a[n],a[l])+i.dot(a[l],a[l])),s+=o;return t/6*(r/s)},n.translate=function(e,t,o){var n;if(o)for(n=0;n<e.length;n++)e[n].x+=t.x*o,e[n].y+=t.y*o;else for(n=0;n<e.length;n++)e[n].x+=t.x,e[n].y+=t.y;return e},n.rotate=function(e,t,o){if(0!==t){for(var n=Math.cos(t),i=Math.sin(t),r=0;r<e.length;r++){var s=e[r],a=s.x-o.x,l=s.y-o.y;s.x=o.x+(a*n-l*i),s.y=o.y+(a*i+l*n)}return e}},n.contains=function(e,t){for(var o=0;o<e.length;o++){var n=e[o],i=e[(o+1)%e.length];if((t.x-n.x)*(i.y-n.y)+(t.y-n.y)*(n.x-i.x)>0)return!1}return!0},n.scale=function(e,t,o,r){if(1===t&&1===o)return e;r=r||n.centre(e);for(var s,a,l=0;l<e.length;l++)s=e[l],a=i.sub(s,r),e[l].x=r.x+a.x*t,e[l].y=r.y+a.y*o;return e},n.chamfer=function(e,t,o,n,s){t=t||[8],t.length||(t=[t]),o="undefined"!=typeof o?o:-1,n=n||2,s=s||14;for(var a=[],l=0;l<e.length;l++){var c=e[l-1>=0?l-1:e.length-1],d=e[l],u=e[(l+1)%e.length],p=t[l<t.length?l:t.length-1];if(0!==p){var f=i.normalise({x:d.y-c.y,y:c.x-d.x}),v=i.normalise({x:u.y-d.y,
+y:d.x-u.x}),m=Math.sqrt(2*Math.pow(p,2)),y=i.mult(r.clone(f),p),g=i.normalise(i.mult(i.add(f,v),.5)),x=i.sub(d,i.mult(g,m)),h=o;-1===o&&(h=1.75*Math.pow(p,.32)),h=r.clamp(h,n,s),h%2===1&&(h+=1);for(var b=Math.acos(i.dot(f,v)),w=b/h,S=0;h>S;S++)a.push(i.add(i.rotate(y,w*S),x))}else a.push(d)}return a},n.clockwiseSort=function(e){var t=n.mean(e);return e.sort(function(e,o){return i.angle(t,e)-i.angle(t,o)}),e},n.isConvex=function(e){var t,o,n,i,r=0,s=e.length;if(3>s)return null;for(t=0;s>t;t++)if(o=(t+1)%s,n=(t+2)%s,i=(e[o].x-e[t].x)*(e[n].y-e[o].y),i-=(e[o].y-e[t].y)*(e[n].x-e[o].x),0>i?r|=1:i>0&&(r|=2),3===r)return!1;return 0!==r?!0:null},n.hull=function(e){var t,o,n=[],r=[];for(e=e.slice(0),e.sort(function(e,t){var o=e.x-t.x;return 0!==o?o:e.y-t.y}),o=0;o<e.length;o++){for(t=e[o];r.length>=2&&i.cross3(r[r.length-2],r[r.length-1],t)<=0;)r.pop();r.push(t)}for(o=e.length-1;o>=0;o--){for(t=e[o];n.length>=2&&i.cross3(n[n.length-2],n[n.length-1],t)<=0;)n.pop();n.push(t)}return n.pop(),r.pop(),
+n.concat(r)}}()},{"../core/Common":14,"../geometry/Vector":26}],28:[function(e,t,o){var n=t.exports={};n.version="master",n.Body=e("../body/Body"),n.Composite=e("../body/Composite"),n.World=e("../body/World"),n.Contact=e("../collision/Contact"),n.Detector=e("../collision/Detector"),n.Grid=e("../collision/Grid"),n.Pairs=e("../collision/Pairs"),n.Pair=e("../collision/Pair"),n.Query=e("../collision/Query"),n.Resolver=e("../collision/Resolver"),n.SAT=e("../collision/SAT"),n.Constraint=e("../constraint/Constraint"),n.MouseConstraint=e("../constraint/MouseConstraint"),n.Common=e("../core/Common"),n.Engine=e("../core/Engine"),n.Events=e("../core/Events"),n.Mouse=e("../core/Mouse"),n.Runner=e("../core/Runner"),n.Sleeping=e("../core/Sleeping"),n.Bodies=e("../factory/Bodies"),n.Composites=e("../factory/Composites"),n.Axes=e("../geometry/Axes"),n.Bounds=e("../geometry/Bounds"),n.Svg=e("../geometry/Svg"),n.Vector=e("../geometry/Vector"),n.Vertices=e("../geometry/Vertices"),n.Render=e("../render/Render"),
+n.RenderPixi=e("../render/RenderPixi"),n.World.add=n.Composite.add,n.World.remove=n.Composite.remove,n.World.addComposite=n.Composite.addComposite,n.World.addBody=n.Composite.addBody,n.World.addConstraint=n.Composite.addConstraint,n.World.clear=n.Composite.clear,n.Engine.run=n.Runner.run},{"../body/Body":1,"../body/Composite":2,"../body/World":3,"../collision/Contact":4,"../collision/Detector":5,"../collision/Grid":6,"../collision/Pair":7,"../collision/Pairs":8,"../collision/Query":9,"../collision/Resolver":10,"../collision/SAT":11,"../constraint/Constraint":12,"../constraint/MouseConstraint":13,"../core/Common":14,"../core/Engine":15,"../core/Events":16,"../core/Metrics":17,"../core/Mouse":18,"../core/Runner":19,"../core/Sleeping":20,"../factory/Bodies":21,"../factory/Composites":22,"../geometry/Axes":23,"../geometry/Bounds":24,"../geometry/Svg":25,"../geometry/Vector":26,"../geometry/Vertices":27,"../render/Render":29,"../render/RenderPixi":30}],29:[function(e,t,o){var n={};t.exports=n;
+var i=e("../core/Common"),r=e("../body/Composite"),s=e("../geometry/Bounds"),a=e("../core/Events"),l=e("../collision/Grid"),c=e("../geometry/Vector");!function(){var e,t;"undefined"!=typeof window&&(e=window.requestAnimationFrame||window.webkitRequestAnimationFrame||window.mozRequestAnimationFrame||window.msRequestAnimationFrame||function(e){window.setTimeout(function(){e(i.now())},1e3/60)},t=window.cancelAnimationFrame||window.mozCancelAnimationFrame||window.webkitCancelAnimationFrame||window.msCancelAnimationFrame),n.create=function(e){var t={controller:n,engine:null,element:null,canvas:null,mouse:null,frameRequestId:null,options:{width:800,height:600,pixelRatio:1,background:"#fafafa",wireframeBackground:"#222",hasBounds:!!e.bounds,enabled:!0,wireframes:!0,showSleeping:!0,showDebug:!1,showBroadphase:!1,showBounds:!1,showVelocity:!1,showCollisions:!1,showSeparations:!1,showAxes:!1,showPositions:!1,showAngleIndicator:!1,showIds:!1,showShadows:!1,showVertexNumbers:!1,showConvexHulls:!1,showInternalEdges:!1,
+showMousePosition:!1}},r=i.extend(t,e);return r.canvas&&(r.canvas.width=r.options.width||r.canvas.width,r.canvas.height=r.options.height||r.canvas.height),r.mouse=e.mouse,r.engine=e.engine,r.canvas=r.canvas||o(r.options.width,r.options.height),r.context=r.canvas.getContext("2d"),r.textures={},r.bounds=r.bounds||{min:{x:0,y:0},max:{x:r.canvas.width,y:r.canvas.height}},1!==r.options.pixelRatio&&n.setPixelRatio(r,r.options.pixelRatio),i.isElement(r.element)?r.element.appendChild(r.canvas):i.log("Render.create: options.element was undefined, render.canvas was created but not appended","warn"),r},n.run=function(t){!function o(i){t.frameRequestId=e(o),n.world(t)}()},n.stop=function(e){t(e.frameRequestId)},n.setPixelRatio=function(e,t){var o=e.options,n=e.canvas;"auto"===t&&(t=d(n)),o.pixelRatio=t,n.setAttribute("data-pixel-ratio",t),n.width=o.width*t,n.height=o.height*t,n.style.width=o.width+"px",n.style.height=o.height+"px",e.context.scale(t,t)},n.world=function(e){var t,o=e.engine,i=o.world,d=e.canvas,u=e.context,f=e.options,v=r.allBodies(i),m=r.allConstraints(i),y=f.wireframes?f.wireframeBackground:f.background,g=[],x=[],h={
+timestamp:o.timing.timestamp};if(a.trigger(e,"beforeRender",h),e.currentBackground!==y&&p(e,y),u.globalCompositeOperation="source-in",u.fillStyle="transparent",u.fillRect(0,0,d.width,d.height),u.globalCompositeOperation="source-over",f.hasBounds){var b=e.bounds.max.x-e.bounds.min.x,w=e.bounds.max.y-e.bounds.min.y,S=b/f.width,C=w/f.height;for(t=0;t<v.length;t++){var A=v[t];s.overlaps(A.bounds,e.bounds)&&g.push(A)}for(t=0;t<m.length;t++){var B=m[t],P=B.bodyA,M=B.bodyB,k=B.pointA,I=B.pointB;P&&(k=c.add(P.position,B.pointA)),M&&(I=c.add(M.position,B.pointB)),k&&I&&(s.contains(e.bounds,k)||s.contains(e.bounds,I))&&x.push(B)}u.scale(1/S,1/C),u.translate(-e.bounds.min.x,-e.bounds.min.y)}else x=m,g=v;!f.wireframes||o.enableSleeping&&f.showSleeping?n.bodies(e,g,u):(f.showConvexHulls&&n.bodyConvexHulls(e,g,u),n.bodyWireframes(e,g,u)),f.showBounds&&n.bodyBounds(e,g,u),(f.showAxes||f.showAngleIndicator)&&n.bodyAxes(e,g,u),f.showPositions&&n.bodyPositions(e,g,u),f.showVelocity&&n.bodyVelocity(e,g,u),
+f.showIds&&n.bodyIds(e,g,u),f.showSeparations&&n.separations(e,o.pairs.list,u),f.showCollisions&&n.collisions(e,o.pairs.list,u),f.showVertexNumbers&&n.vertexNumbers(e,g,u),f.showMousePosition&&n.mousePosition(e,e.mouse,u),n.constraints(x,u),f.showBroadphase&&o.broadphase.controller===l&&n.grid(e,o.broadphase,u),f.showDebug&&n.debug(e,u),f.hasBounds&&u.setTransform(f.pixelRatio,0,0,f.pixelRatio,0,0),a.trigger(e,"afterRender",h)},n.debug=function(e,t){var o=t,n=e.engine,i=n.world,s=n.metrics,a=e.options,l=(r.allBodies(i),"    ");if(n.timing.timestamp-(e.debugTimestamp||0)>=500){var c="";s.timing&&(c+="fps: "+Math.round(s.timing.fps)+l),e.debugString=c,e.debugTimestamp=n.timing.timestamp}if(e.debugString){o.font="12px Arial",a.wireframes?o.fillStyle="rgba(255,255,255,0.5)":o.fillStyle="rgba(0,0,0,0.5)";for(var d=e.debugString.split("\n"),u=0;u<d.length;u++)o.fillText(d[u],50,50+18*u)}},n.constraints=function(e,t){for(var o=t,n=0;n<e.length;n++){var i=e[n];if(i.render.visible&&i.pointA&&i.pointB){
+var r=i.bodyA,s=i.bodyB;r?(o.beginPath(),o.moveTo(r.position.x+i.pointA.x,r.position.y+i.pointA.y)):(o.beginPath(),o.moveTo(i.pointA.x,i.pointA.y)),s?o.lineTo(s.position.x+i.pointB.x,s.position.y+i.pointB.y):o.lineTo(i.pointB.x,i.pointB.y),o.lineWidth=i.render.lineWidth,o.strokeStyle=i.render.strokeStyle,o.stroke()}}},n.bodyShadows=function(e,t,o){for(var n=o,i=(e.engine,0);i<t.length;i++){var r=t[i];if(r.render.visible){if(r.circleRadius)n.beginPath(),n.arc(r.position.x,r.position.y,r.circleRadius,0,2*Math.PI),n.closePath();else{n.beginPath(),n.moveTo(r.vertices[0].x,r.vertices[0].y);for(var s=1;s<r.vertices.length;s++)n.lineTo(r.vertices[s].x,r.vertices[s].y);n.closePath()}var a=r.position.x-.5*e.options.width,l=r.position.y-.2*e.options.height,c=Math.abs(a)+Math.abs(l);n.shadowColor="rgba(0,0,0,0.15)",n.shadowOffsetX=.05*a,n.shadowOffsetY=.05*l,n.shadowBlur=1+12*Math.min(1,c/1e3),n.fill(),n.shadowColor=null,n.shadowOffsetX=null,n.shadowOffsetY=null,n.shadowBlur=null}}},n.bodies=function(e,t,o){
+var n,i,r,s,a=o,l=(e.engine,e.options),c=l.showInternalEdges||!l.wireframes;for(r=0;r<t.length;r++)if(n=t[r],n.render.visible)for(s=n.parts.length>1?1:0;s<n.parts.length;s++)if(i=n.parts[s],i.render.visible){if(l.showSleeping&&n.isSleeping?a.globalAlpha=.5*i.render.opacity:1!==i.render.opacity&&(a.globalAlpha=i.render.opacity),i.render.sprite&&i.render.sprite.texture&&!l.wireframes){var d=i.render.sprite,p=u(e,d.texture);a.translate(i.position.x,i.position.y),a.rotate(i.angle),a.drawImage(p,p.width*-d.xOffset*d.xScale,p.height*-d.yOffset*d.yScale,p.width*d.xScale,p.height*d.yScale),a.rotate(-i.angle),a.translate(-i.position.x,-i.position.y)}else{if(i.circleRadius)a.beginPath(),a.arc(i.position.x,i.position.y,i.circleRadius,0,2*Math.PI);else{a.beginPath(),a.moveTo(i.vertices[0].x,i.vertices[0].y);for(var f=1;f<i.vertices.length;f++)!i.vertices[f-1].isInternal||c?a.lineTo(i.vertices[f].x,i.vertices[f].y):a.moveTo(i.vertices[f].x,i.vertices[f].y),i.vertices[f].isInternal&&!c&&a.moveTo(i.vertices[(f+1)%i.vertices.length].x,i.vertices[(f+1)%i.vertices.length].y);
+a.lineTo(i.vertices[0].x,i.vertices[0].y),a.closePath()}l.wireframes?(a.lineWidth=1,a.strokeStyle="#bbb"):(a.fillStyle=i.render.fillStyle,a.lineWidth=i.render.lineWidth,a.strokeStyle=i.render.strokeStyle,a.fill()),a.stroke()}a.globalAlpha=1}},n.bodyWireframes=function(e,t,o){var n,i,r,s,a,l=o,c=e.options.showInternalEdges;for(l.beginPath(),r=0;r<t.length;r++)if(n=t[r],n.render.visible)for(a=n.parts.length>1?1:0;a<n.parts.length;a++){for(i=n.parts[a],l.moveTo(i.vertices[0].x,i.vertices[0].y),s=1;s<i.vertices.length;s++)!i.vertices[s-1].isInternal||c?l.lineTo(i.vertices[s].x,i.vertices[s].y):l.moveTo(i.vertices[s].x,i.vertices[s].y),i.vertices[s].isInternal&&!c&&l.moveTo(i.vertices[(s+1)%i.vertices.length].x,i.vertices[(s+1)%i.vertices.length].y);l.lineTo(i.vertices[0].x,i.vertices[0].y)}l.lineWidth=1,l.strokeStyle="#bbb",l.stroke()},n.bodyConvexHulls=function(e,t,o){var n,i,r,s=o;for(s.beginPath(),i=0;i<t.length;i++)if(n=t[i],n.render.visible&&1!==n.parts.length){for(s.moveTo(n.vertices[0].x,n.vertices[0].y),
+r=1;r<n.vertices.length;r++)s.lineTo(n.vertices[r].x,n.vertices[r].y);s.lineTo(n.vertices[0].x,n.vertices[0].y)}s.lineWidth=1,s.strokeStyle="rgba(255,255,255,0.2)",s.stroke()},n.vertexNumbers=function(e,t,o){var n,i,r,s=o;for(n=0;n<t.length;n++){var a=t[n].parts;for(r=a.length>1?1:0;r<a.length;r++){var l=a[r];for(i=0;i<l.vertices.length;i++)s.fillStyle="rgba(255,255,255,0.2)",s.fillText(n+"_"+i,l.position.x+.8*(l.vertices[i].x-l.position.x),l.position.y+.8*(l.vertices[i].y-l.position.y))}}},n.mousePosition=function(e,t,o){var n=o;n.fillStyle="rgba(255,255,255,0.8)",n.fillText(t.position.x+"  "+t.position.y,t.position.x+5,t.position.y-5)},n.bodyBounds=function(e,t,o){var n=o,i=(e.engine,e.options);n.beginPath();for(var r=0;r<t.length;r++){var s=t[r];if(s.render.visible)for(var a=t[r].parts,l=a.length>1?1:0;l<a.length;l++){var c=a[l];n.rect(c.bounds.min.x,c.bounds.min.y,c.bounds.max.x-c.bounds.min.x,c.bounds.max.y-c.bounds.min.y)}}i.wireframes?n.strokeStyle="rgba(255,255,255,0.08)":n.strokeStyle="rgba(0,0,0,0.1)",
+n.lineWidth=1,n.stroke()},n.bodyAxes=function(e,t,o){var n,i,r,s,a=o,l=(e.engine,e.options);for(a.beginPath(),i=0;i<t.length;i++){var c=t[i],d=c.parts;if(c.render.visible)if(l.showAxes)for(r=d.length>1?1:0;r<d.length;r++)for(n=d[r],s=0;s<n.axes.length;s++){var u=n.axes[s];a.moveTo(n.position.x,n.position.y),a.lineTo(n.position.x+20*u.x,n.position.y+20*u.y)}else for(r=d.length>1?1:0;r<d.length;r++)for(n=d[r],s=0;s<n.axes.length;s++)a.moveTo(n.position.x,n.position.y),a.lineTo((n.vertices[0].x+n.vertices[n.vertices.length-1].x)/2,(n.vertices[0].y+n.vertices[n.vertices.length-1].y)/2)}l.wireframes?a.strokeStyle="indianred":(a.strokeStyle="rgba(0,0,0,0.8)",a.globalCompositeOperation="overlay"),a.lineWidth=1,a.stroke(),a.globalCompositeOperation="source-over"},n.bodyPositions=function(e,t,o){var n,i,r,s,a=o,l=(e.engine,e.options);for(a.beginPath(),r=0;r<t.length;r++)if(n=t[r],n.render.visible)for(s=0;s<n.parts.length;s++)i=n.parts[s],a.arc(i.position.x,i.position.y,3,0,2*Math.PI,!1),a.closePath();
+for(l.wireframes?a.fillStyle="indianred":a.fillStyle="rgba(0,0,0,0.5)",a.fill(),a.beginPath(),r=0;r<t.length;r++)n=t[r],n.render.visible&&(a.arc(n.positionPrev.x,n.positionPrev.y,2,0,2*Math.PI,!1),a.closePath());a.fillStyle="rgba(255,165,0,0.8)",a.fill()},n.bodyVelocity=function(e,t,o){var n=o;n.beginPath();for(var i=0;i<t.length;i++){var r=t[i];r.render.visible&&(n.moveTo(r.position.x,r.position.y),n.lineTo(r.position.x+2*(r.position.x-r.positionPrev.x),r.position.y+2*(r.position.y-r.positionPrev.y)))}n.lineWidth=3,n.strokeStyle="cornflowerblue",n.stroke()},n.bodyIds=function(e,t,o){var n,i,r=o;for(n=0;n<t.length;n++)if(t[n].render.visible){var s=t[n].parts;for(i=s.length>1?1:0;i<s.length;i++){var a=s[i];r.font="12px Arial",r.fillStyle="rgba(255,255,255,0.5)",r.fillText(a.id,a.position.x+10,a.position.y-10)}}},n.collisions=function(e,t,o){var n,i,r,s,a=o,l=e.options;for(a.beginPath(),r=0;r<t.length;r++)if(n=t[r],n.isActive)for(i=n.collision,s=0;s<n.activeContacts.length;s++){var c=n.activeContacts[s],d=c.vertex;
+a.rect(d.x-1.5,d.y-1.5,3.5,3.5)}for(l.wireframes?a.fillStyle="rgba(255,255,255,0.7)":a.fillStyle="orange",a.fill(),a.beginPath(),r=0;r<t.length;r++)if(n=t[r],n.isActive&&(i=n.collision,n.activeContacts.length>0)){var u=n.activeContacts[0].vertex.x,p=n.activeContacts[0].vertex.y;2===n.activeContacts.length&&(u=(n.activeContacts[0].vertex.x+n.activeContacts[1].vertex.x)/2,p=(n.activeContacts[0].vertex.y+n.activeContacts[1].vertex.y)/2),i.bodyB===i.supports[0].body||i.bodyA.isStatic===!0?a.moveTo(u-8*i.normal.x,p-8*i.normal.y):a.moveTo(u+8*i.normal.x,p+8*i.normal.y),a.lineTo(u,p)}l.wireframes?a.strokeStyle="rgba(255,165,0,0.7)":a.strokeStyle="orange",a.lineWidth=1,a.stroke()},n.separations=function(e,t,o){var n,i,r,s,a,l=o,c=e.options;for(l.beginPath(),a=0;a<t.length;a++)if(n=t[a],n.isActive){i=n.collision,r=i.bodyA,s=i.bodyB;var d=1;s.isStatic||r.isStatic||(d=.5),s.isStatic&&(d=0),l.moveTo(s.position.x,s.position.y),l.lineTo(s.position.x-i.penetration.x*d,s.position.y-i.penetration.y*d),d=1,
+s.isStatic||r.isStatic||(d=.5),r.isStatic&&(d=0),l.moveTo(r.position.x,r.position.y),l.lineTo(r.position.x+i.penetration.x*d,r.position.y+i.penetration.y*d)}c.wireframes?l.strokeStyle="rgba(255,165,0,0.5)":l.strokeStyle="orange",l.stroke()},n.grid=function(e,t,o){var n=o,r=e.options;r.wireframes?n.strokeStyle="rgba(255,180,0,0.1)":n.strokeStyle="rgba(255,180,0,0.5)",n.beginPath();for(var s=i.keys(t.buckets),a=0;a<s.length;a++){var l=s[a];if(!(t.buckets[l].length<2)){var c=l.split(",");n.rect(.5+parseInt(c[0],10)*t.bucketWidth,.5+parseInt(c[1],10)*t.bucketHeight,t.bucketWidth,t.bucketHeight)}}n.lineWidth=1,n.stroke()},n.inspector=function(e,t){var o,n=(e.engine,e.selected),i=e.render,r=i.options;if(r.hasBounds){var s=i.bounds.max.x-i.bounds.min.x,a=i.bounds.max.y-i.bounds.min.y,l=s/i.options.width,c=a/i.options.height;t.scale(1/l,1/c),t.translate(-i.bounds.min.x,-i.bounds.min.y)}for(var d=0;d<n.length;d++){var u=n[d].data;switch(t.translate(.5,.5),t.lineWidth=1,t.strokeStyle="rgba(255,165,0,0.9)",
+t.setLineDash([1,2]),u.type){case"body":o=u.bounds,t.beginPath(),t.rect(Math.floor(o.min.x-3),Math.floor(o.min.y-3),Math.floor(o.max.x-o.min.x+6),Math.floor(o.max.y-o.min.y+6)),t.closePath(),t.stroke();break;case"constraint":var p=u.pointA;u.bodyA&&(p=u.pointB),t.beginPath(),t.arc(p.x,p.y,10,0,2*Math.PI),t.closePath(),t.stroke()}t.setLineDash([]),t.translate(-.5,-.5)}null!==e.selectStart&&(t.translate(.5,.5),t.lineWidth=1,t.strokeStyle="rgba(255,165,0,0.6)",t.fillStyle="rgba(255,165,0,0.1)",o=e.selectBounds,t.beginPath(),t.rect(Math.floor(o.min.x),Math.floor(o.min.y),Math.floor(o.max.x-o.min.x),Math.floor(o.max.y-o.min.y)),t.closePath(),t.stroke(),t.fill(),t.translate(-.5,-.5)),r.hasBounds&&t.setTransform(1,0,0,1,0,0)};var o=function(e,t){var o=document.createElement("canvas");return o.width=e,o.height=t,o.oncontextmenu=function(){return!1},o.onselectstart=function(){return!1},o},d=function(e){var t=e.getContext("2d"),o=window.devicePixelRatio||1,n=t.webkitBackingStorePixelRatio||t.mozBackingStorePixelRatio||t.msBackingStorePixelRatio||t.oBackingStorePixelRatio||t.backingStorePixelRatio||1;
+return o/n},u=function(e,t){var o=e.textures[t];return o?o:(o=e.textures[t]=new Image,o.src=t,o)},p=function(e,t){var o=t;/(jpg|gif|png)$/.test(t)&&(o="url("+t+")"),e.canvas.style.background=o,e.canvas.style.backgroundSize="contain",e.currentBackground=t}}()},{"../body/Composite":2,"../collision/Grid":6,"../core/Common":14,"../core/Events":16,"../geometry/Bounds":24,"../geometry/Vector":26}],30:[function(e,t,o){var n={};t.exports=n;var i=e("../body/Composite"),r=e("../core/Common");!function(){var e,t;"undefined"!=typeof window&&(e=window.requestAnimationFrame||window.webkitRequestAnimationFrame||window.mozRequestAnimationFrame||window.msRequestAnimationFrame||function(e){window.setTimeout(function(){e(r.now())},1e3/60)},t=window.cancelAnimationFrame||window.mozCancelAnimationFrame||window.webkitCancelAnimationFrame||window.msCancelAnimationFrame),n.create=function(e){r.log("RenderPixi.create: Matter.RenderPixi is deprecated (see docs)","warn");var t={controller:n,engine:null,element:null,
+frameRequestId:null,canvas:null,renderer:null,container:null,spriteContainer:null,pixiOptions:null,options:{width:800,height:600,background:"#fafafa",wireframeBackground:"#222",hasBounds:!1,enabled:!0,wireframes:!0,showSleeping:!0,showDebug:!1,showBroadphase:!1,showBounds:!1,showVelocity:!1,showCollisions:!1,showAxes:!1,showPositions:!1,showAngleIndicator:!1,showIds:!1,showShadows:!1}},o=r.extend(t,e),i=!o.options.wireframes&&"transparent"===o.options.background;return o.pixiOptions=o.pixiOptions||{view:o.canvas,transparent:i,antialias:!0,backgroundColor:e.background},o.mouse=e.mouse,o.engine=e.engine,o.renderer=o.renderer||new PIXI.WebGLRenderer(o.options.width,o.options.height,o.pixiOptions),o.container=o.container||new PIXI.Container,o.spriteContainer=o.spriteContainer||new PIXI.Container,o.canvas=o.canvas||o.renderer.view,o.bounds=o.bounds||{min:{x:0,y:0},max:{x:o.options.width,y:o.options.height}},o.textures={},o.sprites={},o.primitives={},o.container.addChild(o.spriteContainer),r.isElement(o.element)?o.element.appendChild(o.canvas):r.log('No "render.element" passed, "render.canvas" was not inserted into document.',"warn"),
+o.canvas.oncontextmenu=function(){return!1},o.canvas.onselectstart=function(){return!1},o},n.run=function(t){!function o(i){t.frameRequestId=e(o),n.world(t)}()},n.stop=function(e){t(e.frameRequestId)},n.clear=function(e){for(var t=e.container,o=e.spriteContainer;t.children[0];)t.removeChild(t.children[0]);for(;o.children[0];)o.removeChild(o.children[0]);var n=e.sprites["bg-0"];e.textures={},e.sprites={},e.primitives={},e.sprites["bg-0"]=n,n&&t.addChildAt(n,0),e.container.addChild(e.spriteContainer),e.currentBackground=null,t.scale.set(1,1),t.position.set(0,0)},n.setBackground=function(e,t){if(e.currentBackground!==t){var o=t.indexOf&&-1!==t.indexOf("#"),n=e.sprites["bg-0"];if(o){var i=r.colorToNumber(t);e.renderer.backgroundColor=i,n&&e.container.removeChild(n)}else if(!n){var s=a(e,t);n=e.sprites["bg-0"]=new PIXI.Sprite(s),n.position.x=0,n.position.y=0,e.container.addChildAt(n,0)}e.currentBackground=t}},n.world=function(e){var t,o=e.engine,r=o.world,s=e.renderer,a=e.container,l=e.options,c=i.allBodies(r),d=i.allConstraints(r),u=[];
+l.wireframes?n.setBackground(e,l.wireframeBackground):n.setBackground(e,l.background);var p=e.bounds.max.x-e.bounds.min.x,f=e.bounds.max.y-e.bounds.min.y,v=p/e.options.width,m=f/e.options.height;if(l.hasBounds){for(t=0;t<c.length;t++){var y=c[t];y.render.sprite.visible=Bounds.overlaps(y.bounds,e.bounds)}for(t=0;t<d.length;t++){var g=d[t],x=g.bodyA,h=g.bodyB,b=g.pointA,w=g.pointB;x&&(b=Vector.add(x.position,g.pointA)),h&&(w=Vector.add(h.position,g.pointB)),b&&w&&(Bounds.contains(e.bounds,b)||Bounds.contains(e.bounds,w))&&u.push(g)}a.scale.set(1/v,1/m),a.position.set(-e.bounds.min.x*(1/v),-e.bounds.min.y*(1/m))}else u=d;for(t=0;t<c.length;t++)n.body(e,c[t]);for(t=0;t<u.length;t++)n.constraint(e,u[t]);s.render(a)},n.constraint=function(e,t){var o=(e.engine,t.bodyA),n=t.bodyB,i=t.pointA,s=t.pointB,a=e.container,l=t.render,c="c-"+t.id,d=e.primitives[c];return d||(d=e.primitives[c]=new PIXI.Graphics),l.visible&&t.pointA&&t.pointB?(-1===r.indexOf(a.children,d)&&a.addChild(d),d.clear(),d.beginFill(0,0),
+d.lineStyle(l.lineWidth,r.colorToNumber(l.strokeStyle),1),o?d.moveTo(o.position.x+i.x,o.position.y+i.y):d.moveTo(i.x,i.y),n?d.lineTo(n.position.x+s.x,n.position.y+s.y):d.lineTo(s.x,s.y),void d.endFill()):void d.clear()},n.body=function(e,t){var n=(e.engine,t.render);if(n.visible)if(n.sprite&&n.sprite.texture){var i="b-"+t.id,a=e.sprites[i],l=e.spriteContainer;a||(a=e.sprites[i]=o(e,t)),-1===r.indexOf(l.children,a)&&l.addChild(a),a.position.x=t.position.x,a.position.y=t.position.y,a.rotation=t.angle,a.scale.x=n.sprite.xScale||1,a.scale.y=n.sprite.yScale||1}else{var c="b-"+t.id,d=e.primitives[c],u=e.container;d||(d=e.primitives[c]=s(e,t),d.initialAngle=t.angle),-1===r.indexOf(u.children,d)&&u.addChild(d),d.position.x=t.position.x,d.position.y=t.position.y,d.rotation=t.angle-d.initialAngle}};var o=function(e,t){var o=t.render,n=o.sprite.texture,i=a(e,n),r=new PIXI.Sprite(i);return r.anchor.x=t.render.sprite.xOffset,r.anchor.y=t.render.sprite.yOffset,r},s=function(e,t){var o,n=t.render,i=e.options,s=new PIXI.Graphics,a=r.colorToNumber(n.fillStyle),l=r.colorToNumber(n.strokeStyle),c=r.colorToNumber(n.strokeStyle),d=r.colorToNumber("#bbb"),u=r.colorToNumber("#CD5C5C");
+s.clear();for(var p=t.parts.length>1?1:0;p<t.parts.length;p++){o=t.parts[p],i.wireframes?(s.beginFill(0,0),s.lineStyle(1,d,1)):(s.beginFill(a,1),s.lineStyle(n.lineWidth,l,1)),s.moveTo(o.vertices[0].x-t.position.x,o.vertices[0].y-t.position.y);for(var f=1;f<o.vertices.length;f++)s.lineTo(o.vertices[f].x-t.position.x,o.vertices[f].y-t.position.y);s.lineTo(o.vertices[0].x-t.position.x,o.vertices[0].y-t.position.y),s.endFill(),(i.showAngleIndicator||i.showAxes)&&(s.beginFill(0,0),i.wireframes?s.lineStyle(1,u,1):s.lineStyle(1,c),s.moveTo(o.position.x-t.position.x,o.position.y-t.position.y),s.lineTo((o.vertices[0].x+o.vertices[o.vertices.length-1].x)/2-t.position.x,(o.vertices[0].y+o.vertices[o.vertices.length-1].y)/2-t.position.y),s.endFill())}return s},a=function(e,t){var o=e.textures[t];return o||(o=e.textures[t]=PIXI.Texture.fromImage(t)),o}}()},{"../body/Composite":2,"../core/Common":14}]},{},[28])(28)});
 soya2d.module.install('physics',{
     onInit:function(game){
+    	var engine;
         /**
-		 * 启动物理系统
-		 * @param {Object} opts 物理系统参数
-		 * @see soya2d.Physics
-		 * @requires physics
-		 * @memberOf! soya2d.Game#
-         * @alias startPhysics
-		 * @return {soya2d.Physics} 返回物理系统
+		 * 安装物理
 		 */
-		game.startPhysics = function(opts){
-			if(game.physics)return;
-			/**
-			 * 该游戏实例的物理接口
-			 * @type {soya2d}
-			 */
-			game.physics = new soya2d.Physics(opts);
+		game.physics.setup({
+			onStart:function(opts){
+				engine = Matter.Engine.create();
 
-			var phyEvents = ['contactstart','contactend'];
-			game.events.register(phyEvents,game.physics);
-			game.physics.startListen(game);
+				engine.world.gravity.x = opts.gravity[0];
+				engine.world.gravity.y = opts.gravity[1];
+				engine.enableSleeping = opts.enableSleeping;
 
-			return game.physics;
-		}
-		/**
-		 * 停止物理系统
-		 * @param  {soya2d.Physics} phy 物理系统实例
-		 * @requires physics
-		 * @memberOf! soya2d.Game#
-         * @alias stopPhysics
-		 */
-		game.stopPhysics = function(phy){
-			game.physics = null;
-		}
-    },
-    onUpdate:function(game){
-    	if(game.physics)
-		game.physics.update(1 / 60);
+				//events
+				Matter.Events.on(engine, 'collisionStart collisionEnd', function(event) {
+					var pairs = event.pairs;
+					for (var i = 0; i < pairs.length; i++) {
+		                var pair = pairs[i];
+		                game.physics.emit(event.name,pair.bodyA.__sprite,pair.bodyB.__sprite);
+		                pair.bodyA.__sprite.emit(event.name,pair.bodyB.__sprite);
+		                pair.bodyB.__sprite.emit(event.name,pair.bodyA.__sprite);
+		            }
+				});
+			},
+			onUpdate:function(){
+				Matter.Engine.update(engine, 0, 1);
+				var bodies = engine.world.bodies;
+		    	for(var i=bodies.length; i--;){
+					var b = bodies[i];
+					var ro = b.__sprite;
+					if(b.isStatic)continue;
+
+					var offx = 0,offy = 0;
+					offx = ro.w/2,offy = ro.h/2;
+					
+					ro.__x = b.position.x;
+					ro.__y = b.position.y;
+					
+					ro.angle = b.angle * soya2d.Math.ONEANG;
+				}
+			},
+			onUnbind:function(obj){
+				Matter.World.remove(engine.world,obj);
+			},
+			onBind:function(obj){
+				var offx = 0,offy = 0;
+					offx = obj.w/2,offy = obj.h/2;
+
+				var opts = {
+					angle:obj.angle * soya2d.Math.ONERAD,
+		    		position:{
+		    			x:obj.x,
+		    			y:obj.y
+		    		}
+				};
+				
+		    	var shape;
+		    	if (obj.bounds instanceof soya2d.Rectangle) {
+					shape = Matter.Bodies.rectangle(obj.x,obj.y,obj.w , obj.h,opts);
+				} else if (obj.bounds instanceof soya2d.Circle) {
+					shape = Matter.Bodies.circle(0,0,obj.bounds.r,opts);
+				}else if (obj.bounds instanceof soya2d.Polygon) {
+					var vtx = obj.bounds.vtx;
+					var convex = [];
+					for(var i=0;i<vtx.length;i+=2){
+						convex.push([vtx[i] - offx,vtx[i+1] - offy]);
+					}
+					shape = Matter.Bodies.fromVertices(0,0,convex,opts);
+				}
+
+				Matter.World.add(engine.world, shape);
+
+				Matter.Events.on(shape, 'sleepStart sleepEnd', function(event) {
+	                obj.emit(event.name,this.isSleeping);
+	            });
+
+				return shape;
+			},
+			body:{
+				sensor:function(body,tof){
+					body.isSensor = tof;
+				},
+				moveTo:function(body,x,y){
+					Matter.Body.setPosition(body,{x:x,y:y});
+				},
+				moveBy:function(body,x,y){
+					Matter.Body.translate(body,{x:x,y:y});
+				},
+				static:function(body,tof){
+					Matter.Body.setStatic(body, tof);
+				},
+				mass:function(body,v){
+					Matter.Body.setMass(body, v);
+				},
+				rotateBy:function(body,v){
+					Matter.Body.rotate(body, v);
+				},
+				rotateTo:function(body,v){
+					Matter.Body.setAngle(body, soya2d.Math.toRadian(v));
+				},
+				friction:function(body,v){
+					body.friction = v;
+				},
+				restitution:function(body,v){
+					body.restitution = v;
+				},
+				velocity:function(body,x,y){
+					Matter.Body.setVelocity(body,{x:x,y:y});
+				},
+				inertia:function(body,v){
+					Matter.Body.setInertia(body,v);
+				}
+			}
+		});
     }
 });
-;!function(){
-    "use strict";
-
-    /**
-     * @classdesc 任务调度器，用来管理引擎所有定时任务<br/>
-     * 该类为singleton实现，无法直接创建实例，需要通过{@link soya2d.getScheduler}方法获取
-     * 唯一实例。
-     * @class 
-     * @author {@link http://weibo.com/soya2d MrSoya}
-     */
-    function Scheduler(){
-        var state = 1;//1.运行，2.暂停
-        var triggerList = [];
-        var taskMap = {};
-        //安排任务
-        /**
-         * 把一个任务以及触发器，排进调度计划<br/>
-         * 如果触发器之前已经被安排过，且并没有取消调度，那么会抛出异常
-         * @param task
-         * @param trigger
-         */
-        this.scheduleTask = function(task,trigger){
-            if(trigger._taskKey){
-                console.error('a trigger can only bind one task simultaneously');
-            }
-            taskMap[task.key] = task;//任务map
-            trigger._taskKey = task.key;
-            triggerList.push(trigger);
-        }
-        /**
-         * 取消安排
-         * @param taskKey
-         */
-        this.unscheduleTask = function(taskKey){
-            delete taskMap[taskKey];
-            var i=0;
-            for(;i<triggerList.length;i++){
-                if(triggerList[i]._taskKey == taskKey){
-                    break;
-                }
-            }
-            if(triggerList.length < 1)return;
-            triggerList[i]._reset();
-            triggerList.splice(i,1);
-        }
-        /**
-         * 清除调度器
-         */
-        this.clear = function(){
-            taskMap = {};
-            for(var i=0;i<triggerList.length;i++){
-                triggerList[i]._reset();
-            }
-            triggerList = [];
-        }
-        /**
-         * 立即触发任务
-         * @param taskKey 任务key
-         */
-        this.triggerTask = function(taskKey){
-            if(taskMap[taskKey].cbk){
-                taskMap[taskKey].cbk();
-            }
-        }
-        /**
-         * 调度器是否正在运行
-         */
-        this.isRunning = function(){
-            return state===1?true:false;
-        }
-        /**
-         * 暂停调度器
-         */
-        this.pause = function(){
-            state = 2;
-        }
-        /**
-         * 继续调度器
-         */
-        this.resume = function(){
-            state = 1;
-        }
-
-        var threshold = 1000;
-        /**
-         * 内部调用，检查所有触发器是否有可以触发的
-         * @private
-         */
-        this._scanTasks = function(d){
-            if(state===2)return;
-
-            //扫描所有触发器
-            var deleteTaskList = [];
-            for(var i=triggerList.length;i--;){
-                var trigger = triggerList[i];
-                var task = taskMap[trigger._taskKey];
-                var canTrigger = false;
-                trigger.milliseconds += d;//毫秒数增加
-                if(trigger.type === soya2d.TRIGGER_TYPE_FRAME){
-                    trigger._frameCount++;//帧数++
-                    if(trigger.canTrigger()){
-                        canTrigger = true;
-                        if(trigger._frameInfo.canTriggerTimes === 1)
-                            deleteTaskList.push(task.key);
-                    }
-                }else if(trigger.type === soya2d.TRIGGER_TYPE_TIME){
-                    var delta = trigger.milliseconds - trigger._lastTriggerMilliseconds;
-                    //是否可触发
-                    if(trigger.canTrigger() && delta>=threshold){
-                        canTrigger = true;
-                        //重置触发时间
-                        trigger._lastTriggerMilliseconds = trigger.milliseconds;
-                    }
-                    if(trigger._canUnload())deleteTaskList.push(task.key);
-                }
-
-                if(canTrigger && task.cbk){
-                    trigger.times++;//触发次数加1
-                    task.cbk(trigger.key,trigger.milliseconds,trigger.times,trigger._frameCount||trigger._t);
-                }
-            }
-            //删除可以卸载的任务
-            for(var i=deleteTaskList.length;i--;){
-                this.unscheduleTask(deleteTaskList[i]);
-            }
-        }
-    }
-
-    var scheduler = new Scheduler();
-    /**
-     * 获取任务调度器
-     * @return {Scheduler} 调度器
-     */
-    soya2d.getScheduler = function(){
-        //singleton
-        return scheduler;
-    }
-
-}();
 /**
- * 调度触法类型，每帧
- * @type {Number}
+ *  瓦片地图管理器
  */
-soya2d.TRIGGER_TYPE_FRAME = 1;
-/**
- * 调度触法类型，时间
- * @type {Number}
- */
-soya2d.TRIGGER_TYPE_TIME = 2;
-/**
- * 构造一个用于调度的任务。
- * @classdesc 任务根据所绑定的触发器，在调度器中被调度。
- * 一个任务可以绑定多个触发器，进行多次调度。
- * @class 
- * @param {string} key 任务唯一标识，用于取消调度或者立即触发等操作
- * @param {function} cbk 回调函数，回调参数(触发器标识triggerKey,任务启动毫秒数milliseconds,触发次数times,当前帧数或者当前时间frameCount|[s,m,h])<br/>
- *										*如果手动触发任务，不会有任何回调参数被传递
- * @author {@link http://weibo.com/soya2d MrSoya}
- */
-soya2d.Task = function(key,cbk){
-    /**
-     * 唯一标识符
-     * @type {String}
-     */
-    this.key = key;
-    /**
-     * 回调函数
-     * @type {Function}
-     */
-    this.cbk = cbk;
+function TilemapManager(game) {
+    this.map = {};
+    this.game = game;
 }
-;!function(){
-    /**
-     * 构造一个用于任务调度的触发器。
-     * @classdesc 触发器是调度器进行任务调度时，触发任务的依据。根据触发器提供的表达式，进行触发。一个触发器只能绑定一个任务。
-     * @class 
-     * @param {string} key 触发器标识，用于在任务回调中识别触发器
-     * @param {string} exp 触发器表达式，根据触发类型而定
-     * @param {int} [type=soya2d.TRIGGER_TYPE_FRAME] 触发类型，可以是时间触发或者帧触发
-     * @author {@link http://weibo.com/soya2d MrSoya}
-     */
-    soya2d.Trigger = function(key,exp,type){
-        /**
-         * 触发器类型
-         * @type {int}
-         * @default soya2d.TRIGGER_TYPE_FRAME
-         */
-        this.type = type||soya2d.TRIGGER_TYPE_FRAME;
-        /**
-         * 触发表达式
-         * @type {String}
-         */
-        this.exp = exp;
-        /**
-         * 触发器标识
-         * @type {String}
-         */
-        this.key = key;
-        /**
-         * 触发次数
-         * @type {Number}
-         */
-        this.times = 0;
-        /**
-         * 优先级
-         * @type {Number}
-         */
-        this.priority = 0;
-        /**
-         * 从调度开始，到最近一次触发的毫秒数
-         * @type {Number}
-         */
-        this.milliseconds = 0;
-        //关联的任务key,有此属性时，如果被安排给另一个任务，报错
-        this._taskKey;
 
-
-        //帧模式下，总执行的帧数
-        this._frameCount = 0;
-        //上次触发毫秒数，相差不足1000，就不触发
-        this._lastTriggerMilliseconds = -1000;
-        //时间模式下，当前时间s,m,h
-        this._t = [];
-        //重置触发器
-        this._reset = function(){
-            this.times = 0;
-            this._taskKey = null;
-            this._frameCount = 0;
-            this.milliseconds = 0;
-            this._lastTriggerMilliseconds = -1000;
-            this._t = [];
-            delete this._frameInfo;
-            delete this._timeInfo;
-        }
-
-        //是否可以卸载
-        this._canUnload = function(){
-            var h = this._timeInfo.hour;
-            if(h[2] === 1){//单次
-                if(this._t[2]>h[0])return true;
-            }else if(h[2] > 1){//多次
-                if(this._t[2]>h[3][h[3].length-1])return true;
-            }
-        }
-        /**
-         * 是否可以触发
-         */
-        this.canTrigger = function(){
-            switch(this.type){
-                case soya2d.TRIGGER_TYPE_FRAME:
-                    return checkFrameTriggerable(this._frameInfo,this._frameCount);
-                    break;
-                case soya2d.TRIGGER_TYPE_TIME:
-                    return checkTimeTriggerable(this);
-                    break;
-            }
-        }
-
-        /************ build trigger ************/
-        //解析表达式
-        switch(this.type){
-            case soya2d.TRIGGER_TYPE_FRAME:
-                if(!/^(\*|(?:(?:[0-9]+|\*)\/[0-9]+)|[0-9]+)$/.test(exp)){
-                    console.error('invalid trigger expression -- '+exp);
-                }
-                //解析帧信息
-                var info = parseExp(RegExp.$1);
-                this._frameInfo = {
-                    canTriggerTimes:info[2],//可触发次数
-                    startOff:info[1],//启动偏移
-                    interval:info[0]//间隔
-                };
-                break;
-            case soya2d.TRIGGER_TYPE_TIME:
-                if(!/^(\*|(?:[0-9]+(?:,[0-9]+)*)|(?:[0-9]+-[0-9]+)|(?:(?:(?:[0-9]+(?:-[0-9]+)?)|\*)\/[0-9]+)) (\*|(?:[0-9]+(?:,[0-9]+)*)|(?:[0-9]+-[0-9]+)|(?:(?:(?:[0-9]+(?:-[0-9]+)?)|\*)\/[0-9]+)) (\*|(?:[0-9]+(?:,[0-9]+)*)|(?:[0-9]+-[0-9]+)|(?:(?:(?:[0-9]+(?:-[0-9]+)?)|\*)\/[0-9]+))$/.test(exp)){
-                    console.error('invalid trigger expression -- '+exp);
-                }
-                //解析时间信息
-                var secInfo = parseExp(RegExp.$1);
-                var minInfo = parseExp(RegExp.$2);
-                var hourInfo = parseExp(RegExp.$3);
-                this._timeInfo = {
-                    sec:secInfo,
-                    min:minInfo,
-                    hour:hourInfo
-                }
-                break;
-        }
-    }
-
-    //触发器调用，解析表达式,并返回
-    // [
-    // interval,//间隔模式的间隔时长,以及单值模式的值
-    // startOff,//间隔模式的启动偏移
-    // triggerTimes,//总触发次数,-1为无限
-    // values //多值模式，或者区间模式下存储所有合法值
-    // ]
-    function parseExp(exp){
-        var i,so,tt,values;
-        var tmp;
-        if(exp == '*'){
-            i = -1;//无间隔
-            so = 0;
-            tt = -1;
-        }else if((so = parseInt(exp)) == exp){//匹配整数
-            tt = 1;
-            i = 0;
-        }else if((tmp=exp.split('/')).length===2){//匹配间隔符&区间间隔
-            i = parseInt(tmp[1]);
-            var tmp2;
-            if((tmp2=tmp[0].split('-')).length===2){//存在区间
-                values = [];
-                for(var s=tmp2[0]>>0,e=tmp2[1]>>0;s<=e;s++){
-                    values.push(s);
-                }
-                values.sort(function(a,b){
-                    return a-b;
-                });
-                tt = values.length;
-            }else{
-                if(!(so = parseInt(tmp[0]))){
-                    so = 0;
-                }
-                tt = -1;
-            }
-        }else if((tmp=exp.split(',')).length>1){//匹配多值符
-            values = [];
-            for(var i=tmp.length;i--;){
-                values.push(tmp[i]>>0);
-            }
-            values.sort(function(a,b){
-                return a-b;
-            });
-            tt = tmp.length;
-        }else if((tmp=exp.split('-')).length===2){//匹配区间符
-            values = [];
-            for(var s=tmp[0]>>0,e=tmp[1]>>0;s<=e;s++){
-                values.push(s);
-            }
-            values.sort(function(a,b){
-                return a-b;
-            });
-            tt = values.length;
-        }
-        return [i,so,tt,values];
-    }
-    //检测帧触发器是否可以触发
-    function checkFrameTriggerable(fi,frames){
-        //无限次数
-        if(fi.canTriggerTimes === -1){
-            if(fi.interval===-1)return true;
-            var actValue = frames-fi.startOff;
-            if(actValue === 0)return false;//防止0除数触发
-            if(!(actValue % fi.interval))return true;
-        }else if(fi.canTriggerTimes === 1){
-            if(frames === fi.startOff)return true;
-        }
-        return false;
-    }
-    //检测时间触发器是否可以触发
-    function checkTimeTriggerable(trigger){
-        //换算时间
-        var tmp = trigger.milliseconds/1000;
-        var s = trigger._t[0] = tmp%60>>0;
-        var m = trigger._t[1] = tmp/60%60>>0;
-        var h = trigger._t[2] = tmp/60/60>>0;
-        /////////////////// 计算每个段 ///////////////////
-        if(!checkTimePart(trigger._timeInfo.hour,h))return false;
-        if(!checkTimePart(trigger._timeInfo.min,m))return false;
-        if(!checkTimePart(trigger._timeInfo.sec,s))return false;
-        return true;
-    }
-    //检测时间每个部分是否OK
-    function checkTimePart(part,v){
-        if(part[2]===1){//只触发一次,计算值是否相同
-            if(part[0]!==v)return false;
-        }else if(part[2]===-1 && part[0]===-1){//无限
-        }else if(part[3] && !part[0]){//多值
-            if(part[3].indexOf(v)<0)return false;
-        }else if((part[2]===-1 && part[0]>0) ||
-                (part[0]>0 && part[3])){//间隔
-            if(part[3] && part[3].indexOf(v)<0)return false;//间隔内的区间
-            var actValue = v-part[1];
-            if(actValue <= 0 && part[1]!=0)return false;//防止0除数触发
-            if(actValue % part[0])return false;
-        }
-        return true;
-    }
-}();
-
-soya2d.module.install('task',{
-    onInit:function(game){
-        /**
-		 * 添加一个任务，可以指定任务执行的频率和方式
-		 * @param {Function} fn 任务回调函数,回调参数(当前游戏对象实例game,任务执行的毫秒数milliseconds,执行次数times)
-		 * @param {string} triggerExp 调度表达式，根据调度类型决定。默认每帧触发
-		 * @param {int} triggerType 调度类型，默认帧调度
-		 * @return {string} taskId 任务标识，用于删除任务
-		 * @see {soya2d.TRIGGER_TYPE_FRAME}
-		 * @see {soya2d.Trigger}
-		 * @memberOf! soya2d.Game#
-         * @alias addTask
-		 * @requires task
-		 */
-		game.addTask = function(fn,triggerExp,triggerType){
-			var taskId = 'soya_task_'+Date.now()+Math.random()*999;
-			var scheduler = soya2d.getScheduler();
-			var g = this;
-			var task = new soya2d.Task(taskId,function(trigger,ms,times,tag){
-				if(fn && fn.call)fn(g,triggerExp||'*',ms,times,tag);
-			});
-			var trigger = new soya2d.Trigger(taskId+'_trigger',triggerExp||'*',triggerType);
-			scheduler.scheduleTask(task,trigger);
-
-			return taskId;
-		}
-
-		/**
-		 * 删除任务
-		 * @param  {string} taskId 需要删除的任务id
-		 * @memberOf! soya2d.Game#
-         * @alias removeTask
-		 * @requires task
-		 */
-		game.removeTask = function(taskId){
-			var scheduler = soya2d.getScheduler();
-			scheduler.unscheduleTask(taskId);
-		}
+TilemapManager.prototype = {
+    get:function(key){
+        return this.map[key];
     },
-    onUpdate:function(game,now,d){
-    	var scheduler = soya2d.getScheduler();
-        scheduler._scanTasks(d<0?-d:d);
+    /**
+     * 创建一个tilemap实例。创建tilemap，需要满足参数中data的要求。
+     * 这些参数可以通过tile制作工具或其他方式获取。
+     * @param {String} key  唯一的key
+     * @param {Object} data  tilemap参数
+     * @param {Object} data.tilewidth   瓦片宽度
+     * @param {Object} data.tileheight   瓦片高度
+     * @param {Object} data.rows   总行数
+     * @param {Object} data.columns   总列数
+     * @param {Object} data.tilesets   图块集 {key:{sid:1}}
+     * @param {Object} data.layers   图层集 {key:{data:[]}}
+     */
+    add:function(key,data){
+        data.game = this.game;
+        this.map[key] = new Tilemap(data);
+
+        return this.map[key];
+    }
+}
+/**
+ * 地图层，描述了一层具体的地图信息，并绘制在制定的容器中
+ * @class
+ * @extends soya2d.DisplayObjectContainer
+ */
+var TilemapLayer = soya2d.class('',{
+    extends:soya2d.DisplayObjectContainer,
+    constructor:function(tilemap,data){
+        this.tilemap = tilemap;
+        this.w = tilemap.w;
+        this.h = tilemap.h;
+        this.tw = tilemap.tilewidth;
+        this.th = tilemap.tileheight;
+        this.cols = tilemap.columns;
+
+        this.data = data;
+        this.range = {row:[0,tilemap.rows],col:[0,tilemap.columns]};
+
+        this.tilesets = tilemap.tilesets;
+    },
+    onUpdate:function(){
+        //check range
+        var sx = this.worldPosition.x - this.anchorPosition.x;
+        var sy = this.worldPosition.y - this.anchorPosition.y;
+        if(sx < 0 || sy < 0)return ;
+
+        if(this.lastcx == this.game.camera.x && this.lastcy == this.game.camera.y)return;
+        this.lastcy = this.game.camera.y;
+        this.lastcx = this.game.camera.x;
+
+        var vx = this.game.camera.x;
+        var vy = this.game.camera.y;
+        var vw = this.game.camera.w;
+        var vh = this.game.camera.h;
+
+        var offx = vx - sx;
+        var offy = vy - sy;
+        var offCols = Math.floor(offx/this.tw);
+        var offRows = Math.floor(offy/this.th);
+        var cols = Math.floor(vw/this.tw)+1;
+        var rows = Math.floor(vh/this.th)+1;
+
+        this.range.col[0] = offCols;
+        this.range.col[1] = offCols + cols;
+        this.range.row[0] = offRows;
+        this.range.row[1] = offRows + rows;
+    },
+    onRender:function(g){
+        var minr = this.range.row[0],
+            maxr = this.range.row[1],
+            minc = this.range.col[0],
+            maxc = this.range.col[1];
+        for(var r=minr;r<maxr;r++){
+            for(var c=minc;c<maxc;c++){
+                var index = this.data[r*this.cols + c];
+                var tileImage = this.tilesets.set[index];
+                if(tileImage){
+                    g.map(tileImage,c*this.tw,r*this.th,this.tw,this.th);
+                    if(this.tilemap.__debug){
+                        g.fillText(r*this.cols + c,c*this.tw+this.tw/2,r*this.th+this.th/2-10);
+                        g.fillText(r+","+c,c*this.tw+this.tw/2,r*this.th+this.th/2+10);
+                    }
+                    
+                }
+            }
+        }
+        
     }
 });
+/**
+ * 瓦片地图。管理固定尺寸瓦片拼接的地图模型。这些地图通常由地图制作工具生成。
+ */
+var Tilemap = soya2d.class("",{
+    extends:Signal,
+    __signalHandler : new SignalHandler(),
+    constructor: function(data){
+        //瓦片大小
+        this.tilewidth = data.tilewidth;
+        this.tileheight = data.tileheight;
+
+        //地图大小
+        this.rows = data.rows;
+        this.columns = data.columns;
+
+        //图层数据
+        this.layersData = data.layers;
+        //图块集数据
+        this.tilesetsData = data.tilesets;
+
+
+        this.tilesets = {};
+        this.layers = {};
+
+        //记录所有tile的偏移坐标
+        this.tiles = {};
+
+        var i = 0;
+        for(var r=0;r<this.rows;r++){
+            for(var c=0;c<this.columns;c++){
+                var x = c * this.tilewidth;
+                var y = r * this.tileheight;
+                this.tiles[i++] = {x:x,y:y};
+            }
+        }
+
+        this.tileMatrix = {};
+        for(var r=0;r<this.rows;r++){
+            for(var c=0;c<this.columns;c++){
+                var x = c * this.tilewidth;
+                var y = r * this.tileheight;
+                this.tileMatrix[r+"_"+c] = {x:x,y:y};
+            }
+        }
+
+
+        this.w = this.tilewidth * this.columns;
+        this.h = this.tileheight * this.rows;
+
+        this.game = data.game;
+
+        //所有碰撞区
+        this.__blocks = [];
+
+        this.__debug = false;
+        Object.defineProperty(this,"debug",{
+            get:function(){
+                return this.__debug;
+            },
+            set:function(v){
+                this.__debug = v;
+                if(v){
+                    this.__blocks.forEach(function(b){
+                        b.fillStyle='red';
+                        b.opacity = .5;
+                    });
+                }
+            }
+        });
+    },
+    /**
+     * 把图块集数据和纹理绑定
+     * @param  {[type]} key   [description]
+     * @param  {[type]} image [description]
+     * @return {[type]}       [description]
+     */
+    bindTileset:function(key,image){
+        var tileset = this.tilesetsData[key];
+
+        var img = null;
+        if(typeof image === 'string'){
+            img = this.game.assets.image(image);
+        }
+        var ts = new Tileset(img,tileset.sid,this.tilewidth,this.tileheight);
+        
+        soya2d.ext(this.tilesets,ts);
+
+        return this;
+    },
+    /**
+     * 创建图层
+     * @param  {String} key  图层key，用于查找地图数据中对应的图层
+     * @param  {soya2d.DisplayObjectContainer} container 所属容器，默认world
+     * @param  {Array} data 地图数据
+     */
+    createLayer:function(key,container,data){
+        var layer = this.layersData[key];
+        var dataAry = data;
+        if(layer){
+            dataAry = layer.data;
+        }
+        this.layers[key] = new TilemapLayer(this,dataAry);
+        container = container || this.game.world;
+        container.add(this.layers[key]);
+        return this.layers[key];
+    },
+    /**
+     * 设置世界size和map相同
+     */
+    resizeWorld:function(){
+        this.game.world.setBounds(this.w,this.h);
+    },
+    /**
+     * 设置碰撞的瓦片序列区间，比如1-4，那么序号为1,2,3,4的4个瓦片都会响应碰撞
+     */
+    setCollisionBetween:function(start,end){
+        var startPos = this.tiles[start];
+        var endPos = this.tiles[end];
+        if(!startPos || !endPos)return;
+
+        var w = endPos.x - startPos.x + this.tilewidth;
+        var h = endPos.y - startPos.y + this.tileheight;
+
+        var block = game.add.rect({
+            w:w,
+            h:h,
+            x:startPos.x + w/2,
+            y:startPos.y + h/2
+        });
+        this.game.physics.enable(block);
+        block.tilemap = this;
+        block.on('collisionStart',onTileCollision);
+        block.body.static(true).friction(0);
+
+        this.__blocks.push(block);
+
+        return this;
+    },
+    /**
+     * 设置碰撞的瓦片序列区间，比如1-4，那么序号为1,2,3,4的4个瓦片都会响应碰撞
+     */
+    setCollision:function(row,col){
+        var startPos = this.tileMatrix[row+"_"+col];
+        if(!startPos)return;
+
+        var w = this.tilewidth;
+        var h = this.tileheight;
+
+        var block = game.add.rect({
+            w:w,
+            h:h,
+            x:startPos.x + w/2,
+            y:startPos.y + h/2
+        });
+        this.game.physics.enable(block);
+        block.tilemap = this;
+        block.on('collisionStart',onTileCollision);
+        block.body.static(true).friction(0);
+
+        this.__blocks.push(block);
+
+        return this;
+    },
+    /**
+     * 使用行列值，确定碰撞范围。
+     * @param {int} startRow 起始行
+     * @param {int} startCol 起始列
+     * @param {int} endRow   结束行
+     * @param {int} endCol   结束列
+     */
+    setCollisionZone:function(startRow,startCol,endRow,endCol){
+        var startPos = this.tileMatrix[startRow+"_"+startCol];
+        var endPos = this.tileMatrix[endRow+"_"+endCol];
+        if(!startPos || !endPos)return;
+
+        var w = endPos.x - startPos.x + this.tilewidth;
+        var h = endPos.y - startPos.y + this.tileheight;
+
+        var block = game.add.rect({
+            w:w,
+            h:h,
+            x:startPos.x + w/2,
+            y:startPos.y + h/2
+        });
+        block.tilemap = this;
+        block.on('collisionStart',onTileCollision);
+        this.game.physics.enable(block);
+        block.body.static(true).friction(0);
+
+        this.__blocks.push(block);
+
+        return this;
+    },
+    /**
+     * 获取指定行列上的tile对象
+     * @param  {[type]} row [description]
+     * @param  {[type]} col [description]
+     * @return {[type]}     [description]
+     */
+    getTile:function(row,col){
+        return this.tileMatrix[row+"_"+col];
+    }
+});
+function onTileCollision(target,another){
+    var tw = target.w,th = target.h;
+    var aw = another.w,ah = another.h;
+    var speed = another.body.rigid.speed;
+    var offset = 1;
+    var tx = target.x - target.w/2,
+        ty = target.y - target.h/2;
+    var ax = another.x - another.w/2,
+        ay = another.y - another.h/2;
+
+    var xPos,yPos;
+    if(ax >= tx){
+        xPos = 'center';
+        if(ax+speed+offset >= tx+tw){
+            xPos = 'right';
+        }
+    }else{
+        xPos = 'left';
+    }
+
+    if(ay >= ty){
+        yPos = 'middle';
+        if(ay > ty+th){
+            yPos = 'bottom';
+        }
+    }else{
+        yPos = 'top';
+    }
+    
+    var dir;
+    
+    switch(yPos){
+        case 'top':
+            if(ty < ay + ah){
+                switch(xPos){
+                    case 'left':dir='left';break;
+                    case 'right':dir='right';break;
+                    case 'center':dir='top';break;
+                }
+            }else{
+                dir='top';
+            }
+            break;
+        case 'bottom':dir='bottom';break;
+        case 'middle':
+            switch(xPos){
+                case 'left':dir='left';break;
+                case 'right':dir='right';break;
+            }
+    }
+    this.tilemap.emit('tileCollision',another,{direction:dir,x:this.x,y:this.y});
+}
+
+/**
+ * 图块集合。管理地图相关的图块信息。
+ * 图块集合以起始索引为基准，对每一个图块进行left-right/top-bottom方式的编号，
+ * 每个编号的图块都对应地图中的一个tile
+ */
+var Tileset = soya2d.class('',{
+    constructor:function(image,sIndex,tileWidth,tileHeight) {
+        this.set = {};
+        this.index = sIndex;
+
+        var ws = image.width / tileWidth;
+        var hs = image.height / tileHeight;
+        for(var i=0;i<hs;i++){
+            for(var j=0;j<ws;j++){
+                this.__getTileImage(image,j*tileWidth,i*tileHeight,tileWidth,tileHeight);
+            }
+        }
+
+    },
+    __getTileImage:function(image,x,y,w,h){
+        var data = document.createElement('canvas');
+        data.width = w;
+        data.height = h;
+        var ctx = data.getContext('2d');
+        ctx.translate(w/2,h/2);
+        ctx.drawImage(image,
+                        x,y,w,h,
+                        -w/2>>0,-h/2>>0,w,h);
+        this.set[this.index++] = data;
+    }
+});
+
+}(window||this);

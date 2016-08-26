@@ -1,427 +1,516 @@
 ﻿/**
- * @classdesc 显示对象类是引擎中的所有可见组件类的基类。
- * <br/>该类中包含的属性用来控制一个可见对象的显示效果以及渲染方式。<br/>
- 注意，该类不应直接实例化,应使用该类的子类或继承该类
- * @class 
+ * 显示对象是引擎中的所有可见对象的基类,该类中包含的属性用来控制一个可见对象的显示效果以及渲染方式。<br/>
+ 该类不能被实例化
+ * @class soya2d.DisplayObject
  * @param {Object} data 定义参数,见类参数定义
- * @author {@link http://weibo.com/soya2d MrSoya}
+ * @module display
  */
-soya2d.DisplayObject = function(data){
-    data = data||{};
-		
-	this.__seq = soya2d.__roIndex++;
-    /**
-     * 对父类的引用
-     * @var {soya2d.DisplayObject} soya2d.DisplayObject#_super
-     */
-    
-    /**
-     * 渲染对象id，只读
-     * @type {string}
-     */
-    this.roid = 'roid_' + this.__seq;
-    /**
-     * 名称
-     * @type {string}
-     */
-    this.name = data.name||this.roid;
-    /**
-     * 是否可见<br/>
-     * true:可见
-     * false:不可见
-     * @type boolean
-     * @default true
-     */
-    this.visible = data.visible===false?false:data.visible||true;
-    
-    this.__opacity = data.opacity===0?0:data.opacity||1;
-    this.__x = data.x||0;
-    this.__y = data.y||0;
-    this.__w = data.w||0;
-    this.__h = data.h||0;
-    this.__originX = data.originX === 0?0:(data.originX||'50%');
-    this.__originY = data.originY === 0?0:(data.originY||'50%');
-    this.__rotation = data.rotation||0;
-    this.__scaleX = data.scaleX||1;
-    this.__scaleY = data.scaleY||1;
-    this.__skewX = data.skewX||0;
-    this.__skewY = data.skewY||0;
-    Object.defineProperties(this,{
+soya2d.class("soya2d.DisplayObject",{
+    extends:Signal,
+    __signalHandler : new SignalHandler(),
+    constructor: function(data){
+        data = data||{};
+        	
+        this.__seq = soya2d.__roIndex++;
         /**
-         * 可见度0-1
-         * 1:不透明
-         * 0:全透明
-         * @type Number
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 1
+         * 对父类的引用
+         * @var {soya2d.DisplayObject} soya2d.DisplayObject#_super
          */
-        opacity:{
-            set:function(v){
-                if(v == 0)v = 0;
-                else{
-                    v = parseFloat(v)||1;
-                }
-                this.__opacity = v<0?0:v>1?1:v;
-            },
-            get:function(){
-                return this.__opacity;
-            },
-            enumerable:true
-        },
-        /**
-         * x坐标。使用top-left坐标系
-         * @type Number
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 0
-         */
-        x:{
-            set:function(v){
-                this.__x = v || 0;
-                this.__localChange = true;
-            },
-            get:function(){
-                return this.__x;
-            },
-            enumerable:true
-        },
-        /**
-         * y坐标。使用top-left坐标系
-         * @type Number
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 0
-         */
-        y:{
-            set:function(v){
-                this.__y = v || 0;
-                this.__localChange = true;
-            },
-            get:function(){
-                return this.__y;
-            },
-            enumerable:true
-        },
-        /**
-         * 宽度。和高度一起，标识对象的碰撞区、以及事件触发区<br/>
-         * *originX属性也依赖该属性
-         * @type Number
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 0
-         */
-        w:{
-            set:function(v){
-                this.__w = v;
-                this.__originChange = true;
-            },
-            get:function(){
-                return this.__w;
-            },
-            enumerable:true
-        },
-        /**
-         * 高度。和宽度一起，标识对象的碰撞区、以及事件触发区<br/>
-         * *originY属性也依赖该属性
-         * @type Number
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 0
-         */
-        h:{
-            set:function(v){
-                this.__h = v;
-                this.__originChange = true;
-            },
-            get:function(){
-                return this.__h;
-            },
-            enumerable:true
-        },
-        /**
-         * x轴参考点，对象变形时的原点,可以设置百分比字符串或者数字。
-         * @type {String|Number}
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 50%
-         */
-        originX:{
-            set:function(v){
-                this.__originX = v;
-                this.__originChange = true;
-            },
-            get:function(){
-                return this.__originX;
-            },
-            enumerable:true
-        },
-        /**
-         * y轴参考点，对象变形时的原点,可以设置百分比字符串或者数字。
-         * @type {String|Number}
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 50%
-         */
-        originY:{
-            set:function(v){
-                this.__originY = v;
-                this.__originChange = true;
-            },
-            get:function(){
-                return this.__originY;
-            },
-            enumerable:true
-        },
-        /**
-         * 当前旋转角度
-         * @type {Number}
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 0
-         */
-        rotation:{
-            set:function(v){
-                this.__rotation = v;
-                this.__localChange = true;
-            },
-            get:function(){
-                return this.__rotation;
-            },
-            enumerable:true
-        },
-        /**
-         * x轴缩放比<br/>
-         * 如果大于1，则会把对象横向拉伸<br/>
-         * 如果等于1，不改变<br/>
-         * 如果小于1，则会把对象横向缩短
-         * @type Number
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 1
-         */
-        scaleX:{
-            set:function(v){
-                this.__scaleX = v;
-                this.__localChange = true;
-            },
-            get:function(){
-                return this.__scaleX;
-            },
-            enumerable:true
-        },
-        /**
-         * y轴缩放比<br/>
-         * 如果大于1，则会把对象纵向拉伸<br/>
-         * 如果等于1，不改变<br/>
-         * 如果小于1，则会把对象纵向缩短
-         * @type Number
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 1
-         */
-        scaleY:{
-            set:function(v){
-                this.__scaleY = v;
-                this.__localChange = true;
-            },
-            get:function(){
-                return this.__scaleY;
-            },
-            enumerable:true
-        },
-        /**
-         * x轴偏移角。单位：角度
-         * @type Number
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 0
-         */
-        skewX:{
-            set:function(v){
-                this.__skewX = v;
-                this.__localChange = true;
-            },
-            get:function(){
-                return this.__skewX;
-            },
-            enumerable:true
-        },
-        /**
-         * y轴偏移角。单位：角度
-         * @type Number
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default 0
-         */
-        skewY:{
-            set:function(v){
-                this.__skewY = v;
-                this.__localChange = true;
-            },
-            get:function(){
-                return this.__skewY;
-            },
-            enumerable:true
-        }
-    });
-   
-    /**
-     * z坐标。标识对象所属图层，并且引擎会按照z值的大小进行渲染
-     * @type Number
-     * @default 0
-     */
-    this.z = data.z||0;
-    /**
-     * 是否需要本地变换
-     * @type {Boolean}
-     * @private
-     */
-    this.__localChange = true;
-    /**
-     * 是否需要参考点变换
-     * @type {Boolean}
-     * @private
-     */
-    this.__originChange = true;
-    /**
-     * 本地变形
-     * @type {soya2d.Matrix2x2}
-     * @private
-     */
-    this.__localTransform = new soya2d.Matrix2x2();
-    /**
-     * 世界变形，用于渲染
-     * @type {soya2d.Matrix2x2}
-     * @private
-     */
-    this.__worldTransform = new soya2d.Matrix2x2();
-    this.__worldPosition = new soya2d.Vector();
-    this.__originPosition = new soya2d.Vector();
-    /**
-     * 混合方式
-     * @type String
-     * @default soya2d.BLEND_NORMAL
-     * @see soya2d.BLEND_NORMAL
-     */
-    this.blendMode = data.blendMode || 'source-over';
 
-    this.__mask = data.mask || null;
-    Object.defineProperties(this,{
         /**
-         * 遮罩。可以是一个绘制的简单图形比如圆，也可以是包含了多个形状子节点的复合形状。
-         * 被用于遮罩的对象只能同时存在一个需要遮罩的对象上，多次设置只会保留最后一次，
-         * 并且被用于遮罩的对象不会出现在画面上<br/>
-         * *如果需要动态控制遮罩对象，需要把遮罩对象添加到场景中
-         * @type {soya2d.DisplayObject}
-         * @instance
-         * @memberof soya2d.DisplayObject
-         * @default null; 
+         * 渲染对象id，只读
+         * @type {string}
          */
-        mask:{
-            set:function(m){
-                if(m){
-                    if(m.__masker){
-                        m.__masker.__mask = null;
+        this.roid = 'roid_' + this.__seq;
+        /**
+         * 名称
+         * @type {string}
+         */
+        this.name = data.name||this.roid;
+        /**
+         * 是否可见<br/>
+         * true:可见
+         * false:不可见
+         * @type boolean
+         * @default true
+         */
+        this.visible = data.visible===false?false:data.visible||true;
+        /**
+         * 布局对象，属性列表如下：
+         * left 当值是百分比时，相对父类的宽度
+         * top  当值是百分比时，相对父类的高度
+         * offsetLeft 当值是百分比时，相对自身的宽度
+         * offsetTop 当值是百分比时，相对自身的高度
+         * 都支持数值和百分比
+         * @type {Object}
+         */
+        this.layout = data.layout;
+
+        this.__opacity = data.opacity===0?0:data.opacity||1;
+        this.__x = data.x||0;
+        this.__y = data.y||0;
+        this.__w = data.w||0;
+        this.__h = data.h||0;
+        this.__anchorX = data.anchorX === 0?0:(data.anchorX||'50%');
+        this.__anchorY = data.anchorY === 0?0:(data.anchorY||'50%');
+        this.__angle = data.angle||0;
+        this.__scaleX = data.scaleX==0?0:data.scaleX||1;
+        this.__scaleY = data.scaleY==0?0:data.scaleY||1;
+        this.__skewX = data.skewX||0;
+        this.__skewY = data.skewY||0;
+
+        Object.defineProperties(this,{
+            /**
+             * 可见度0-1
+             * 1:不透明
+             * 0:全透明
+             * @type Number
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 1
+             */
+            opacity:{
+                set:function(v){
+                    if(v == 0)v = 0;
+                    else{
+                        v = parseFloat(v)||1;
                     }
-                    this.__mask = m;
-                    m.__masker = this;
-                }
+                    this.__opacity = v<0?0:v>1?1:v;
+                },
+                get:function(){
+                    return this.__opacity;
+                },
+                enumerable:true
             },
-            get:function(){
-                return this.__mask;
-            },
-            enumerable:true
-        }
-    });
-    /**
-     * 使用当前对象作为遮罩的对象，如果该属性有值，则不会被渲染
-     * @private
-     */
-    this.__masker = null;
-    /**
-     * 对象范围，用于拾取测试和物理碰撞
-     * @type {soya2d.Rectangle | soya2d.Circle | soya2d.Polygon}
-     * @default soya2d.Rectangle实例
-     */
-    this.bounds = data.bounds || new soya2d.Rectangle(0,0,this.__w,this.__h);
-    /**
-     * 存储boundingbox
-     * @private
-     */
-    this.__boundRect = new soya2d.Rectangle(0,0,1,1);
-    /**
-     * 对象在物理世界中的实体
-     * @type {Object}
-     */
-    this.body = null;
-    /**
-     * 对象所属的游戏实例。当对象被添加到一个game上时，该值为game实例的引用。
-     * 当对象被创建或从game实例上删除时，该值为null<br/>
-     * 必须先创建game实例(这样引擎会自动引用该实例)或者显式指定game参数，否则会引起异常
-     * @default null
-     * @readOnly
-     * @type {soya2d.Game}
-     */
-    this.game = data.game || soya2d.games[0];
-    /**
-     * 对象缓存的的内部图形。删除该属性可以取消缓存
-     * @type {HTMLCanvasElement}
-     * @default null 
-     */
-    this.imageCache = null;
-    this.__updateCache = false;
+            /**
+             * x坐标。使用top-left坐标系
+             * @type Number
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 0
+             */
+            x:{
+                set:function(v){
+                    this.__x = v || 0;
+                    this.__localChange = true;
 
-    //check valid
-    if(!this.game){
-        throw new Error('soya2d.DisplayObject: invalid param [game]; '+this.game);
-    }
-};
-/**
- * @name soya2d.DisplayObject#onRender
- * @desc 渲染事件，每帧触法。在该回调中使用绘图对象g进行图像绘制
- * @event
- * @param {soya2d.CanvasGraphics} g 绘图对象，根据渲染器类型不同而不同
- */
-/**
- * @name soya2d.DisplayObject#onUpdate
- * @desc 更新事件，每帧触法。在该回调中可以编写更新逻辑
- * @event
- * @param {soya2d.Game} game 当前精灵所在的游戏实例
- */
- 
-//扩展方法包装
-soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.prototype */{
+                    if(this.game.physics.running){
+                        this.body.moveTo(this.__x,this.__y);
+                    }
+                },
+                get:function(){
+                    return this.__x;
+                },
+                enumerable:true
+            },
+            /**
+             * y坐标。使用top-left坐标系
+             * @type Number
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 0
+             */
+            y:{
+                set:function(v){
+                    this.__y = v || 0;
+                    this.__localChange = true;
+
+                    if(this.game.physics.running){
+                        this.body.moveTo(this.__x,this.__y);
+                    }
+                },
+                get:function(){
+                    return this.__y;
+                },
+                enumerable:true
+            },
+            /**
+             * 宽度。和高度一起，标识对象的碰撞区、以及事件触发区<br/>
+             * *anchorX属性也依赖该属性
+             * @type Number
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 0
+             */
+            w:{
+                set:function(v){
+                    this.__w = v;
+                    this.__anchorChange = true;
+                },
+                get:function(){
+                    return this.__w;
+                },
+                enumerable:true
+            },
+            /**
+             * 高度。和宽度一起，标识对象的碰撞区、以及事件触发区<br/>
+             * *anchorY属性也依赖该属性
+             * @type Number
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 0
+             */
+            h:{
+                set:function(v){
+                    this.__h = v;
+                    this.__anchorChange = true;
+                },
+                get:function(){
+                    return this.__h;
+                },
+                enumerable:true
+            },
+            /**
+             * x轴参考点，对象变形时的原点,可以设置百分比字符串或者数字。
+             * @type {String|Number}
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 0
+             */
+            anchorX:{
+                set:function(v){
+                    this.__anchorX = v;
+                    this.__anchorChange = true;
+                },
+                get:function(){
+                    return this.__anchorX;
+                },
+                enumerable:true
+            },
+            /**
+             * y轴参考点，对象变形时的原点,可以设置百分比字符串或者数字。
+             * @type {String|Number}
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 0
+             */
+            anchorY:{
+                set:function(v){
+                    this.__anchorY = v;
+                    this.__anchorChange = true;
+                },
+                get:function(){
+                    return this.__anchorY;
+                },
+                enumerable:true
+            },
+            /**
+             * 当前旋转角度
+             * @type {Number}
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 0
+             */
+            angle:{
+                set:function(v){
+                    this.__angle = v;
+                    this.__localChange = true;
+
+                    if(this.game.physics.running){
+                        this.body.rotateTo(this.__angle);
+                    }
+                },
+                get:function(){
+                    return this.__angle;
+                },
+                enumerable:true
+            },
+            /**
+             * x轴缩放比<br/>
+             * 如果大于1，则会把对象横向拉伸<br/>
+             * 如果等于1，不改变<br/>
+             * 如果小于1，则会把对象横向缩短
+             * @type Number
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 1
+             */
+            scaleX:{
+                set:function(v){
+                    this.__scaleX = v;
+                    this.__localChange = true;
+                },
+                get:function(){
+                    return this.__scaleX;
+                },
+                enumerable:true
+            },
+            /**
+             * y轴缩放比<br/>
+             * 如果大于1，则会把对象纵向拉伸<br/>
+             * 如果等于1，不改变<br/>
+             * 如果小于1，则会把对象纵向缩短
+             * @type Number
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 1
+             */
+            scaleY:{
+                set:function(v){
+                    this.__scaleY = v;
+                    this.__localChange = true;
+                },
+                get:function(){
+                    return this.__scaleY;
+                },
+                enumerable:true
+            },
+            /**
+             * x轴偏移角。单位：角度
+             * @type Number
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 0
+             */
+            skewX:{
+                set:function(v){
+                    this.__skewX = v;
+                    this.__localChange = true;
+                },
+                get:function(){
+                    return this.__skewX;
+                },
+                enumerable:true
+            },
+            /**
+             * y轴偏移角。单位：角度
+             * @type Number
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default 0
+             */
+            skewY:{
+                set:function(v){
+                    this.__skewY = v;
+                    this.__localChange = true;
+                },
+                get:function(){
+                    return this.__skewY;
+                },
+                enumerable:true
+            }
+        });
+
+        /**
+         * z坐标。标识对象所属图层，并且引擎会按照z值的大小进行渲染
+         * @type Number
+         * @default 0
+         */
+        this.z = data.z||0;
+        /**
+         * 是否需要本地变换
+         * @type {Boolean}
+         * @private
+         */
+        this.__localChange = true;
+        /**
+         * 是否需要参考点变换
+         * @type {Boolean}
+         * @private
+         */
+        this.__anchorChange = true;
+        /**
+         * 本地变形
+         * @type {soya2d.Matrix2x2}
+         * @private
+         */
+        this.__localTransform = new soya2d.Matrix2x2();
+        /**
+         * 世界变形，用于渲染
+         * @type {soya2d.Matrix2x2}
+         * @private
+         */
+        this.__worldTransform = new soya2d.Matrix2x2();
+        /**
+         * 世界坐标
+         * @readOnly
+         * @type {soya2d.Point}
+         */
+        this.worldPosition = new soya2d.Point();
+        /**
+         * 锚点坐标
+         * @readOnly
+         * @type {soya2d.Point}
+         */
+        this.anchorPosition = new soya2d.Point();
+        /**
+         * 屏幕坐标
+         * @type {soya2d}
+         */
+        this.__screenPosition = new soya2d.Point();
+        /**
+         * 混合方式
+         * @type String
+         * @default soya2d.BLEND_NORMAL
+         * @see soya2d.BLEND_NORMAL
+         */
+        this.blendMode = data.blendMode || 'source-over';
+
+        this.__mask = data.mask || null;
+        this.__fixedToCamera = data.fixedToCamera || false;
+        Object.defineProperties(this,{
+            /**
+             * 遮罩。可以是一个绘制的简单图形比如圆，也可以是包含了多个形状子节点的复合形状。
+             * 被用于遮罩的对象只能同时存在一个需要遮罩的对象上，多次设置只会保留最后一次，
+             * 并且被用于遮罩的对象不会出现在画面上<br/>
+             * *如果需要动态控制遮罩对象，需要把遮罩对象添加到场景中
+             * @type {soya2d.DisplayObject}
+             * @instance
+             * @memberof soya2d.DisplayObject
+             * @default null; 
+             */
+            mask:{
+                set:function(m){
+                    if(m){
+                        if(m.__masker){
+                            m.__masker.__mask = null;
+                        }
+                        this.__mask = m;
+                        m.__masker = this;
+                    }
+                },
+                get:function(){
+                    return this.__mask;
+                },
+                enumerable:true
+            },
+            /**
+             * 是否固定到摄像机。如果该属性为true，当摄像机移动时，精灵会固定在摄像机的指定位置
+             * @type {Boolean}
+             */
+            fixedToCamera:{
+                set:function(v){
+                    this.__fixedToCamera = v;
+                    if(v)
+                        this.cameraOffset.set(this.x,this.y);
+                },
+                get:function(){
+                    return this.__fixedToCamera;
+                },
+                enumerable:true
+            }
+        });
+        /**
+         * 使用当前对象作为遮罩的对象，如果该属性有值，则不会被渲染
+         * @private
+         */
+        this.__masker = null;
+        /**
+         * 对象范围，用于拾取测试和物理碰撞
+         * @type {soya2d.Rectangle | soya2d.Circle | soya2d.Polygon}
+         * @default soya2d.Rectangle实例
+         */
+        this.bounds = data.bounds || new soya2d.Rectangle(0,0,this.__w,this.__h);
+        /**
+         * 存储boundingbox
+         * @private
+         */
+        this.__boundRect = new soya2d.Rectangle(0,0,1,1);
+        /**
+         * 对象在物理世界中的实体
+         * @type {Body}
+         */
+        this.body = new Body(this);
+        /**
+         * 对象所属的游戏实例。当对象被添加到一个game上时，该值为game实例的引用。
+         * 当对象被创建或从game实例上删除时，该值为null<br/>
+         * 必须先创建game实例(这样引擎会自动引用该实例)或者显式指定game参数，否则会引起异常
+         * @default null
+         * @readOnly
+         * @type {soya2d.Game}
+         */
+        this.game = data.game || soya2d.games[0];
+        /**
+         * 对象缓存的的内部图形。删除该属性可以取消缓存
+         * @type {HTMLCanvasElement}
+         * @default null 
+         */
+        this.imageCache = null;
+        this.__updateCache = false;
+
+        /**
+         * 相对镜头左上角的偏移对象，默认{x:0,y:0}
+         * @type {Object}
+         */
+        this.cameraOffset = new soya2d.Point();
+
+        //check valid
+        if(!this.game){
+            throw new Error('soya2d.DisplayObject: invalid param [game]; '+this.game);
+        }
+
+        soya2d.ext(this, data);
+
+        this.fixedToCamera = this.__fixedToCamera;
+    },
+    __onAdded:function(){
+        this.centerX = this.w/2;
+        this.centerY = this.h/2;
+        this.setLayout(this.layout);
+
+        //calc camera offset
+        if(this.fixedToCamera && this.layout){
+            this.cameraOffset.set(this.x,this.y);
+        }
+
+        if(this.onAdded)this.onAdded();
+    },
+    setLayout:function(layout){
+        if(!layout)return this;
+        
+        var l = layout.left || 0;
+        var t = layout.top || 0;
+        var w = layout.width;
+        var h = layout.height;
+        var ol = layout.offsetLeft;
+        var ot = layout.offsetTop;
+
+        if(w)
+        this.__w = getXW(w,this.parent)||0;
+        if(h)
+        this.__h = getYH(h,this.parent)||0;
+
+        var offL = 0;
+        var offT = 0;
+        if(ol)offL = getOff(ol,this.__w);
+        if(ot)offT = getOff(ot,this.__h);
+
+        if(l || ol)
+        this.__x = getXW(l,this.parent) + offL;
+        if(t || ot)
+        this.__y = getYH(t,this.parent) + offT;
+
+        return this;
+    },
     toString:function(){
         return '{roid:"'+this.roid+'";name:"'+this.name+'"}';
     },
     /**
-     * 更新本地和世界变形
+     * 更新本地和世界变换
      */
-    updateTransform:function(){
+    transform:function(){
         var x = this.__x,
             y = this.__y;
         if(this.__localChange){
             this.__localTransform.identity();
             this.__localTransform
             .scale(this.__scaleX,this.__scaleY)
-            .rotate(this.__rotation).skew(this.__skewX,this.__skewY);
+            .rotate(this.__angle).skew(this.__skewX,this.__skewY);
         }
 
         var lt = this.__localTransform;
         var wt = this.__worldTransform;
-        var op = this.__originPosition;
+        var ap = this.anchorPosition;
         var le = lt.e;
-        var oe = op.e;
 
-        var ox=oe[0],oy=oe[1];
-        if(this.__originChange){
-            ox = this.__originX,
-            oy = this.__originY;
+        var ox=ap.x,oy=ap.y;
+        if(this.__anchorChange){
+            ox = this.__anchorX,
+            oy = this.__anchorY;
             ox = typeof ox==='number'?ox:parseFloat(ox)/100* this.__w,
             oy = typeof oy==='number'?oy:parseFloat(oy)/100* this.__h;
 
-            op.set(ox,oy);
+            ap.set(ox,oy);
         }
         //css style
         x += ox,
@@ -432,24 +521,46 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
         if(this.parent){
             var pt = this.parent.__worldTransform;
             var pte = pt.e;
-            var ppe = this.parent.__worldPosition.e;
-            var poe = this.parent.__originPosition.e;
-            var popx = poe[0]*pte[0]+poe[1]*pte[2],
-                popy = poe[0]*pte[1]+poe[1]*pte[3];
+            var pwp = this.parent.worldPosition;
+            var pap = this.parent.anchorPosition;
+            var popx = pap.x*pte[0]+pap.y*pte[2],
+                popy = pap.x*pte[1]+pap.y*pte[3];
             
 
             var wx = x*pte[0]+y*pte[2],
                 wy = x*pte[1]+y*pte[3];
 
-            x = wx + ppe[0] - popx,
-            y = wy + ppe[1] - popy;
+            x = wx + pwp.x - popx,
+            y = wy + pwp.y - popy;
 
             wt.mul(pt);
         }
-        this.__worldPosition.set(x,y);
+
+
+
+        // if(this.__fixedToCamera){
+        //     var camera = this.game.camera;
+        //     x = camera.x + this.cameraOffset.x;
+        //     y = camera.y + this.cameraOffset.y;
+
+        //     this.__fixedDO = true;
+        // }else if(this.parent && this.parent.__fixedDO){
+        //     this.__fixedDO = true;
+
+        //     x += this.parent.anchorPosition.x;
+        //     y += this.parent.anchorPosition.y;
+        // }
+
+        //physics
+        if(this.body.rigid){
+            x -= ap.x;
+            y -= ap.y;
+        }
+
+        this.worldPosition.set(x,y);
 
         //重置变换标识
-        this.__localChange = this.__originChange = false;
+        this.__localChange = this.__anchorChange = false;
     },
     /**
      * 返回当前对象是否被渲染了
@@ -460,6 +571,7 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
         var p = this.parent;
         while(p){
             if(!p.visible || p.opacity===0)return false;
+            if(!p.parent && !(p instanceof Stage))return false;
             p = p.parent;
         }
         return true;
@@ -480,8 +592,9 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
             || i==='roid' 
 			|| i==='__localTransform'
             || i==='__worldTransform'
-            || i==='__worldPosition'
-            || i==='__originPosition'
+            || i==='worldPosition'
+            || i==='anchorPosition'
+            || i==='__screenPosition'
 
             )continue;
             if(!isRecur && i==='children')continue;      
@@ -647,12 +760,12 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
      * @param {String|Number} y 相对精灵左上角的y坐标偏移,可以设置百分比字符串或者数字
      * @return this
      */
-    originBy:function(x,y){
+    anchorBy:function(x,y){
         var a1 = arguments[0] || 0;
         var a2 = arguments[1]===0?0:arguments[1]|| a1;
 
-        this.originX += a1;
-        this.originY += a2;
+        this.anchorX += a1;
+        this.anchorY += a2;
         return this;
     },
     /**
@@ -661,17 +774,17 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
      * @param {String|Number} y 相对精灵左上角的y坐标偏移,可以设置百分比字符串或者数字
      * @return this
      */
-    originTo:function(x,y){
+    anchorTo:function(x,y){
         var a1 = arguments[0] || 0;
         var a2 = arguments[1]===0?0:arguments[1]|| a1;
 
-        this.originX = a1;
-        this.originY = a2;
+        this.anchorX = a1;
+        this.anchorY = a2;
         return this;
     },
     /**
      * 返回该对象当前变形状态的4个顶点<br/>
-     * *该方法依赖对象的[x、y、w、h、originX、originY]6个属性
+     * *该方法依赖对象的[x、y、w、h、anchorX、anchorY]6个属性
      * @return {Array} [ topLeftX,topLeftY,
      *                  topRightX,topRightY,
      *                  bottomRightX,bottomRightY,
@@ -680,12 +793,12 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
     getBoundingPoints:function(){
         //加载矩阵
         var e = this.__worldTransform.e;
-        var p = this.__worldPosition.e;
-        var op = this.__originPosition.e;
-        var bx = p[0],by = p[1];
+        var wp = this.worldPosition;
+        var ap = this.anchorPosition;
+        var bx = wp.x,by = wp.y;
         var m11 = e[0],m12 = e[1],
             m21 = e[2],m22 = e[3];
-        var ox = op[0],oy = op[1];
+        var ox = ap.x,oy = ap.y;
 
         //计算原始顶点
         var tl_x = -ox,tl_y = -oy;
@@ -693,7 +806,6 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
         var bl_x = -ox,bl_y = this.h-oy;
         var br_x = this.w-ox,br_y = this.h-oy;
         
-
         //计算顶点[x,y,1] * m
         return [tl_x*m11+tl_y*m21+bx,tl_x*m12+tl_y*m22+by,
             tr_x*m11+tr_y*m21+bx,tr_x*m12+tr_y*m22+by,
@@ -703,7 +815,7 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
     },
     /**
      * 返回该对象当前变形状态的包围矩形<br/>
-     * *该方法依赖对象的[x、y、w、h、originX、originY]6个属性
+     * *该方法依赖对象的[x、y、w、h、anchorX、anchorY]6个属性
      * @return {soya2d.Rectangle} 矩形几何对象
      */
     getBoundingBox:function(){
@@ -719,9 +831,10 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
                 if(xys[i]<minY)minY=xys[i];
             }
         }
-        sx = minX,sy = minY;
-        sw = maxX - minX;
-        sh = maxY - minY;
+        var sx = minX,
+            sy = minY,
+            sw = maxX - minX,
+            sh = maxY - minY;
 
         this.__boundRect.x = sx;
         this.__boundRect.y = sy;
@@ -738,20 +851,20 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
      * @see soya2d.DisplayObject#bounds
      */
     hitTest:function(x,y){
-        var p = this.__worldPosition.e;
+        var wp = this.worldPosition;
         if(this.bounds instanceof soya2d.Circle){
-            var dis = Math.abs(soya2d.Math.len2D(p[0],p[1],x,y));
+            var dis = Math.abs(soya2d.Math.len2D(wp.x,wp.y,x,y));
             if(dis <= this.bounds.r)return true;
         }else if(this.bounds instanceof soya2d.Rectangle ||
             this.bounds instanceof soya2d.Polygon){
             var vtx;
             if(this.bounds.vtx){
                 var e = this.__worldTransform.e;
-                var op = this.__originPosition.e;
-                var bx = p[0],by = p[1];
+                var ap = this.anchorPosition;
+                var bx = wp.x,by = wp.y;
                 var m11 = e[0],m12 = e[1],
                     m21 = e[2],m22 = e[3];
-                var ox = op[0],oy = op[1];
+                var ox = ap.x,oy = ap.y;
 
                 //计算原始顶点
                 var tl_x = -ox,tl_y = -oy;
@@ -793,22 +906,33 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
 
         return false;
     },
+    /**
+     * 检测两个对象是否相交
+     * @param  {DisplayObject} obj
+     * @return {Boolean}
+     */
+    intersectWith:function(obj) {
+        var sb = this.getBoundingBox();
+        var db = obj.getBoundingBox();
+
+        return sb.intersectWith(db);
+    },
     getAnchorPosition:function(){
         //加载矩阵
         var e = this.__worldTransform.e;
-        var p = this.__worldPosition.e;
-        var op = this.__originPosition.e;
-        var bx = p[0],by = p[1];
+        var wp = this.worldPosition;
+        var ap = this.anchorPosition;
+        var bx = wp.x,by = wp.y;
         var m11 = e[0],m12 = e[1],
             m21 = e[2],m22 = e[3];
-        var ox = op[0],oy = op[1];
+        var ox = ap.x,oy = ap.y;
 
         //计算原始顶点
         var tl_x = -ox,tl_y = -oy;
         
         //计算原始锚点
-        var anchorX = this.w * parseInt(this.originX)/100,
-            anchorY = this.h * parseInt(this.originY)/100;
+        var anchorX = this.w * parseInt(this.anchorX)/100,
+            anchorY = this.h * parseInt(this.anchorY)/100;
         //求出0°时的半径
         var r = Math.sqrt(anchorY*anchorY + anchorX*anchorX);
         //计算出锚点和左上角的夹角
@@ -834,11 +958,105 @@ soya2d.ext(soya2d.DisplayObject.prototype,/** @lends soya2d.DisplayObject.protot
         this.imageCache.width = this.__w;
         this.imageCache.height = this.__h;
         //redraw
-        this.updateTransform();
+        this.transform();
         this.__updateCache = true;
         var ctx = this.imageCache.getContext('2d');
         var g = new soya2d.CanvasGraphics(ctx);
-        this.game.getRenderer().renderDO(ctx,this,g,true);
+        this.game.renderer.renderDO(this.game.camera.__view,ctx,this,g,true);
         this.__updateCache = false;
+    },
+    /**
+     * 销毁当前对象，以及所有子对象
+     * @return {[type]} [description]
+     */
+    destroy:function(){
+        game.physics.unbind(this);
+        this.off();//remove all signals
+        if(!this.__seq)return;
+        if(this.children.length>0){
+            this.children.forEach(function(child){
+                child.destroy();
+            });
+        }
+        var ks = Object.keys(this);
+        for(var i=ks.length;i--;){
+            if(ks[i].indexOf('__') < 0)continue;
+            this[ks[i]] = null;
+        }
+        if(this.parent)
+            this.parent.remove(this);
+
+        this.onRender = 
+        this.onUpdate = 
+        this.parent = 
+        this.children = 
+        this.imageCache =
+        this.fillStyle = 
+        this.game = 
+        this.body = null;
     }
 });
+
+function getXW(val,parent){
+    if(/^(-?\d+)%$/.test(val)){
+        var per = parseFloat(RegExp.$1) / 100;
+        return getW(parent,per);
+    }else{
+        return val;
+    }
+}
+function getYH(val,parent){
+    if(/^(-?\d+)%$/.test(val)){
+        var per = parseFloat(RegExp.$1) / 100;
+        return getH(parent,per);
+    }else{
+        return val;
+    }
+}
+
+function getOff(offset,typeVal){
+    if(!isNaN(offset))return parseFloat(offset);
+
+    var off = typeVal;
+    var per = 0;
+    if(/^(-?\d+)%$/.test(offset)){
+        per = parseFloat(RegExp.$1) / 100;
+    }
+    return off*per;
+}
+
+function getW(parent,rate){
+    var pw = parent.w;
+    if(pw === 0 && parent.parent){
+        return getW(parent.parent,rate);
+    }
+    return pw * rate;
+}
+function getH(parent,rate){
+    var ph = parent.h;
+    if(ph === 0 && parent.parent){
+        return getH(parent.parent,rate);
+    }
+    return ph * rate;
+}
+
+/**
+ * @name soya2d.DisplayObject#onRender
+ * @desc 渲染事件，每帧触法。在该回调中使用绘图对象g进行图像绘制
+ * @event
+ * @param {soya2d.CanvasGraphics} g 绘图对象，根据渲染器类型不同而不同
+ */
+/**
+ * @name soya2d.DisplayObject#onUpdate
+ * @desc 更新事件，每帧触法。在该回调中可以编写更新逻辑
+ * @event
+ * @param {soya2d.Game} game 当前精灵所在的游戏实例
+ */
+
+
+// soya2d.ALIGN_LEFT = 'left';
+// soya2d.ALIGN_CENTER = 'center';
+// soya2d.ALIGN_RIGHT = 'right';
+// soya2d.ALIGN_TOP = 'top';
+// soya2d.ALIGN_MIDDLE = 'middle';
+// soya2d.ALIGN_BOTTOM = 'bottom';

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<world>
+	<sprite images="background_1">
+		<group id="startUI">
+			<sprite images="title" layout-left="50%" layout-offsetLeft="-50%" y="20">
+			</sprite>
+
+			<sprite id="playBtn" images="tlacidlo" layout-left="50%" layout-offsetLeft="-50%" w="300" y="300"
+				on-pointdown="selectUser">
+				<text layout-left="50%" layout-offsetLeft="-50%" y="10" 
+				fillStyle="#fff" font="normal 30px/normal vt323">
+					PLAY
+				</text>
+			</sprite>
+			<sprite id="soundBtn" images="tlacidlo" 
+				layout-left="50%" layout-offsetLeft="-50%" w="300" y="400"
+				on-pointdown="toggleSound">
+				<text layout-left="50%" layout-offsetLeft="-50%" y="10" 
+				fillStyle="#fff" font="normal 30px/normal vt323">
+					SOUND ON
+				</text>
+			</sprite>
+		</group>
+
+		<group id="userUI" visible="false">
+			<sprite images="userbox" id="userbox"
+			layout-left="50%" layout-offsetLeft="-50%" y="60" w="360" h="300" on-pointdown="changeUser">
+				<text id="name" layout-left="50%" layout-offsetLeft="-50%" y="60" 
+				fillStyle="#7a4d0b" font="normal 40px/normal vt323">LOGAN</text>
+
+				<sprite images="hero_logan_menu" id="hero"
+					layout-left="50%" layout-offsetLeft="-50%" y="100">
+				</sprite>
+
+				<sprite id="hla" atlas="hArrows" layout-left="10%" layout-top="50%" layout-offsetTop="-50%">
+				</sprite>
+				<sprite id="hra" atlas="hArrows" frameIndex="1" layout-left="85%" layout-top="50%" layout-offsetTop="-50%">
+				</sprite>
+			</sprite>
+			<sprite id="playBtn2" images="tlacidlo" 
+				layout-left="50%" layout-offsetLeft="-50%" w="300" y="400"
+				on-pointdown="play">
+				<text layout-left="50%" layout-offsetLeft="-50%" y="10" 
+				fillStyle="#fff" font="normal 30px/normal vt323">
+					PLAY
+				</text>
+			</sprite>
+		</group>
+
+
+		<sprite images="back" id="back" visible="false" on-pointdown="back"
+			layout-left="100%" layout-offsetLeft="-100%" layout-top="100%" layout-offsetTop="-100%"></sprite>
+
+		<text layout-left="50%" layout-offsetLeft="-50%" layout-top="100%" layout-offsetTop="-50" 
+			fillStyle="#fff" font="normal 30px/normal vt323">
+			MADE BY SOYA2D
+		</text>
+	</sprite>
+</world>

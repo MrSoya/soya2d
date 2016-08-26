@@ -1,7 +1,6 @@
 ﻿/**
  * 引擎当前运行所在设备的信息<br/>
  * @namespace soya2d.Device
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Device = new function(){
   	var userAgent = this.userAgent = self.navigator.userAgent.toLowerCase();

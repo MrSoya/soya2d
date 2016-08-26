@@ -5,12 +5,12 @@ soya2d.module.install('sound',{
          * 声音管理器
          * @type {soya2d.SoundManager}
          * @memberOf! soya2d.Game#
-         * @alias soundManager
+         * @alias sound
          * @requires sound
          */
-        game.soundManager = new soya2d.SoundManager();
+        game.sound = new soya2d.SoundManager(game);
     },
     onStop:function(game){
-        game.soundManager.stopAll();
+        game.sound.stopAll();
     }
 });

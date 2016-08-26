@@ -1,18 +1,18 @@
 ﻿/**
- * 使用纹理集对象，构建一个图像字体类。
- * @classdesc 图像字体类用于创建一个传递给文本精灵的字体对象，通过图片和映射文件创建。映射文件同精灵表。其实n为需要
+ * 使用图像集对象，构建一个图像字体类。
+ * 图像字体类用于创建一个传递给文本精灵的字体对象，通过图片和映射文件创建。映射文件同精灵表。其实n为需要
  * 替换的字符
  * @class
- * @param {soya2d.TextureAtlas} data 用于字体映射的纹理集对象
- * @author {@link http://weibo.com/soya2d MrSoya}
+ * @param {soya2d.Atlas} data 用于字体映射的图像集对象
+ * @param {Number} size 图像字体大小
  */
-soya2d.ImageFont = function(data){
+soya2d.ImageFont = function(data,size){
     
     this.__fontMap = data;
 
-    var oriFontSize = data.texs[Object.keys(data.texs)[0]].h;
+    var oriFontSize = data.texs[Object.keys(data.texs)[0]].height;
     this.fontSize = oriFontSize;
-    var fontWidth = data.texs[Object.keys(data.texs)[0]].w
+    this.fontWidth = data.texs[Object.keys(data.texs)[0]].width;
     var scaleRate = 1;//缩放比率
     var lineH = 1;
 
@@ -31,15 +31,15 @@ soya2d.ImageFont = function(data){
             var offx = 0;
             for(var j=0,k=text.length;j<k;j++){
                 var c = text[j];
-                var tex = this.font.__fontMap.getTexture(c);
+                var tex = this.font.__fontMap.get(c);
                 if(tex){
-                    var w = tex.w*scaleRate;
-                    var h = tex.h*scaleRate
+                    var w = tex.width*scaleRate;
+                    var h = tex.height*scaleRate
                     lastW = w;
                     
                     g.map(tex,
                             offx, offy, w, h,
-                            0, 0, tex.w, tex.h);
+                            0, 0, tex.width, tex.height);
                 }
                 
                 offx += lastW + this.letterSpacing;
@@ -77,6 +77,8 @@ soya2d.ImageFont = function(data){
      */
     this.getBounds = function(str){
         var len = str.length;
-        return {w:len*fontWidth*scaleRate,h:this.fontSize};
+        return {w:len*this.fontWidth*scaleRate,h:this.fontSize};
     }
+
+    if(size)this.size(size);
 };

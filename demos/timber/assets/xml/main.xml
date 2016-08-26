@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<world>
+	<sprite images="background_1" id="bg" on-pointdown="cut">
+
+		<sprite id="hero" atlas="hero_logan" frameRate="10" layout-top="80%" layout-offsetTop="-50%" z="9">
+		</sprite>
+
+		<sprite images="sipka_1" id="leftTip" 
+			layout-left="10%" layout-offsetLeft="0%" layout-top="30%" z="9">
+			<text font="normal 30px/normal vt323" x="10" y="10" fillStyle="#fff">
+				TAP
+			</text>
+		</sprite>
+		<sprite images="sipka_2" id="rightTip" 
+			layout-left="90%" layout-offsetLeft="-100%" layout-top="30%" z="9">
+			<text font="normal 30px/normal vt323" x="10" y="10" fillStyle="#fff">
+				TAP
+			</text>	
+		</sprite>
+
+		<group id="timeLayer" z="9">
+			<sprite id="scorePane" images="pane" w="300" h="100" y="50"
+				layout-left="50%" layout-offsetLeft="-50%" >
+				<text font="normal 30px/normal vt323" x="10" y="20">
+					BEST SCORE 
+				</text>
+				<text font="normal 30px/normal vt323" id="score2" layout-left="80%" y="20" fillStyle="#fff">
+					0
+				</text>
+				<rect h="40" fillStyle="#503102" x="10" y="50"
+					 w="280">
+					<rect layout-width="50%" fillStyle="#af1414" layout-height="100%" id="energy">
+						
+					</rect>
+				</rect>
+			</sprite>
+
+			<text font="normal 50px/normal vt323" id="score1"
+				layout-left="50%" layout-offsetLeft="-50%" layout-top="30%" z="9"
+				fillStyle="#fff">
+					0
+			</text>
+		</group>
+		
+		<sprite images="pen_1" id="pen"
+			layout-left="50%" layout-offsetLeft="-50%" layout-top="80%" >
+			<group id="tree" layout-left="50%" layout-offsetLeft="-50%" w="108">
+				
+			</group>		
+		</sprite>
+
+		<text layout-left="50%" layout-offsetLeft="-50%" layout-top="100%" layout-offsetTop="-50" 
+			fillStyle="#fff" font="normal 30px/normal vt323" z="999">
+			MADE BY SOYA2D
+		</text>
+	</sprite>
+
+	<group id="overLayer" visible="false">
+		<text layout-left="50%" layout-offsetLeft="-50%" layout-top="10%" 
+			fillStyle="#fff" font="normal 60px/normal vt323" z="9">
+			GAME OVER
+		</text>
+
+		<sprite images="userbox" id="scoreBox"
+			layout-left="50%" layout-offsetLeft="-50%" layout-top="25%" w="360" h="240">
+				<text layout-left="50%" layout-offsetLeft="-50%" y="60" 
+				fillStyle="#7a4d0b" font="normal 30px/normal vt323">BEST</text>
+				<text id="bestScore" layout-left="50%" layout-offsetLeft="-50%" y="90" 
+				fillStyle="#fff" font="normal 30px/normal vt323">0</text>
+
+				<text layout-left="50%" layout-offsetLeft="-50%" y="120" 
+				fillStyle="#7a4d0b" font="normal 40px/normal vt323">SCORE</text>
+				<text id="score" layout-left="50%" layout-offsetLeft="-50%" y="160" 
+				fillStyle="#fff" font="normal 40px/normal vt323">0</text>
+		</sprite>
+
+		<sprite id="restartBtn" images="tlacidlo" visible="false"
+				layout-left="50%" layout-offsetLeft="-50%" w="300" layout-top="60%"
+				on-pointdown="restart">
+			<text layout-left="50%" layout-offsetLeft="-50%" y="10" 
+			fillStyle="#fff" font="normal 30px/normal vt323">
+				RESTART
+			</text>
+		</sprite>
+
+		<sprite images="back" id="back" on-pointdown="back2Menu"
+			layout-left="100%" layout-offsetLeft="-100%" layout-top="100%" layout-offsetTop="-100%"></sprite>
+	</group>
+</world>

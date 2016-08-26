@@ -1,5 +1,5 @@
 ﻿/**
- * @classdesc 鼠标事件处理类,提供如下事件:<br/>
+ * 鼠标事件处理类,提供如下事件:<br/>
  * <ul>
  *     <li>click</li>
  *     <li>dblclick</li>
@@ -14,7 +14,6 @@
  * *该事件支持传播
  * @class 
  * @extends soya2d.EventHandler
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Mouse = function(){
 
@@ -31,9 +30,10 @@ soya2d.Mouse = function(){
     };
     var thisGame;
     var mouse = this;
+    var eventMap = soya2d.DisplayObject.prototype.__signalHandler.map;
 
     function setEvent(event,e,target){
-        var renderer = thisGame.getRenderer();
+        var renderer = thisGame.renderer;
         mouse.x = fireMap[event].x = (e.offsetX||e.layerX) / renderer.hr;
         mouse.y = fireMap[event].y = (e.offsetY||e.layerY) / renderer.vr;
         mouse.lButton = fireMap[event].lButton = e.button==0||e.button==1;
@@ -71,8 +71,8 @@ soya2d.Mouse = function(){
 
         //over/out
         var ooList = [];
-        var overList = mouse.__eventMap['mouseover'];
-        var outList = mouse.__eventMap['mouseout'];
+        var overList = eventMap['mouseover'];
+        var outList = eventMap['mouseout'];
         if(overList){
             overList.forEach(function(o){
                 ooList.push(o);
@@ -81,7 +81,7 @@ soya2d.Mouse = function(){
         if(outList){
             outList.forEach(function(o){
                 for(var i=ooList.length;i--;){
-                    if(ooList[i].context == o.context)return;
+                    if(ooList[i][1] == o[1])return;
                 }
 
                 ooList.push(o);
@@ -90,8 +90,8 @@ soya2d.Mouse = function(){
         if(ooList.length>0){
             var currIn = [];
             ooList.forEach(function(o){
-                var target = o.context;
-                var fn = o.fn;
+                var target = o[1];
+                var fn = o[0];
                 if(!target.hitTest || !target.hitTest(mouse.x,mouse.y))return;
 
                 currIn.push(target);
@@ -132,7 +132,7 @@ soya2d.Mouse = function(){
             var event = fireMap[key];
             if(!event)continue;
             if(event.fire){
-                var events = this.__eventMap[key];
+                var events = eventMap[key];
                 fireEvent(events,event);
             }
         }
@@ -154,24 +154,15 @@ soya2d.Mouse = function(){
         if(!events)return;
 
         var contextSet = [];
-        var hasGame = false;
         var scene = null;
         for(var i=events.length;i--;){
-            var target = events[i].context;
-            if(target == thisGame){
-                hasGame = true;
-                continue;
-            }
-            if(target instanceof soya2d.Scene){
-                scene = target;
-                continue;
-            }
+            var target = events[i][1];
             if(ev.type == 'mouseover' || ev.type == 'mouseout'){
-                if(ev.__fireList.indexOf(target) >= 0){
+                if(ev.__fireList.indexOf(target) >= 0 && target.isRendered()){
                     contextSet.push(target);
                 }
             }
-            if(contextSet.indexOf(target) < 0 && target.hitTest(mouse.x,mouse.y)){
+            if(contextSet.indexOf(target) < 0 && target.hitTest(mouse.x,mouse.y) && target.isRendered()){
                 contextSet.push(target);
             }
         }
@@ -179,12 +170,6 @@ soya2d.Mouse = function(){
         contextSet.sort(function(a,b){
             return b.z - a.z;
         });
-        if(scene){
-            contextSet.push(scene);
-        }
-        if(hasGame){
-            contextSet.push(thisGame);
-        }
         if(contextSet.length<1)return;
 
         var target = contextSet[0];
@@ -204,7 +189,7 @@ soya2d.Mouse = function(){
             p = p.parent;
         }
 
-        if(hasGame && target != thisGame){
+        if(target != thisGame){
             fireListeners(thisGame,events,ev);
         }
     }
@@ -212,17 +197,20 @@ soya2d.Mouse = function(){
     function fireListeners(target,events,ev){
         var listeners = [];
         events.forEach(function(ev){
-            if(ev.context == target){
+            if(ev[1] == target){
                 listeners.push(ev);
             }
         });
 
         listeners.sort(function(a,b){
-            return a.order - b.order;
+            return b[2] - a[2];
         });
 
         for(var i=listeners.length;i--;){
-            listeners[i].fn.call(target,ev);
+            listeners[i][0].call(target,ev);
+            if(listeners[i][3]){
+                listeners[i][1].off(ev.type,listeners[i][0]);
+            }
         }
         return ev;
     }
@@ -233,7 +221,7 @@ soya2d.Mouse = function(){
      */
     this.startListen = function(game){
         thisGame = game;
-        var cvs = game.getRenderer().getCanvas();
+        var cvs = game.renderer.getCanvas();
         cvs.addEventListener('click',click,false);
         cvs.addEventListener('dblclick',dblclick,false);
         cvs.addEventListener('mousedown',mousedown,false);
@@ -249,7 +237,7 @@ soya2d.Mouse = function(){
      * @return this
      */
     this.stopListen = function(game){
-        var cvs = game.getRenderer().getCanvas();
+        var cvs = game.renderer.getCanvas();
         cvs.removeEventListener('click',click,false);
         cvs.removeEventListener('dblclick',dblclick,false);
         cvs.removeEventListener('mousedown',mousedown,false);
@@ -260,12 +248,10 @@ soya2d.Mouse = function(){
         return this;
     }
 
-    soya2d.EventHandler.call(this);
 };
-soya2d.inherits(soya2d.Mouse,soya2d.EventHandler);
 
 /**
- * 事件类型 - 单机
+ * 事件类型 - 单击
  * @type {String}
  */
 soya2d.EVENT_CLICK = 'click';

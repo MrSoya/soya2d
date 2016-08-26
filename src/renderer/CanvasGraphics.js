@@ -1,5 +1,5 @@
 ﻿/**
- * @classdesc 图形类,提供了贴图和矢量绘制的接口。<br/>
+ * 图形类,提供了贴图和矢量绘制的接口。<br/>
  * 注意，该类不应被显示实例化。引擎会在onRender回调中注入该类的实例。<br/>
  * 该图形对象基于Canvas构建。
  * @param ctx CanvasRenderingContext2D的实例
@@ -487,7 +487,7 @@ soya2d.CanvasGraphics = function(ctx){
 	/**
      * 
      * 贴图接口
-     * @param {soya2d.Texture} tex 需要绘制的纹理
+     * @param {HTMLImageElement} tex 需要绘制的纹理
      * @param  {int} sx  纹理起始坐标x
      * @param  {int} sy  纹理起始坐标y
      * @param  {int} sw  纹理起始尺寸w
@@ -498,17 +498,17 @@ soya2d.CanvasGraphics = function(ctx){
      * @param  {int} dh  纹理目标尺寸h
      * @return this
      */
-	this.map = function(tex,dx,dy,dw,dh,sx,sy,sw,sh){
+	this.map = function(img,dx,dy,dw,dh,sx,sy,sw,sh){
 		sx = sx || 0;
         sy = sy || 0;
-        sw = sw || tex.w;
-        sh = sh || tex.h;
+        sw = sw || img.width;
+        sh = sh || img.height;
 
-        if(sw===0 || sh===0 || dh===0 || dh===0){
+        if(sw===0 || sh===0 || dw===0 || dh===0){
             return;
         }
 
-		this.ctx.drawImage(tex.__data,
+		this.ctx.drawImage(img,
                             sx>>0,sy>>0,sw>>0,sh>>0,
                             dx>>0,dy>>0,dw>>0,dh>>0);
 		return this;

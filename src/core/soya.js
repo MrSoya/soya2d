@@ -1,9 +1,13 @@
 ﻿/**
- * 引擎命名空间
- * @namespace
- * @author {@link http://weibo.com/soya2d MrSoya}
+ * 核心包定义了soya2d的入口，基础组件以及循环体等
+ *
+ * @module core
  */
-var soya2d = new function(){
+
+/**
+ * @namespace soya2d
+ */
+global.soya2d = new function(){
 
     //渲染实例编号
     this.__roIndex=0;
@@ -15,8 +19,8 @@ var soya2d = new function(){
      * @property {function} toString 返回版本
      */
 	this.version = {
-        v:[1,4,1],
-        state:'',
+        v:[2,0,0],
+        state:'beta1',
         toString:function(){
             return soya2d.version.v.join('.') + ' ' + soya2d.version.state;
         }
@@ -42,17 +46,53 @@ var soya2d = new function(){
         }
 	};
 
-    /**
-     * 继承
-     * @param {Function} child 子类
-     * @param {Function} parent 父类
-     */
-    this.inherits = function(child,parent){
+    function inherits(child,parent){
     	//采用原型对象创建，可以保证只继承原型上挂着的方法，而构造内定义的方法不会继承
         child.prototype = Object.create(parent.prototype);
         child.prototype.constructor = child;
         child.prototype._super = parent.prototype;
 	}
+
+    /**
+     * define a class
+     * @param {String} namePath full class path with namespace
+     * @param {Object} param    as below
+     * @param {Object} param.extends    extends to
+     * @param {Object} param.constructor   constructor of the class
+     */
+    this.class = function(namePath,param){
+        var constr = param.constructor;        
+        var parent = param.extends;
+        var cls = function(){
+            if(parent)parent.apply(this,arguments);
+            if(constr)constr.apply(this,arguments);
+        };
+        if(parent)inherits(cls,parent);
+        for(var k in param){
+            if(k === 'extends' || k==='constructor')continue;
+            cls.prototype[k] = param[k];
+        }
+
+        if(namePath){
+            var ps = namePath.split('.');
+            var name = ps[ps.length-1];
+            var ns = self;
+            if(ps.length>1){
+                for (var i = 0; i < ps.length; i++) {
+                    if(ps[i] !== name){
+                        ns = ns[ps[i]];
+                        if(!ns){
+                            ns = {};
+                        }
+                    }
+                }
+            }
+            ns[name] = cls;
+            cls.prototype.class = namePath;
+        }
+
+        return cls;
+    }
 
     /**
      * 模块管理
@@ -87,8 +127,27 @@ var soya2d = new function(){
             return map;
         }
     }
+
+    /**
+     * 渲染一个soya2D舞台
+     * @param {String | HTMLElement} container 游戏渲染的容器，可以是一个选择器字符串或者节点对象
+     * @param {int} w 游戏的宽度
+     * @param {int} h 游戏的高度
+     * @param  {Scene} scene  渲染场景
+     * @return {soya2d.Game}
+     */
+    this.render = function(container,w,h,scene){
+        var game = new soya2d.Game({
+            w:w,
+            h:h,
+            container:container
+        });
+        game.start();
+        game.scene.start(scene);
+        return game;
+    }
 };
-var soya = soya2d;
+global.soya = soya2d;
 
 //系统扩展
 self.Int8Array = self.Int8Array || Array;
@@ -304,35 +363,15 @@ soya2d.TEXTDIR_LTR = "ltr";
 soya2d.TEXTDIR_RTL = "rtl";
 
 /**
- * 纹理重复类型——REPEAT
- * @constant
- */
-soya2d.REPEAT = 'repeat';
-/**
- * 纹理重复类型——NOREPEAT
- * @constant
- */
-soya2d.NOREPEAT = 'no-repeat';
-/**
- * 纹理重复类型——REPEAT_X
- * @constant
- */
-soya2d.REPEAT_X = 'repeat-x';
-/**
- * 纹理重复类型——REPEAT_Y
- * @constant
- */
-soya2d.REPEAT_Y = 'repeat-y';
-/**
  * 线性渐变类型
  * @constant
  */
-soya2d.GRADIENTTYPE_LINEAR = 1;
+soya2d.GRADIENT_LINEAR = 1;
 /**
  * 放射渐变类型
  * @constant
  */
-soya2d.GRADIENTTYPE_RADIAL = 2;
+soya2d.GRADIENT_RADIAL = 2;
 
 /**
  * 点击测试类型——路径

@@ -1,8 +1,7 @@
 ﻿/**
- * @classdesc 字体类。用于指定绘制字体的样式、大小等
+ * 字体类。用于指定绘制字体的样式、大小等
  * @class
  * @param {String} desc 字体描述字符串，可以为空。为空时创建默认样式字体:[normal 400 13px/normal sans-serif]<br/>符合W3C[CSSFONTS]规范
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Font = function(desc){
     var fontElement = document.createElement('span');
@@ -123,11 +122,10 @@ soya2d.Font = function(desc){
     /**
      * 获取字体宽高
      * @param {String} str 测试字符串
-     * @param {Object} renderer 渲染器
      * @return {Object} 指定字符串在当前字体下的宽高。｛w:w,h:h｝
      */
-    this.getBounds = function(str,renderer){
-        var ctx = renderer.ctx;
+    this.getBounds = function(str){
+        var ctx = this.__game.renderer.ctx;
         ctx.font = this.getDesc();
         var w = ctx.measureText(str).width;
         return {w:w,h:this.fontSize};

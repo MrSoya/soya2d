@@ -1,7 +1,6 @@
 ﻿/**
- * @classdesc 声音类用来对指定音频执行播放、暂停、静音等操作
+ * 声音类用来对指定音频执行播放、暂停、静音等操作
  * @class 
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Sound = function(opts){
     opts = opts || {};
@@ -48,9 +47,9 @@ soya2d.Sound.prototype = {
         if(m != undefined){
             this.__muted = m;
             if(m)
-                this.__handler.mute();
+                this.__handler.mute(true);
             else{
-                this.__handler.unmute();
+                this.__handler.mute(false);
             }
             return this;
         }

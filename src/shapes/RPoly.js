@@ -1,5 +1,5 @@
 /**
- * @classdesc 可以进行规则多边形填充或线框绘制的显示对象。该多边形拥有内外两个半径，
+ * 可以进行规则多边形填充或线框绘制的显示对象。该多边形拥有内外两个半径，
  * 可以构成有趣的形状。外半径由对象的w属性决定，内半径则需要指定r属性
  * @class 
  * @extends soya2d.DisplayObjectContainer
@@ -9,17 +9,12 @@
  * @param {String} data.lineWidth 线条宽度
  * @param {int} data.edgeCount 多边形的边数，不能小于3
  * @param {Number} [data.r] 内半径。默认和外半径相同
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
-soya2d.RPoly = function(data){
-	data = data||{};
-	soya2d.DisplayObjectContainer.call(this,data);
-	soya2d.ext(this,data);
-
-    this.fillStyle = data.fillStyle || 'transparent';
-};
-soya2d.inherits(soya2d.RPoly,soya2d.DisplayObjectContainer);
-soya2d.ext(soya2d.RPoly.prototype,{
+soya2d.class("soya2d.RPoly",{
+    extends:soya2d.DisplayObjectContainer,
+    constructor:function(data){
+        this.fillStyle = data.fillStyle || 'transparent';
+    },
     onRender:function(g){
         g.beginPath();
         g.fillStyle(this.fillStyle);

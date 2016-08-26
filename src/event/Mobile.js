@@ -1,5 +1,5 @@
 ﻿/**
- * @classdesc 移动设备事件处理类,提供如下事件:<br/>
+ * 移动设备事件处理类,提供如下事件:<br/>
  * <ul>
  *     <li>tilt</li>
  *     <li>motion</li>
@@ -8,7 +8,6 @@
  * 所有事件的唯一回调参数为设备事件对象{@link soya2d.MobileEvent}
  * @class 
  * @extends soya2d.EventHandler
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Mobile = function(){
 
@@ -19,6 +18,7 @@ soya2d.Mobile = function(){
     };
 
     var mobile = this;
+    var eventMap = soya2d.DisplayObject.prototype.__signalHandler.map;
 
     function setEvent(event,e){
         if(e.orientation)
@@ -85,7 +85,7 @@ soya2d.Mobile = function(){
             var event = fireMap[key];
             if(!event)continue;
             if(event.fire){
-                var events = this.__eventMap[key];
+                var events = eventMap[key];
                 fireEvent(events,event);
             }
         }
@@ -106,12 +106,19 @@ soya2d.Mobile = function(){
 
         //排序
         events.sort(function(a,b){
-            return a.order - b.order;
+            return b[2] - a[2];
         });
 
+        var onceEvents = [];
         for(var i=events.length;i--;){
-            var target = events[i].context;
-            events[i].fn.call(target,ev);
+            var target = events[i][1];
+            events[i][0].call(target,ev);
+            if(events[i][3]){
+                onceEvents.push(events[i]);
+            }
+        }
+        for(var i=onceEvents.length;i--;){
+            onceEvents[i][1].off(ev.type,onceEvents[i][0]);
         }
     }
 
@@ -140,10 +147,7 @@ soya2d.Mobile = function(){
 
         return this;
     }
-
-    soya2d.EventHandler.call(this);
 };
-soya2d.inherits(soya2d.Mobile,soya2d.EventHandler);
 /**
  * 移动设备事件对象
  * @type {Object}

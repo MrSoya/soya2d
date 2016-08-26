@@ -1,52 +1,54 @@
 ﻿/**
- * @class 
+ * 显示对象容器继承自显示对象，是所有显示容器的基类。该类提供了用于管理包含子节点的容器相关的方法。<br/>
+ 该类不能被实例化
+ * 
+ * @class soya2d.DisplayObjectContainer
  * @extends soya2d.DisplayObject
- * @classdesc 显示对象容器继承自显示对象，是所有显示容器的基类。<br/>
- * 该类用于管理包含子节点的容器相关的方法。<br/>
- 注意，该类不应直接实例化,应使用该类的子类或继承该类
  * @param {Object} data 同父类定义参数
- * @author {@link http://weibo.com/soya2d MrSoya} 
  */
-soya2d.DisplayObjectContainer = function(data){
-    data = data||{};
-    soya2d.DisplayObject.call(this,data);
-    /**
-     * 子节点数组
-     * @type {Array}
-     * @default []
-     */
-    this.children = [];
-    /**
-     * 父节点引用
-     * @type {soya2d.DisplayObject}
-     * @default null
-     */
-    this.parent = null;
-};
-soya2d.inherits(soya2d.DisplayObjectContainer,soya2d.DisplayObject);
-soya2d.ext(soya2d.DisplayObjectContainer.prototype,/** @lends soya2d.DisplayObjectContainer.prototype */{
+soya2d.class("soya2d.DisplayObjectContainer",{
+    extends:soya2d.DisplayObject,
+    constructor:function(data){
+        /**
+         * 子节点数组
+         * @type {Array}
+         * @default []
+         */
+        this.children = [];
+        /**
+         * 父节点引用
+         * @type {soya2d.DisplayObject}
+         * @default null
+         */
+        this.parent = null;
+    },
     /**
      * 增加子节点
      * @param {...soya2d.DisplayObject} children 一个或者多个可渲染对象，使用逗号分割
      * @return this
      */
-	add:function(){
+    add:function(){
         for(var i=0;i<arguments.length;i++){
             var child = arguments[i];
-            if(child.parent)continue;
 
+            if(child.parent){
+                child.parent.remove(child);
+            }
             this.children.push(child);
             child.parent = this;
+
+            //触发onAdded事件
+            child.__onAdded();
         }
 
         return this;
-	},
+    },
     /**
      * 删除子节点
      * @param {...soya2d.DisplayObject} children 一个或者多个可渲染对象，使用逗号分割
      * @return this
      */
-	remove:function(){
+    remove:function(){
         for(var i=0;i<arguments.length;i++){
             var child = arguments[i];
             var index = this.children.indexOf(child);
@@ -55,19 +57,24 @@ soya2d.ext(soya2d.DisplayObjectContainer.prototype,/** @lends soya2d.DisplayObje
             this.children.splice(index,1);
             child.parent = null;
         }
- 		
+        
         return this;
-	},
+    },
     /**
      * 清除所有子节点
      * @return {Array} 子节点
      */
-    clear:function(){
+    clear:function(destroy){
         for(var i=this.children.length;i--;){
             this.children[i].parent = null;
         }
         var rs = this.children;
         this.children = [];
+        if(destroy){
+            for(var i=rs.length;i--;){
+                rs[i].destroy();
+            }
+        }
         return rs;
     },
     /**
@@ -82,21 +89,22 @@ soya2d.ext(soya2d.DisplayObjectContainer.prototype,/** @lends soya2d.DisplayObje
         var rs;
         if(isRecur){
             rs = [];
-            //创建递归函数
-            !function(parent){
-                for(var i=parent.children.length;i--;){
-                    var c = parent.children[i];
-                    if(filter(c)){
-                        rs.push(c);
-                    }
-                    if(c.children && c.children.length>0){
-                        arguments.callee(c);
-                    }
-                }
-            }(this);
+            recur(this,filter,rs);
         }else{
             rs = this.children.filter(filter);
         }
         return rs;
     }
 });
+
+function recur(parent,filter,rs){
+    for(var i=parent.children.length;i--;){
+        var c = parent.children[i];
+        if(filter(c)){
+            rs.push(c);
+        }
+        if(c.children && c.children.length>0){
+            recur(c,filter,rs);
+        }
+    }
+}

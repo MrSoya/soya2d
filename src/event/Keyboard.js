@@ -1,5 +1,5 @@
 ﻿/**
- * @classdesc 键盘事件处理类,提供如下事件:<br/>
+ * 键盘事件处理类,提供如下事件:<br/>
  * <ul>
  *     <li>keyup</li>
  *     <li>keydown</li>
@@ -8,7 +8,6 @@
  * 所有事件的唯一回调参数为键盘事件对象{@link soya2d.KeyboardEvent}
  * @class 
  * @extends soya2d.EventHandler
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Keyboard = function(){
 
@@ -20,6 +19,8 @@ soya2d.Keyboard = function(){
 	var fireUp = false;
 	var firePress = false;
 
+	var eventMap = soya2d.DisplayObject.prototype.__signalHandler.map;
+
 	function setEvent(event,e){
 		event.keyCode = e.keyCode||e.which;
 		event.ctrlKey = e.ctrlKey;
@@ -28,6 +29,31 @@ soya2d.Keyboard = function(){
 		event.metaKey = e.metaKey;
 		event.keyCodes = keys;
 		event.e = e;
+		event.containsAll = function(){
+			for(var i=0;i<arguments.length;i++){
+	            var kc = arguments[i];
+
+	            if(this.keyCodes.length>0){
+	            	if(this.keyCodes.indexOf(kc) < 0)return false;
+	            }else{
+	            	if(this.keyCode != kc)return false;
+	            }
+	        }
+	        return true;
+		}
+		event.contains = function(){
+			for(var i=0;i<arguments.length;i++){
+	            var kc = arguments[i];
+
+	            if(this.keyCodes.length>0){
+	            	if(this.keyCodes.indexOf(kc) > -1)return true;
+	            }else{
+	            	if(this.keyCode === kc)return true;
+	            }
+
+	        }
+	        return false;	
+		}
 	}
 
 	var keyboard = this;
@@ -64,7 +90,6 @@ soya2d.Keyboard = function(){
 		fireDown = fireUp = firePress = false;
 		keys = [];
 	}
-
 	function stopCheck(e,keycode) {
 		var pks = soya2d.Keyboard.preventKeys;
 		if(pks.indexOf(keycode) > -1){
@@ -91,36 +116,43 @@ soya2d.Keyboard = function(){
 	this.scan = function(){
 		var events,ev;
 		if(fireDown){
-			events = this.__eventMap['keydown'];
+			events = eventMap['keydown'];
 			ev = downEvent;
-			fireEvent(events,ev);
+			fireEvent(events,ev,'keydown');
 
 			fireDown = false;
 		}
 		if(firePress){
-			events = this.__eventMap['keypress'];
+			events = eventMap['keypress'];
 			ev = downEvent;
-			fireEvent(events,ev);
+			fireEvent(events,ev,'keypress');
 		}
 		if(fireUp){
-			events = this.__eventMap['keyup'];
+			events = eventMap['keyup'];
 			ev = upEvent;
-			fireEvent(events,ev);
+			fireEvent(events,ev,'keyup');
 
 			fireUp = false;
 		}
 	}
 
-	function fireEvent(events,ev){
+	function fireEvent(events,ev,evtype){
 		if(!events)return;
 
 		//排序
         events.sort(function(a,b){
-            return a.order - b.order;
+            return b[2] - a[2];
         });
 
+        var onceEvents = [];
         for(var i=events.length;i--;){
-            events[i].fn.call(events[i].context,ev);
+            events[i][0].call(events[i][1],ev);
+            if(events[i][3]){
+                onceEvents.push(events[i]);
+            }
+        }
+        for(var i=onceEvents.length;i--;){
+            onceEvents[i][1].off(evtype,onceEvents[i][0]);
         }
 	}
 
@@ -148,9 +180,7 @@ soya2d.Keyboard = function(){
 		return this;
 	}
 
-	soya2d.EventHandler.call(this);
 };
-soya2d.inherits(soya2d.Keyboard,soya2d.EventHandler);
 
 /**
  * 阻止按键默认行为的按键码数组，当键盘事件发生时，会检测该数组，

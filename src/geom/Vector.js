@@ -1,9 +1,8 @@
 ﻿/**
- * @classdesc 2D向量。提供向量相关计算。<br/>参数为0时，将构造一个0向量
+ * 2D向量。提供向量相关计算。<br/>参数为0时，将构造一个0向量
  * @class 
  * @param {Number} x
  * @param {Number} y
- * @author {@link http://weibo.com/soya2d MrSoya}
  */
 soya2d.Vector = function(x,y){
     /**

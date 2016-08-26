@@ -1,0 +1,14 @@
+{
+    "name": "soya2d",
+    "url": "http://soya2d.com",
+    "version": "2.0.0",
+    "options": {
+        "paths": "src",
+        "outdir": "build/docs",
+        "exclude": "lib,docs,build",
+        "themedir1": "node_modules/yuidoc-lucid-theme",
+        "helpers1": ["node_modules/yuidoc-lucid-theme/helpers/helpers.js"],
+        "themedir": "node_modules/yuidoc-bootstrap-theme",
+        "helpers": ["node_modules/yuidoc-bootstrap-theme/helpers/helpers.js"]
+    }
+}

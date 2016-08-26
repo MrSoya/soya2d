@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<world>
+	<sprite images="bg" id="bg" layout-width="120%" layout-height="150%">
+		<sprite id="p1" images="p1" layout-left="70%" layout-top="10%"></sprite>
+		<sprite id="p2" images="p2" layout-left="20%" layout-top="60%"></sprite>
+	</sprite>
+
+	<tileSprite id="fog" sprite="fog" layout-width="120%" layout-height="150%" autoScroll="true" scrollAngle="45">
+		
+	</tileSprite>
+
+	<text id="score" x="20" y="20" fillStyle="#fff" atlas="imgFont" fixedToCamera="true" size="16" z="9">
+		score:
+		<text x="20" layout-left="100%" id="scoreTxt" w="100"
+			fillStyle="#fff" atlas="imgFont" size="16">
+			0
+		</text>
+	</text>
+	<text layout-left="70%" y="20" fillStyle="#fff" atlas="imgFont" fixedToCamera="true" size="16" z="9">
+		energy:
+		<rect w="190" h="12" layout-left="100%" strokeStyle="#fff"	lineWidth="2" fillStyle="transparent">
+			<rect id="energyBar" w="188" h="10" x="1" y="1" fillStyle="red">
+			</rect>
+		</rect>
+	</text>
+	<sprite images="bomb"  fixedToCamera="true" 
+		layout-top="100%" layout-offsetTop="-50" 
+		layout-left="50%" layout-offsetLeft="-50%" z="9"
+		>
+		<text x="5" id="bombTxt" layout-left="150%"
+			fillStyle="#fff" atlas="imgFont" size="16">
+			3
+		</text>
+	</sprite>
+
+	<rect id="warningLayer" layout-width="100%" layout-height="100%" opacity="0" fillStyle="#ddd"
+		 fixedToCamera="true">
+		
+	</rect>
+</world>

@@ -1,8 +1,6 @@
 /**
- * @classdesc 路径描述结构。既可用于支持路径动画的路径检索，也可以用于绘制路径
+ * 路径描述结构。既可用于支持路径动画的路径检索，也可以用于绘制路径
  * @class 
- * @author {@link http://weibo.com/soya2d MrSoya}
- * @since 1.2.0
  */
 soya2d.Path = function(d){
     /**
@@ -51,7 +49,7 @@ soya2d.ext(soya2d.Path.prototype,/** @lends soya2d.Path.prototype */{
      * 设置path指令串，并解析
      * @param {string} d path指令串
      */
-    setData:function(d){
+    setPath:function(d){
         this.d = d;
         this.__parse();
     }

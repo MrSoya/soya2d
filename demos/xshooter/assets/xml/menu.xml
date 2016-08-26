@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<world>
+	<text layout-left="50%" layout-offsetLeft="-50%" 
+		fillStyle="#fff" y="100" atlas="imgFont" size="60" w="330" letterSpacing="2">
+		GEOM WAR
+	</text>
+	<sprite layout-left="50%" layout-offsetLeft="-150%" 
+			layout-top="50%" layout-offsetTop="-50%" 
+			images="player">
+		<text layout-left="100%" on-pointdown="start"
+			layout-top="25%"
+			fillStyle="#fff" atlas="imgFont">
+			START
+		</text>
+	</sprite>
+	<text layout-left="50%" layout-offsetLeft="-50%" 
+		layout-top="60%" fillStyle="#fff" atlas="imgFont" size="12">
+		A/S/D/W + Space + Mouse 
+	</text>
+	<text layout-left="50%" layout-offsetLeft="-50%" 
+		layout-top="100%" layout-offsetTop="-50"  fillStyle="#fff" atlas="imgFont" size="20">
+		MADE BY SOYA2D
+	</text>
+</world>
