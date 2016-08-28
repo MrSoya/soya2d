@@ -1,6 +1,7 @@
 ﻿/**
  * 声音类用来对指定音频执行播放、暂停、静音等操作
- * @class 
+ * @class soya2d.Sound
+ * @module sound
  */
 soya2d.Sound = function(opts){
     opts = opts || {};
@@ -16,6 +17,7 @@ soya2d.Sound = function(opts){
 soya2d.Sound.prototype = {
     /**
      * 播放音频
+     * @method play
      * @return this
      */
     play:function(){
@@ -24,6 +26,7 @@ soya2d.Sound.prototype = {
     },
     /**
      * 暂停音频播放
+     * @method pause
      * @return this
      */
     pause:function(){
@@ -32,6 +35,7 @@ soya2d.Sound.prototype = {
     },
     /**
      * 停止音频，播放头会跳到最开始
+     * @method stop
      * @return this
      */
 	stop:function(){
@@ -40,6 +44,7 @@ soya2d.Sound.prototype = {
 	},
     /**
      * 设置或者获取当前静音状态
+     * @method mute
      * @param {Boolean} m 是否静音
      * @return {this|Boolean}
      */
@@ -57,6 +62,7 @@ soya2d.Sound.prototype = {
     },
     /**
      * 设置或者获取当前循环状态
+     * @method loop
      * @param {Boolean} l 是否循环
      * @return {this|Boolean}
      */
@@ -70,6 +76,7 @@ soya2d.Sound.prototype = {
     },
     /**
      * 设置或者获取当前音量
+     * @method volume
      * @param {Number} v 音量大小 [0.0 - 1.0]
      * @return {this|Number}
      */
@@ -82,7 +89,8 @@ soya2d.Sound.prototype = {
         else{return this.__volume;}
     },
     /**
-     * 设置或者获取播放头当前位置。单位:S
+     * 设置或者获取播放头当前位置。单位:sec
+     * @method pos
      * @return {this|Number}
      */
     pos:function(p){
@@ -95,6 +103,7 @@ soya2d.Sound.prototype = {
     },
     /**
      * 音量渐变处理
+     * @method fade
      * @param  {Number}   from     开始音量 (0.0 to 1.0).
      * @param  {Number}   to       目标音量 (0.0 to 1.0).
      * @param  {Number}   duration      渐变时间。毫秒
@@ -105,8 +114,9 @@ soya2d.Sound.prototype = {
     },
     /**
      * 监听声音事件
-     * @param  {string} event    事件名，包括load, loaderror, play, end, pause, faded
-     * @param  {function} fn 监听器
+     * @method on
+     * @param  {String} event    事件名，包括load, loaderror, play, end, pause, faded
+     * @param  {Function} fn 监听器
      * @return this
      */
     on:function(event,fn){
@@ -115,8 +125,9 @@ soya2d.Sound.prototype = {
     },
     /**
      * 监听声音事件，只有一次
-     * @param  {string} event    事件名，包括load, loaderror, play, end, pause, faded
-     * @param  {function} fn 监听器
+     * @method once
+     * @param  {String} event    事件名，包括load, loaderror, play, end, pause, faded
+     * @param  {Function} fn 监听器
      * @return this
      */
     once:function(event,fn){
@@ -125,8 +136,9 @@ soya2d.Sound.prototype = {
     },
     /**
      * 移除监听
-     * @param  {string} event    事件名，包括load, loaderror, play, end, pause, faded
-     * @param  {function} [fn] 监听器。如果此参数为空，移除所有该类型监听
+     * @method off
+     * @param  {String} event    事件名，包括load, loaderror, play, end, pause, faded
+     * @param  {Function} [fn] 监听器。如果此参数为空，移除所有该类型监听
      * @return this
      */
     off:function(event,fn){
@@ -134,3 +146,33 @@ soya2d.Sound.prototype = {
         return this;
     }
 };
+/**
+ * 加载完成
+ * @event load
+ * @for soya2d.Sound
+ */
+/**
+ * 加载完成
+ * @event loaderror
+ * @for soya2d.Sound
+ */
+/**
+ * 加载完成
+ * @event play
+ * @for soya2d.Sound
+ */
+/**
+ * 加载完成
+ * @event end
+ * @for soya2d.Sound
+ */
+/**
+ * 加载完成
+ * @event pause
+ * @for soya2d.Sound
+ */
+/**
+ * 加载完成
+ * @event faded
+ * @for soya2d.Sound
+ */

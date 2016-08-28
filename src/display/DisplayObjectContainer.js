@@ -11,12 +11,14 @@ soya2d.class("soya2d.DisplayObjectContainer",{
     constructor:function(data){
         /**
          * 子节点数组
+         * @property children
          * @type {Array}
          * @default []
          */
         this.children = [];
         /**
          * 父节点引用
+         * @property parent
          * @type {soya2d.DisplayObject}
          * @default null
          */
@@ -24,6 +26,7 @@ soya2d.class("soya2d.DisplayObjectContainer",{
     },
     /**
      * 增加子节点
+     * @method add
      * @param {...soya2d.DisplayObject} children 一个或者多个可渲染对象，使用逗号分割
      * @return this
      */
@@ -45,6 +48,7 @@ soya2d.class("soya2d.DisplayObjectContainer",{
     },
     /**
      * 删除子节点
+     * @method remove
      * @param {...soya2d.DisplayObject} children 一个或者多个可渲染对象，使用逗号分割
      * @return this
      */
@@ -62,6 +66,7 @@ soya2d.class("soya2d.DisplayObjectContainer",{
     },
     /**
      * 清除所有子节点
+     * @method clear
      * @return {Array} 子节点
      */
     clear:function(destroy){
@@ -79,8 +84,9 @@ soya2d.class("soya2d.DisplayObjectContainer",{
     },
     /**
      * 在当前节点下查找符合条件的所有子节点
-     * @param {function(obj)} filter 过滤回调，接收显示对象为参数，返回true表示该对象返回
-     * @param {boolean} [isRecur=false] 递归查找标识
+     * @method find
+     * @param {Function} filter 过滤回调，接收显示对象为参数，返回true表示该对象返回
+     * @param {Boolean} [isRecur=false] 递归查找标识
      * @return {Array} 符合过滤条件的节点数组，如果没有，返回空数组
      */
     find:function(filter,isRecur){

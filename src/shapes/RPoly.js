@@ -1,7 +1,8 @@
 /**
  * 可以进行规则多边形填充或线框绘制的显示对象。该多边形拥有内外两个半径，
  * 可以构成有趣的形状。外半径由对象的w属性决定，内半径则需要指定r属性
- * @class 
+ * @class soya2d.RPoly
+ * @constructor
  * @extends soya2d.DisplayObjectContainer
  * @param {Object} data 所有父类参数,以及新增参数
  * @param {String} data.fillStyle 填充样式

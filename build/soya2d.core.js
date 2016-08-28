@@ -1,12 +1,12 @@
 /*
- * soya2D is a web interactive animation(game) engine for modern web browsers 
+ * Soya2D is a web interactive animation(game) engine for modern web browsers 
  *
  *
  * Copyright 2015-2016 MrSoya and other contributors
  * Released under the MIT license
  *
  * website: http://soya2d.com
- * last build: 2016-08-26
+ * last build: 2016-08-28
  */
 !function (global) {
 	'use strict';
@@ -15,9 +15,8 @@
  *
  * @module core
  */
-
 /**
- * @namespace soya2d
+ * @class soya2d
  */
 global.soya2d = new function(){
 
@@ -25,26 +24,41 @@ global.soya2d = new function(){
     this.__roIndex=0;
     /**
      * 版本信息
+     * @property version
      * @type {Object}
-     * @property {Array} v 版本号
-     * @property {string} state
-     * @property {function} toString 返回版本
      */
 	this.version = {
+        /**
+         * 版本号
+         * @property version.v
+         * @type {Array}
+         */
         v:[2,0,0],
+        /**
+         * state
+         * @property version.state 
+         * @type {String}
+         */
         state:'beta1',
+        /**
+         * 返回版本信息
+         * @method version.toString
+         * @return {String} 版本信息
+         */
         toString:function(){
             return soya2d.version.v.join('.') + ' ' + soya2d.version.state;
         }
     };
     /**
      * 官网地址
+     * @property website
      * @type {String}
-     * @constant
+     * @final
      */
 	this.website = 'http://soya2d.com';
     /**
      * 扩展属性到对象
+     * @method ext
      * @param {Object} obj 对象
      * @param {Object} attrs 属性
      * @param {Object} [cover=false] 如果已有该属性，是否覆盖
@@ -67,6 +81,7 @@ global.soya2d = new function(){
 
     /**
      * define a class
+     * @method class
      * @param {String} namePath full class path with namespace
      * @param {Object} param    as below
      * @param {Object} param.extends    extends to
@@ -108,12 +123,12 @@ global.soya2d = new function(){
 
     /**
      * 模块管理
-     * @type {object}
      */
     this.module = new function(){
         var map = {};
         /**
          * 安装新模块
+         * @method module.install
          * @param  {string} key  模块标识
          * @param  {Object} opts 回调事件
          * @param  {function} opts.onInit 模块初始化时调用,回调参数[soya2d.Game]
@@ -125,8 +140,6 @@ global.soya2d = new function(){
          * @param  {function} opts.onStart 游戏实例启动时调用[soya2d.Game]
          * @param  {function} opts.onStop 游戏实例停止时调用[soya2d.Game]
          * @param  {function} opts.onSceneChange 游戏当前场景发生改变时调用[soya2d.Game，当前场景]
-         * @alias module.install
-         * @memberof! soya2d#
          */
         this.install = function(key,opts){
             map[key] = opts;
@@ -141,8 +154,12 @@ global.soya2d = new function(){
     }
 
     /**
-     * 渲染一个soya2D舞台
-     * @param {String | HTMLElement} container 游戏渲染的容器，可以是一个选择器字符串或者节点对象
+     * 渲染一个soya2D舞台。该方法是soya2d的入口方法，会自动创建一个使用指定场景启动的soya2d.Game实例
+     * ```
+     *     soya.render('#stage',1024,768,scene);
+     * ```
+     * @method render
+     * @param {String | HTMLElement} container 游戏渲染的容器，可以是一个选择器字符串或者DOM对象
      * @param {int} w 游戏的宽度
      * @param {int} h 游戏的高度
      * @param  {Scene} scene  渲染场景
@@ -180,7 +197,7 @@ self.console = self.console||new function(){
 
 /**
  * 控制台输出接口，使用CSS样式方式
- * @type {object}
+ * @class soya2d.console
  */
 soya2d.console = new function(){
     var level = 1;
@@ -189,6 +206,7 @@ soya2d.console = new function(){
      * 设置输出级别。按照优先级从高到底的顺序为 error > warn > info > debug | none，
      * 对应值为 4 > 3 > 2 > 1 > 0。设置为低级别时，高级别的信息也会输出。比如设置为warn时,
      * error也会输出，但是info/debug不会。当界别设置为0时，console不会有任何输出
+     * @method level
      * @param  {int} [l=1] 输出级别，默认全部 
      */
     this.level = function(l){
@@ -196,10 +214,9 @@ soya2d.console = new function(){
     }
     /**
      * 输出调试信息
+     * @method debug
      * @param  {string} txt  输出文本
      * @param  {string} [css] 字体css
-     * @alias console.debug
-     * @memberof! soya2d#
      */
     this.debug = function(txt,css){
         if(level!=1)return;
@@ -212,10 +229,9 @@ soya2d.console = new function(){
     }
     /**
      * 输出日志信息
+     * @method info
      * @param  {string} txt  输出文本
      * @param  {string} [css] 字体css
-     * @alias console.info
-     * @memberof! soya2d#
      */
     this.info = function(txt,css){
         if(level<1 || level>2)return;
@@ -228,10 +244,9 @@ soya2d.console = new function(){
     }
     /**
      * 输出警告信息
+     * @method warn
      * @param  {string} txt  输出文本
      * @param  {string} [css] 字体css
-     * @alias console.warn
-     * @memberof! soya2d#
      */
     this.warn = function(txt,css){
         if(level<1 || level>3)return;
@@ -244,10 +259,9 @@ soya2d.console = new function(){
     }
     /**
      * 输出错误信息
+     * @method error
      * @param  {string} txt  输出文本
      * @param  {string} [css] 字体css
-     * @alias console.error
-     * @memberof! soya2d#
      */
     this.error = function(txt,css){
         if(level<1)return;
@@ -284,129 +298,178 @@ self.requestAFrame = (function(w){
 
 /**
  * 混合类型——默认
- * @constant
+ * @property BLEND_NORMAL
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.BLEND_NORMAL = 'source-over';
 /**
  * 混合类型——高亮
- * @constant
+ * @property BLEND_LIGHTER
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.BLEND_LIGHTER = 'lighter';
 /**
  * 混合类型——遮罩
- * @constant
+ * @property BLEND_MASK
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.BLEND_MASK = 'destination-in';
 /**
  * 混合类型——清除
- * @constant
+ * @property BLEND_CLEAR
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.BLEND_CLEAR = 'destination-out';
 /**
  * 线条端点类型——BUTT
- * @constant
+ * @property LINECAP_BUTT
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.LINECAP_BUTT = 'butt';
 /**
  * 线条端点类型——ROUND
- * @constant
+ * @property LINECAP_ROUND
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.LINECAP_ROUND = 'round';
 /**
  * 线条端点类型——SQUARE
- * @constant
+ * @property LINECAP_SQUARE
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.LINECAP_SQUARE = 'square';
 /**
  * 线条交点类型——BEVEL
- * @constant
+ * @property LINEJOIN_BEVEL
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.LINEJOIN_BEVEL = 'bevel';
 /**
  * 线条交点类型——ROUND
- * @constant
+ * @property LINEJOIN_ROUND
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.LINEJOIN_ROUND = 'round';
 /**
  * 线条交点类型——MITER
- * @constant
+ * @property LINEJOIN_MITER
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.LINEJOIN_MITER = 'miter';
 
 /**
  * 文本水平对齐类型——TEXTALIGN_LEFT
- * @constant
+ * @property TEXTALIGN_LEFT
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.TEXTALIGN_LEFT = "left";
 /**
  * 文本水平对齐类型——TEXTALIGN_CENTER
- * @constant
+ * @property TEXTALIGN_CENTER
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.TEXTALIGN_CENTER = "center";
 /**
  * 文本水平对齐类型——TEXTALIGN_RIGHT
- * @constant
+ * @property TEXTALIGN_RIGHT
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.TEXTALIGN_RIGHT = "right";
 /**
  * 文本垂直对齐类型——TEXTVALIGN_TOP
- * @constant
+ * @property TEXTVALIGN_TOP
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.TEXTVALIGN_TOP = "hanging";
 /**
  * 文本垂直对齐类型——TEXTVALIGN_MIDDLE
- * @constant
+ * @property TEXTVALIGN_MIDDLE
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.TEXTVALIGN_MIDDLE = "middle";
 /**
  * 文本垂直对齐类型——TEXTVALIGN_BOTTOM
- * @constant
+ * @property TEXTVALIGN_BOTTOM
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.TEXTVALIGN_BOTTOM = "alphabetic";
 /**
  * 文本书写方向——从左到右
- * @constant
+ * @property TEXTDIR_LTR
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.TEXTDIR_LTR = "ltr";
 /**
  * 文本书写方向——从右到左
- * @constant
+ * @property TEXTDIR_RTL
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.TEXTDIR_RTL = "rtl";
 
 /**
  * 线性渐变类型
- * @constant
+ * @property GRADIENT_LINEAR
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.GRADIENT_LINEAR = 1;
 /**
  * 放射渐变类型
- * @constant
+ * @property GRADIENT_RADIAL
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.GRADIENT_RADIAL = 2;
-
 /**
- * 点击测试类型——路径
- * @constant
- */
-soya2d.HITTEST_PATH = 1;
-/**
- * 点击测试类型——像素
- * @constant
- */
-soya2d.HITTEST_PIXEL = 2;
-
-
-/**
- * 摄像机是游戏世界的视口，game.world里的内容都会呈现在camera的镜头内。
+ * 摄像机是世界的视口，game.world里的内容都会呈现在camera的镜头内。
+ * 当移动镜头时，world中的内容会向反方向移动，就像真实世界中样
  * @class Camera
+ * 
  */
 function Camera(w,h,game) {
-
     Object.defineProperties(this,{
         /**
          * camera在world中的位置
-         * @type {int}
+         * @property x
+         * @type {Number}
          */
         x : {
             set:function(v){
@@ -419,7 +482,8 @@ function Camera(w,h,game) {
         },
         /**
          * camera在world中的位置
-         * @type {int}
+         * @property y
+         * @type {Number}
          */
         y : {
             set:function(v){
@@ -430,11 +494,21 @@ function Camera(w,h,game) {
                 return this.__view.y;
             }
         },
+        /**
+         * camera的宽度，等同于舞台宽度
+         * @property w
+         * @type {Number}
+         */
         w : {
             get:function(){
                 return this.__view.w;
             }
         },
+        /**
+         * camera的高度，等同于舞台高度
+         * @property w
+         * @type {Number}
+         */
         h : {
             get:function(){
                 return this.__view.h;
@@ -444,6 +518,7 @@ function Camera(w,h,game) {
     /**
      * 镜头内限制目标跟踪范围的矩形区域，跟踪目标时有效。
      * freezone的x/y/w/h都是相对于camera的
+     * @property freezone
      * @type {soya2d.Rectangle}
      */
     this.freezone = null;
@@ -455,6 +530,7 @@ Camera.prototype = {
     /**
      * 设置camera跟踪一个精灵。<br/>一旦设置有效精灵后，camera将根据freezone设置进行精灵位置跟踪，
      * 而忽略camera本身的任何移动方法。
+     * @method follow
      * @param  {soya2d.DisplayObject} target camera跟踪目标，必须是容器内的精灵
      */
     follow:function(target){
@@ -468,12 +544,14 @@ Camera.prototype = {
     },
     /**
      * 取消跟踪
+     * @method unfollow
      */
     unfollow:function(){
         this.target = null;
     },
     /**
      * 移动卷轴指定坐标
+     * @method moveTo
      * @param  {number} x x轴坐标
      * @param  {number} y y轴坐标
      */
@@ -486,6 +564,7 @@ Camera.prototype = {
     },
     /**
      * 移动卷轴指定偏移
+     * @method moveBy
      * @param  {number} offX x轴偏移量
      * @param  {number} offY y轴偏移量
      */
@@ -496,12 +575,13 @@ Camera.prototype = {
         
         this.__checkBounds();
     },
+    /**
+     * 重置camera的位置为 0,0
+     * @method reset
+     */
     reset:function(){
         this.__view.x = this.__view.y = 0;
     },
-    /**
-     * @private
-     */
     __checkBounds:function(){
         var scope = this.__game.world.bounds;
 
@@ -523,6 +603,7 @@ Camera.prototype = {
     },
     /**
      * 设置camera freezone范围
+     * @method setFreezone
      * @param {soya2d.Rectangle} freezone 范围矩形
      */
     setFreezone:function(scope){
@@ -642,52 +723,81 @@ function viewport(ro,cameraRect,toFixed){
 soya2d.Math = {
 	/**
 	 * π，9位精度
-	 * @constant
+	 * @property PI
+	 * @type {Number}
+	 * @static
+	 * @final
 	 */
 	PI : 3.141592654,
 	/**
 	 * 2π，9位精度
-	 * @constant
+	 * @property PIM2
+	 * @type {Number}
+	 * @static
+	 * @final
 	 */
 	PIM2 : 6.283185307,
 	/**
 	 * π/2，9位精度
-	 * @constant
+	 * @property PID2
+	 * @type {Number}
+	 * @static
+	 * @final
 	 */
 	PID2 : 1.570796327,
 	/**
 	 * π/4，9位精度
-	 * @constant
+	 * @property PID4
+	 * @type {Number}
+	 * @static
+	 * @final
 	 */
 	PID4 : 0.785398163,
 	/**
 	 * 1角度对应弧度，9位精度
-	 * @constant
+	 * @property ONERAD
+	 * @type {Number}
+	 * @static
+	 * @final
 	 */
 	ONERAD : 0.017453292,
 	/**
 	 * 1弧度对应角度，9位精度
-	 * @constant
+	 * @property ONEANG
+	 * @type {Number}
+	 * @static
+	 * @final
 	 */
 	ONEANG : 57.295779513,
 	/**
 	 * 转为弧度
+	 * @method toRadian
+	 * @static
 	 * @param {Number} ang 角度
+	 * @return {Number}
 	 */
 	toRadian : function(ang){return ang*this.ONERAD},
 	/**
 	 * 转为角度
+	 * @method toAngle
+	 * @static
 	 * @param {Number} rad 弧度
+	 * @return {Number}
 	 */
 	toAngle : function(rad){return rad*this.ONEANG},
 	/**
 	 * 获得随机数，浮点型
+	 * @method randomf
+	 * @static
 	 * @param {Number} a 上限
 	 * @param {Number} b 下限
+	 * @return {Number}
 	 */
 	randomf : function(a,b){return a+(Math.random()*(b-a));},
     /**
      * 获得随机数，整型
+     * @method randomi
+	 * @static
      * @param a 上限
      * @param b 下限
      * @return {Number}
@@ -695,25 +805,33 @@ soya2d.Math = {
 	randomi: function(a,b){return (a+(Math.random()*(b-a)))>>0;},
     /**
      * 对浮点数取整，四舍五入
+     * @method round
+	 * @static
      * @param {Number} n 浮点数
+     * @return {Number}
      */
     round:function(n){
         return (0.5 + n)>>0;
     },
     /**
      * 对浮点数取整，小数部分被舍弃
+     * @method floor
+	 * @static
      * @param {Number} n 浮点数
+     * @return {Number}
      */
     floor:function(n){
         return n|0;
     },
 	/**
 	 * 计算平面两点距离
+	 * @method len2D
+	 * @static
 	 * @param {Number} p1x 
 	 * @param {Number} p1y 
 	 * @param {Number} p2x 
 	 * @param {Number} p2y 
-	 * @return 两点距离值
+	 * @return {Number}
 	 */
 	len2D:function(p1x,p1y,p2x,p2y){
 		return Math.sqrt((p2y-p1y)*(p2y-p1y) + (p2x-p1x)*(p2x-p1x));
@@ -721,9 +839,11 @@ soya2d.Math = {
 	/**
 	 * 快速计算平面两点距离
 	 * 注意：此方法会产生少量误差，可以用在精度不高，但要求速度的场景中
+	 * @method len2Df
+	 * @static
 	 * @param {Number} dx X轴坐标差值
 	 * @param {Number} dy Y轴坐标差值
-	 * @return 两点距离值
+	 * @return {Number}
 	 */
 	len2Df:function(dx,dy){//D-values
 		dx = Math.abs(dx);
@@ -735,7 +855,10 @@ soya2d.Math = {
 	},
 	/**
 	 * sin表，包含0到360度，共361个正玄值，可以通过SINTABLE[0-360整数角度]，直接引用
-	 * @constant
+	 * @property SINTABLE
+	 * @type {Float32Array}
+	 * @static
+	 * @final
 	 */
 	SINTABLE : (function(){
 		var t = new Float32Array(361);
@@ -749,7 +872,10 @@ soya2d.Math = {
 	})(),
 	/**
 	 * cos表，包含0到360度，共361个余玄值，可以通过COSTABLE[0-360整数角度]，直接引用
-	 * @constant
+	 * @property COSTABLE
+	 * @type {Float32Array}
+	 * @static
+	 * @final
 	 */
 	COSTABLE : (function(){
 		var t = new Float32Array(361);
@@ -850,20 +976,22 @@ Assets.prototype = {
 }
 
 /**
- * 图像集是一个将许多小的图像整合到一张大图中，可以从图像集中快速的读取指定部分的图像，从而加速动画的渲染。
+ * 图像集通过精灵表(ssheet)自动切割出多个小图，并按照topLeft-bottomRight的方式，
+ * 索引从0-n和小图对应。
  * ssheet格式为<br/>
- * <pre>
+ * ```
  * [
- 		{n:'hero_001.png',x:0,y:0,w:50,h:50,r:90},//ssheet unit
- 		{n:'hero_002.png',x:50,y:50,w:50,h:50,r:180},
+ 		{n:'hero_001.png',x:0,y:0,w:50,h:50,r:90},//ssheet unit，index 0
+ 		{n:'hero_002.png',x:50,y:50,w:50,h:50,r:180},//index 1
  		...
  	]
- 	</pre>
+ 	```
  * r:将指定部分资源旋转指定角度后，形成新纹理
  * @class soya2d.Atlas
  * @constructor
- * @param {Image} image 大图纹理
+ * @param {HTMLImageElement} image 大图纹理
  * @param {Object} ssheet 图像集描述
+ * 
  */
 soya2d.Atlas = function(image,ssheet){
 	this.texs = {};//纹理集
@@ -891,8 +1019,9 @@ soya2d.Atlas = function(image,ssheet){
 soya2d.Atlas.prototype = {
 	/**
 	 * 返回由一个指定的字符串开始按字母排序的所有纹理
-	 * @param  {[type]} prefix [description]
-	 * @return {[type]}        [description]
+	 * @method getAll
+	 * @param  {String} prefix 前缀
+	 * @return {Array}
 	 */
 	getAll:function(prefix){
 		var rs = [];
@@ -903,6 +1032,13 @@ soya2d.Atlas.prototype = {
 		
 		return rs;
 	},
+	/**
+	 * 通过索引区间获取图像帧数组
+	 * @method getByIndex
+	 * @param  {Number} s 开始索引
+	 * @param  {Number} e 结束索引
+	 * @return {Array} 
+	 */
 	getByIndex:function(s,e){
 		var rs = [];
 		var ks = Object.keys(this.texs);
@@ -912,11 +1048,18 @@ soya2d.Atlas.prototype = {
 		}
 		return rs;
 	},
+	/**
+	 * 通过图像帧名称获取对应图像帧
+	 * @method get
+	 * @param  {String} name 在ssheet中指定的n
+	 * @return {HTMLImageElement}
+	 */
 	get:function(name){
 		return this.texs[name];
 	},
 	/**
 	 * 释放图像集数据
+	 * @method destroy
 	 */
 	destroy:function(){
 		this.texs = null;
@@ -928,16 +1071,19 @@ soya2d.Atlas.prototype = {
 
 /**
  * 信号类用来实现soya2D内部的消息系统
- * @class 
+ * 
+ * @class Signal
  */
+
 function Signal(){
-    this.__signalHandler;
-};
+    // this.__signalHandler;
+}
 Signal.prototype = {
     /**
      * 监听一个信号
+     * @method on
      * @param {String} type 信号类型，多个类型使用空格分割
-     * @param {Function} cbk 回调函数
+     * @param {Function} cbk 回调函数，回调参数[target,...]
      * @param {int} order 触发序号，越大的值越先触发
      * @return this
      */
@@ -960,6 +1106,7 @@ Signal.prototype = {
     },
     /**
      * 监听一个信号一次
+     * @method once
      * @param {String} type 信号类型，多个类型使用空格分割
      * @param {Function} cbk 回调函数
      * @param {int} order 触发序号，越大的值越先触发
@@ -971,6 +1118,7 @@ Signal.prototype = {
     },
     /**
      * 取消监听
+     * @method off
      * @param {String} [type] 信号类型，多个类型使用空格分割。如果为空，删除所有信号监听
      * @param {Function} [cbk] 监听时的函数引用。如果为空，删除该类型下所有监听
      */
@@ -979,6 +1127,7 @@ Signal.prototype = {
     },
     /**
      * 发射指定类型信号
+     * @method emit
      * @param {String} type 信号类型
      * @param {...} params 不定类型和数量的参数
      */
@@ -992,6 +1141,10 @@ Signal.prototype = {
     }
 }
 
+/**
+ * 信号类用来实现soya2D内部的消息系统
+ * @class SignalHandler
+ */
 function SignalHandler(){
     this.map = {};
 }
@@ -1064,9 +1217,15 @@ SignalHandler.prototype = {
     }
 }
 /**
- *  资源加载类<br/>
- *  除脚本支持不同加载方式外，其他资源都是并行加载。
- *  调用者应该注意，在并行请求过多时，可能导致请求失败，需要控制请求并发数
+ *  资源加载类加载所有相关资源，并放入{{#crossLink "Assets"}}{{/crossLink}}中。
+ *  该类不能被实例化，系统会自动创建实例给game。
+ *  每个game有且只有一个load属性，通过该属性可以加载资源。
+ *  ```
+ *      game.load.baseUrl = 'assets/xml/';
+ *      game.load.xml({
+ *          ui:'ui.xml'
+ *      });
+ * ```
  *  @class Loader
  */
 var Loader = soya2d.class("",{
@@ -1085,7 +1244,8 @@ var Loader = soya2d.class("",{
         Object.defineProperties(this,{
             /**
              * 是否显示默认的进度条
-             * @type {int}
+             * @property show
+             * @type {Boolean}
              */
             show : {
                 set:function(v){
@@ -1095,6 +1255,11 @@ var Loader = soya2d.class("",{
                     return show;
                 }
             },
+            /**
+             * 进度条文字样式
+             * @property fillStyle
+             * @type {String}
+             */
             fillStyle:{
                 set:function(v){
                     this.__tip.fillStyle = v;
@@ -1176,6 +1341,7 @@ var Loader = soya2d.class("",{
     },
     /**
      * 加载图像
+     * @method image
      * @param  {Object | Array} data 图像的key和url对象，如{btn:'button.png',bullet:'x01.png'}。
      * 或者图像url数组，key为不包含后缀的图像名，如果重复会覆盖
      */
@@ -1194,6 +1360,7 @@ var Loader = soya2d.class("",{
     },
     /**
      * 加载声音
+     * @method sound
      * @param  {Object} data 声音的key和url。url可以是数组或者字符串。当url是数组类型时，
      * 系统会自动判断当前环境支持的声音格式，并加载。{bird:'bird.ogg',boom:['b1.mp3','b1.ogg']}
      */
@@ -1201,7 +1368,8 @@ var Loader = soya2d.class("",{
         this.__addToAssets('sound',data);
     },
     /**
-     * 加载声音
+     * 加载字体
+     * @method font
      * @param  {Object} data 字体的key和url。key就是字体的family。{serif:'serif.woff'}
      */
     font:function(data){
@@ -1209,6 +1377,7 @@ var Loader = soya2d.class("",{
     },
     /**
      * 加载图像文字
+     * @method imageFont
      * @param  {Object} data 图像文字的key和url。url是一个包含了图像地址和精灵表地址的数组。
      * {title:['title.png','title_ss.json'|{{n:'xx',x:0,y:0,w:100,h:100}}]}
      */
@@ -1217,13 +1386,14 @@ var Loader = soya2d.class("",{
     },
     /**
      * 加载图像集
+     * @method atlas
      * @param  {Object} data 图像集的key和url。url是一个包含了图像地址和精灵表地址的数组。
      * {birds:['birds.png','birds_ss.json']}
      *
      * @param {String} key 图像集的key
      * @param {String} url 图像的url
-     * @param {int} width 单个图像的宽度
-     * @param {int} height 单个图像的高度
+     * @param {Number} width 单个图像的宽度
+     * @param {Number} height 单个图像的高度
      */
     atlas:function(data){
         var map = data;
@@ -1239,13 +1409,15 @@ var Loader = soya2d.class("",{
     },
     /**
      * 加载文本
-     * @param  {Object} data 文本的key和url
+     * @method text
+     * @param {Object} data 文本的key和url
      */
     text:function(data){
         this.__addToAssets('text',data);
     },
     /**
      * 加载XML
+     * @method xml
      * @param  {Object} data xml的key和url
      */
     xml:function(data){
@@ -1253,6 +1425,7 @@ var Loader = soya2d.class("",{
     },
     /**
      * 加载json
+     * @method json
      * @param  {Object} data json的key和url
      */
     json:function(data){
@@ -1504,6 +1677,7 @@ var Loader = soya2d.class("",{
     },
     /**
      * 启动加载器。在preload中，引擎会自动调用
+     * @method start 
      */
     start:function(){
         this.__index = 0;
@@ -1567,41 +1741,47 @@ function scanFont(startTime,timeout,originSpan,originWidth,originHeight,onTimeou
 /**
  * 媒体加载错误类型——MEDIA_ERR_UNCERTAIN<br/>
  * 未知错误
- * @constant
+ * @property MEDIA_ERR_UNCERTAIN
+ * @final
  */
 soya2d.MEDIA_ERR_UNCERTAIN = -1;
 /**
  * 媒体加载错误类型——MEDIA_ERR_ABORTED<br/>
  * 加载被中断
- * @constant
+ * @property MEDIA_ERR_ABORTED
+ * @final
  */
 soya2d.MEDIA_ERR_ABORTED = 1;
 /**
  * 媒体加载错误类型——MEDIA_ERR_NETWORK<br/>
  * 网络异常
- * @constant
+ * @property MEDIA_ERR_NETWORK
+ * @final
  */
 soya2d.MEDIA_ERR_NETWORK = 2;
 /**
  * 媒体加载错误类型——MEDIA_ERR_DECODE<br/>
  * 无法解码
- * @constant
+ * @property MEDIA_ERR_DECODE
+ * @final
  */
 soya2d.MEDIA_ERR_DECODE = 3;
 /**
  * 媒体加载错误类型——MEDIA_ERR_SRC_NOT_SUPPORTED<br/>
  * 类型不支持
- * @constant
+ * @property MEDIA_ERR_SRC_NOT_SUPPORTED
+ * @final
  */
 soya2d.MEDIA_ERR_SRC_NOT_SUPPORTED = 4;
 /**
  * 媒体加载错误类型——MEDIA_ERR_SRC_NOT_FORTHCOMING<br/>
  * 无法获取资源数据
- * @constant
+ * @property MEDIA_ERR_SRC_NOT_FORTHCOMING
+ * @final
  */
 soya2d.MEDIA_ERR_SRC_NOT_FORTHCOMING = 101;
 /**
- *  场景用来管理场景内的所有注册对象，如UI元素
+ *  场景用来管理通过XML构建的UI
  *  @class Scene
  */
 function Scene(data,game) {
@@ -1612,15 +1792,43 @@ function Scene(data,game) {
 }
 
 Scene.prototype = {
-    //
+    /**
+     * 通过XML文档设置UI
+     * @method setView
+     * @param {XMLDocument} doc xml文档对象
+     */
     setView:function(doc){
         var world = doc.children[0];
         build(this,world,this.game.world,this.game);
     },
+    /**
+     * 通过id属性查找显示对象
+     * @method findview
+     * @param  {String} id xml中节点的id属性
+     * @return {soya2d.DisplayObject}
+     */
     findView:function(id){
         return this.map[id];
     }
 }
+
+
+/**
+ * 预加载事件，该事件中可以进行资源加载操作。资源加载完成后，会自动调用onInit回调
+ * @event onPreload
+ * @param {soya2d.Game} game 场景所属game
+ */
+/**
+ * 初始化事件，在onPreload后调用
+ * @event onInit
+ * @param {soya2d.Game} game 场景所属game
+ */
+/**
+ * 更新事件，每帧调用
+ * @event onUpdate
+ * @param {soya2d.Game} game 场景所属game
+ * @param {Number} d 上一次调用的间隔
+ */
 
 function build(scene,node,parent,game){
     for(var i=0;i<node.children.length;i++){
@@ -1694,7 +1902,6 @@ function bindEvent(attrs,ins,scene){
     }
 }
 
-
 function filter(type,val,parent){
     switch(type){
         case 'x':case 'w':
@@ -1719,7 +1926,8 @@ function newInstance(type,data,game){
 }
 
 /**
- *  场景管理器，提供场景注册和切换等
+ *  场景管理器，提供场景注册和切换等。每个game实例都有且只有一个场景管理器game.scene。
+ *  <br/>该类不能被实例化
  *  @class SceneManager
  */
 function SceneManager(game) {
@@ -1730,7 +1938,8 @@ function SceneManager(game) {
 SceneManager.prototype = {
     /**
      * 启动场景
-     * @param  {String | Object} scene   场景对象，或者注册名称
+     * @method start
+     * @param  {String | Object} scene   场景对象，或者注册名称。
      * @param  {Boolean} clearWorld 是否清空world
      */
     start:function(scene,clearWorld){
@@ -1773,10 +1982,15 @@ SceneManager.prototype = {
         for(var k in modules){
             if(modules[k].onSceneChange)modules[k].onSceneChange(that,scene);
         }
-        
 
         return this;
     },
+    /**
+     * 添加一个场景，系统自动把描述对象转换成{{#crossLink "Scene"}}{{/crossLink}}实例
+     * @method add
+     * @param {String} key 
+     * @param {Object} scene 带有回调函数的对象，注意并不是{{#crossLink "Scene"}}{{/crossLink}}实例
+     */
     add:function(key,scene){
         this.map[key] = new Scene(scene,game);
         return this.map[key];
@@ -1786,6 +2000,7 @@ SceneManager.prototype = {
  * 构造一个用于任务调度的触发器。
  * 触发器是调度器进行任务调度时，触发任务的依据。根据触发器提供的表达式，进行触发。一个触发器只能绑定一个任务。
  * @class TimerTrigger
+ * @private
  * @param {string} exp 触发器表达式，根据触发类型而定
  */
 function TimerTrigger(exp){
@@ -1940,9 +2155,56 @@ function checkTimePart(part,v){
     return true;
 }
 /**
- * 定时器
+ * 定时器。基于[秒 分 时]进行调度,支持η表达式，可以创建复杂的定时任务。
+ * η表达式基于和主循环同步的时间机制，误差在1个FPS之内。
+ * 语法：
+ * <table>
+ *     <tr>
+ *         <th>type</th><th>range</th><th>sym</th><th>desc</th>
+ *     </tr>
+      <tr>
+          <td>Sec</td><td>0-59</td><td>* / , -</td>
+          <td>
+                ** 每秒触发<br>
+                10 第10秒触发<br>
+                20-40 第20到40秒触发<br>
+                0-50/5 第0到50秒，每5秒触发<br>
+                0/1 每秒触发<br>
+                *\/15 每15秒触发<br>
+                5,25,50 第5/25/50秒触发<br>
+          </td>
+      </tr>
+      <tr>
+          <td>Min</td><td>0-59</td><td>* / , -</td>
+          <td>
+              同上
+          </td>
+      </tr>
+      <tr>
+          <td>Hou</td><td>0-n</td><td>* / , -</td>
+          <td>
+              同上
+          </td>
+      </tr>
+ * </table>
+ 
+ * <p>例子</p>
+
+| exp        | desc|
+| :------------- |:-------------|
+| * 2 *      | 每小时第2分钟到3分钟，每秒触发 |
+| 45 * 2     | 第2个小时每分钟第45秒触发 |
+| 45 * *     | 每分钟第45秒触发 |
+| 0 2 *      | 每小时第2分钟触发 |
+| 0 0 *      | 每小时触发一次 |
+| 0/5 4 *      | 每小时第4分钟，从0秒开始，每隔5秒触发 |
+| 5/15 4,14,28 *      | 每小时第4/14/28分钟，第5秒开始，每15秒触发 |
+| 5-10 * *      | 每分钟第5到10秒触发 |
+
  * 
  * @class Timer
+ * @extends Signal
+ * @constructor
  */
 var Timer = soya2d.class('',{
     extends:Signal,
@@ -1952,6 +2214,14 @@ var Timer = soya2d.class('',{
         this.expMap = {};
         this.threshold = 1000;
     },
+    /**
+     * 添加一个定时器
+     * @method on
+     * @param  {String} exp  表达式，必须用中括号包裹 [* * *]
+     * @param  {Function} cbk  回调函数，回调参数[milliseconds,times,[s,m,h]]
+     * @param  {Number} order 序号
+     * @return this
+     */
     on:function(exp,cbk,order){
         var that = this;
         exp = exp.replace(/\[(.*?)\]/mg,function(all,ex){
@@ -1965,6 +2235,14 @@ var Timer = soya2d.class('',{
         
         return this._super.on.call(this,exp,cbk,order);
     },
+    /**
+     * 添加一个定时器，只执行一次
+     * @method once
+     * @param  {String} exp  表达式，必须用中括号包裹 [* * *]
+     * @param  {Function} cbk  回调函数，回调参数[milliseconds,times,[s,m,h]]
+     * @param  {Number} order 序号
+     * @return this
+     */
     once:function(exp,cbk,order){
         var that = this;
         exp = exp.replace(/\[(.*?)\]/mg,function(all,ex){
@@ -1977,6 +2255,12 @@ var Timer = soya2d.class('',{
         });
         return this._super.once.call(this,exp,cbk,order);
     },
+    /**
+     * 取消一个定时器
+     * @method off
+     * @param  {String} exp  表达式，必须用中括号包裹 [* * *]
+     * @param  {Function} cbk  回调函数
+     */
     off:function(exp,cbk){
         var exArray = [];
         exp = exp.replace(/\[(.*?)\]/mg,function(all,ex){
@@ -1992,10 +2276,7 @@ var Timer = soya2d.class('',{
             }
         },this);
     },
-    /**
-     * 内部调用，检查所有触发器是否有可以触发的
-     * @private
-     */
+    //内部调用，检查所有触发器是否有可以触发的
     __scan : function(d){
         //扫描所有触发器
         var deleteTriggerList = [];
@@ -2045,11 +2326,15 @@ var Timer = soya2d.class('',{
 });
 
 /**
- * 几何结构，圆形。用于保存圆形结构数据
- * @class 
+ * 几何结构，圆形。用于保存圆形结构数据，可以设置为{{#crossLink "soya2d.DisplayObject"}}的bounds，
+ * 用于检测碰撞
+ * @class soya2d.Circle
+ * @constructor
  * @param {Number} x
  * @param {Number} y
  * @param {Number} r
+ *
+ * @module geom
  */
 soya2d.Circle  = function(x,y,r){
 	this.x = x || 0;
@@ -2057,12 +2342,26 @@ soya2d.Circle  = function(x,y,r){
     this.r = r || 0;
 };
 soya2d.Circle.prototype = {
+    /**
+     * @method toString
+     * @return {String}
+     */
     toString:function(){
         return "{x:"+this.x+",y:"+this.y+",r:"+this.r+"}";
     },
+    /**
+     * @method clone
+     * @return {soya2d.Circle} 
+     */
     clone:function(){
         return new soya2d.Circle(this.x,this.y,this.r);
     },
+    /**
+     * 是否和另一个几何图形相交
+     * @method intersectWidth
+     * @param  {soya2d.Circle | soya2d.Rectangle} geom 几何图形
+     * @return {Boolean}
+     */
     intersectWith:function(geom){
         if(geom instanceof soya2d.Circle && geom.r>0){
             if(soya2d.Math.len2Df(geom.x - this.x,geom.y - this.y) <= this.r+geom.r)return false;
@@ -2088,16 +2387,25 @@ soya2d.Circle.prototype = {
 
 /**
  * 几何结构，多边形。
- * @class 
+ * @class soya2d.Polygon
+ * @constructor
  * @param {Array} vtx 1维顶点数组
  */
 soya2d.Polygon  = function(vtx){
 	this.vtx = vtx;
 };
 soya2d.Polygon.prototype = {
+	/**
+     * @method toString
+     * @return {String} 
+     */
     toString:function(){
         return this.vtx;
     },
+    /**
+     * @method clone
+     * @return {soya2d.Polygon} 
+     */
     clone:function(){
         return new soya2d.Polygon(this.vtx.concat());
     }
@@ -2105,7 +2413,8 @@ soya2d.Polygon.prototype = {
 
 /**
  * 几何结构，矩形。用于保存矩形结构数据
- * @class 
+ * @class soya2d.Rectangle
+ * @constructor
  * @param {Number} x
  * @param {Number} y
  * @param {Number} w
@@ -2118,23 +2427,54 @@ soya2d.Rectangle = function(x,y,w,h){
     this.h = h || 0;
 };
 soya2d.Rectangle.prototype = {
+    /**
+     * @method toString
+     * @return {String} 
+     */
     toString:function(){
         return "{x:"+this.x+",y:"+this.y+",w:"+this.w+",h:"+this.h+"}";
     },
+    /**
+     * @method clone
+     * @return {soya2d.Rectangle} 
+     */
     clone:function(){
         return new soya2d.Rectangle(this.x,this.y,this.w,this.h);
     },
+    /**
+     * 获取矩形右侧坐标
+     * @method getRight
+     * @return {Number} 
+     */
     getRight:function(){
         return this.x + this.w;
     },
+    /**
+     * 获取矩形下侧坐标
+     * @method getBottom
+     * @return {Number} 
+     */
     getBottom:function(){
         return this.y + this.h;
     },
+    /**
+     * 是否包含指定坐标点
+     * @method contains
+     * @param  {Number} x 
+     * @param  {Number} y 
+     * @return {Boolean}
+     */
     contains:function(x,y){
         if(x < this.x || x > this.x+this.w)return false;
         if(y < this.y || y > this.y+this.h)return false;
         return true;
     },
+    /**
+     * 是否和另一个几何图形相交
+     * @method intersectWidth
+     * @param  {soya2d.Circle | soya2d.Rectangle} geom 几何图形
+     * @return {Boolean}
+     */
     intersectWith:function(geom){
         if(geom instanceof soya2d.Rectangle && geom.w>0 && geom.h>0){
             if(this.x > geom.x+geom.w || this.y > geom.y+geom.h)return false;
@@ -2149,7 +2489,8 @@ soya2d.Rectangle.prototype = {
 
 /**
  * 几何结构，点
- * @class 
+ * @class soya2d.Point
+ * @constructor
  * @param {Number} x
  * @param {Number} y
  */
@@ -2158,12 +2499,25 @@ soya2d.Point = function(x,y){
     this.y = y || 0;
 };
 soya2d.Point.prototype = {
+    /**
+     * @method toString
+     * @return {String} 
+     */
     toString:function(){
         return "{x:"+this.x+",y:"+this.y+"}";
     },
+    /**
+     * @method clone
+     * @return {soya2d.Point} 
+     */
     clone:function(){
         return new soya2d.Point(this.x,this.y);
     },
+    /**
+     * 设置值
+     * @param {Number} x 
+     * @param {Number} y 
+     */
     set:function(x,y){
         this.x = x;
         this.y = y;
@@ -2172,12 +2526,16 @@ soya2d.Point.prototype = {
 };
 
 /**
- * 创建一个2*2单位矩阵，该矩阵用来描述2D变换信息
- * @class 
+ * 创建一个2*2单位矩阵，该矩阵用来描述2D变换信息。
+ * 每个显示对象都有一个该矩阵实例用来执行变换操作
+ * @class soya2d.Matrix2x2
+ * @constructor
+ * @module geom
  */
 soya2d.Matrix2x2 = function(){
     /**
      * 矩阵结构数组
+     * @property e
      * @type {Float32Array}
      * @default [1,0,0,1]
      */
@@ -2186,11 +2544,16 @@ soya2d.Matrix2x2 = function(){
 };
 
 soya2d.Matrix2x2.prototype = {
+	/**
+	 * @method toString
+	 * @return {String} 
+	 */
 	toString:function(){
 		return "["+this.e[0]+","+this.e[1]+","+this.e[2]+","+this.e[3]+"]";
 	},
     /**
      * 设置矩阵数据
+     * @method set
      * @param m11
      * @param m12
      * @param m21
@@ -2205,6 +2568,7 @@ soya2d.Matrix2x2.prototype = {
 	},
     /**
      * 克隆当前矩阵
+     * @method clone
      * @return {soya2d.Matrix2x2} a new matrix
      */
 	clone:function(){
@@ -2212,6 +2576,7 @@ soya2d.Matrix2x2.prototype = {
 	},
     /**
      * 重置矩阵为单位矩阵
+     * @method identity
      * @return {soya2d.Matrix2x2} this
      */
 	identity:function(){
@@ -2222,6 +2587,7 @@ soya2d.Matrix2x2.prototype = {
 	},
     /**
      * 当前矩阵左乘m
+     * @method mul
      * @param {soya2d.Matrix2x2} m
      * @return {soya2d.Matrix2x2} this
      */
@@ -2235,8 +2601,9 @@ soya2d.Matrix2x2.prototype = {
 	},
     /**
      * 缩放当前矩阵
-     * @param x
-     * @param y
+     * @method scale
+     * @param {Number} x
+     * @param {Number} y
      * @return {soya2d.Matrix2x2} this
      */
 	scale:function(x,y){
@@ -2246,6 +2613,7 @@ soya2d.Matrix2x2.prototype = {
 	},
     /**
      * 旋转当前矩阵
+     * @method rotate
      * @param {Number} angle 旋转角度0-360
      * @return {soya2d.Matrix2x2} this
      */
@@ -2272,6 +2640,7 @@ soya2d.Matrix2x2.prototype = {
 	},
     /**
      * 倾斜当前矩阵
+     * @method skew
      * @param {Number} x 水平倾角
      * @param {Number} y 垂直倾角
      * @return {soya2d.Matrix2x2} this
@@ -2308,13 +2677,15 @@ soya2d.Matrix2x2.prototype = {
 
 /**
  * 2D向量。提供向量相关计算。<br/>参数为0时，将构造一个0向量
- * @class 
+ * @class soya2d.Vector
+ * @constructor
  * @param {Number} x
  * @param {Number} y
  */
 soya2d.Vector = function(x,y){
     /**
      * 向量结构数组
+     * @property e
      * @type {Float32Array}
      * @default [0,0]
      */
@@ -2324,11 +2695,16 @@ soya2d.Vector = function(x,y){
 };
 
 soya2d.Vector.prototype = {
+	/**
+     * @method toString
+     * @return {String} 
+     */
 	toString:function(){
 		return "{x:"+this.e[0]+",y:"+this.e[1]+"}";
 	},
 	/**
 	 * 使用当前向量参数，复制一个新的2D向量
+	 * @method clone
 	 * @return {soya2d.Vector} 和当前向量值相同的新向量
 	 */
 	clone:function(){
@@ -2336,8 +2712,9 @@ soya2d.Vector.prototype = {
 	},
 	/**
 	 * 设置向量值
-	 * @param {int} x x轴分量值
-	 * @param {int} y y轴分量值
+	 * @method set
+	 * @param {Number} x x轴分量值
+	 * @param {Number} y y轴分量值
 	 * @return {soya2d.Vector} this
 	 */
 	set:function(x,y){
@@ -2348,6 +2725,7 @@ soya2d.Vector.prototype = {
 	},
 	/**
 	 * 计算和指定向量的点积
+	 * @method dot
 	 * @param {soya2d.Vector} v 指定向量
 	 * @return {Number} 点积值
 	 */
@@ -2356,6 +2734,7 @@ soya2d.Vector.prototype = {
 	},
 	/**
 	 * 当前向量取反
+	 * @method negate
 	 */
 	negate:function(){
 		this.e[0] *= -1;
@@ -2364,6 +2743,7 @@ soya2d.Vector.prototype = {
 	},
 	/**
 	 * 和增加指定向量相加
+	 * @method add
 	 * @param {soya2d.Vector} v 指定向量
 	 */
 	add:function(v){
@@ -2373,6 +2753,7 @@ soya2d.Vector.prototype = {
 	},
 	/**
 	 * 和增加指定向量相减
+	 * @method sub
 	 * @param {soya2d.Vector} v 指定向量
 	 */
 	sub:function(v){
@@ -2382,6 +2763,7 @@ soya2d.Vector.prototype = {
 	},
 	/**
 	 * 当前向量乘以指定实数
+	 * @method mul
 	 * @param {Number} s 实数
 	 */
 	mul:function(s){
@@ -2391,6 +2773,7 @@ soya2d.Vector.prototype = {
 	},
 	/**
 	 * 当前向量除以指定实数
+	 * @method div
 	 * @param {Number} s 实数
 	 */
 	div:function(s){
@@ -2405,6 +2788,7 @@ soya2d.Vector.prototype = {
 	},
 	/**
 	 * 获得当前向量夹角
+	 * @method getAngle
 	 * @return {Number} 夹角值
 	 */
 	getAngle:function(){
@@ -2412,6 +2796,7 @@ soya2d.Vector.prototype = {
 	},
 	/**
 	 * 获得和指定向量夹角
+	 * @method getAngleBetween
 	 * @param {soya2d.Vector} v 指定向量
 	 * @return {Number} 夹角值
 	 */
@@ -2422,6 +2807,7 @@ soya2d.Vector.prototype = {
 	},
 	/**
 	 * 旋转当前向量指定角度
+	 * @method rotate
 	 * @param {Number} angle 指定角度
 	 */
 	rotate:function(angle){
@@ -2442,6 +2828,7 @@ soya2d.Vector.prototype = {
 	},
 	/**
 	 * 获得当前向量长度平方
+	 * @method lengthSq
 	 * @return {Number} 平方值
 	 */
 	lengthSq: function () {
@@ -2449,6 +2836,7 @@ soya2d.Vector.prototype = {
 	},
 	/**
 	 * 获得当前向量长度
+	 * @method length
 	 * @return {Number} 长度值
 	 */
 	length: function () {
@@ -2456,6 +2844,7 @@ soya2d.Vector.prototype = {
 	},
 	/**
 	 * 把当前向量变为单位向量
+	 * @method normalize
 	 * @return {soya2d.Vector} 单位向量
 	 */
 	normalize: function () {
@@ -2464,55 +2853,135 @@ soya2d.Vector.prototype = {
 };
  
 /**
- *  物理刚体接口，所有物理引擎需要实现body接口
+ *  物理刚体接口，用于屏蔽不同物理系统的实现差异，对调用者统一接口。
+ *  如果更换物理系统，只需要修改底层实现，不影响应用层
+ *  @class Body
+ *  @extends Signal
+ *  @module physics
  */
 var Body = soya2d.class("",{
     extends:Signal,
     constructor:function(displayObject){
         this.__signalHandler = new SignalHandler();
+        /**
+         * 显示对象引用
+         */
         this.sprite = displayObject;
+        /**
+         * 物理刚体引用
+         * @property rigid
+         */
         this.rigid = null;//物理刚体
     },
+    /**
+     * 设置是否为传感器。传感器刚体会触发碰撞事件，但不会显现碰撞效果
+     * @method sensor
+     * @param  {Boolean} tof 
+     * @return this
+     */
     sensor:function(tof) {
         this.__cbk && this.__cbk.sensor(this.rigid,tof);
         return this;
     },
+    /**
+     * 移动到指定坐标
+     * @method moveTo
+     * @param  {Number} x 
+     * @param  {Number} y 
+     * @return this
+     */
     moveTo:function(x,y){
         this.__cbk && this.__cbk.moveTo(this.rigid,x,y);
         return this;
     },
-    moveBy:function(x,y){
-        this.__cbk && this.__cbk.moveBy(this.rigid,x,y);
+    /**
+     * 移动指定偏移
+     * @method moveBy
+     * @param  {Number} offx 
+     * @param  {Number} offy
+     * @return this
+     */
+    moveBy:function(offx,offy){
+        this.__cbk && this.__cbk.moveBy(this.rigid,offx,offy);
         return this;
     },
+    /**
+     * 设置是否为静态刚体。静态刚体会呈现碰撞，但没有重力效果
+     * @method static
+     * @param  {Boolean} tof 
+     * @return this
+     */
     static:function(tof){
         this.__cbk && this.__cbk.static(this.rigid,tof);
         return this;
     },
+    /**
+     * 设置刚体的质量
+     * @method mass
+     * @param  {Number} v 
+     * @return this
+     */
     mass:function(v){
         this.__cbk && this.__cbk.mass(this.rigid,v);
         return this;
     },
+    /**
+     * 设置刚体旋转偏移
+     * @method rotateBy
+     * @param  {Number} v 
+     * @return this
+     */
     rotateBy:function(v){
         this.__cbk && this.__cbk.rotateBy(this.rigid,v);
         return this;
     },
+    /**
+     * 设置刚体旋转角度
+     * @method rotateTo
+     * @param  {Number} v 
+     * @return this
+     */
     rotateTo:function(v){
         this.__cbk && this.__cbk.rotateTo(this.rigid,v);
         return this;
     },
+    /**
+     * 设置刚体摩擦系数
+     * @method friction
+     * @param  {Number} v 
+     * @return this
+     */
     friction:function(v){
         this.__cbk && this.__cbk.friction(this.rigid,v);
         return this;
     },
+    /**
+     * 设置刚体弹性系数
+     * @method restitution
+     * @param  {Number} v 
+     * @return this
+     */
     restitution:function(v){
         this.__cbk && this.__cbk.restitution(this.rigid,v);
         return this;
     },
+    /**
+     * 设置刚体速度
+     * @method velocity
+     * @param  {Number} x 
+     * @param  {Number} y 
+     * @return this
+     */
     velocity:function(x,y){
         this.__cbk && this.__cbk.velocity(this.rigid,x||0,y||0);
         return this;
     },
+    /**
+     * 设置刚体惯性
+     * @method inertia
+     * @param  {Number} v 
+     * @return this
+     */
     inertia:function(v){
         this.__cbk && this.__cbk.inertia(this.rigid,v||0);
         return this;
@@ -2520,7 +2989,11 @@ var Body = soya2d.class("",{
 });
 
 /**
- * 该类是soya中应用物理系统的统一接口
+ * 物理类是soya2d中应用物理系统的统一接口，该接口屏蔽了不同物理系统的实现，
+ * 使用统一的调用接口实现物理关联
+ * @class Physics
+ * @extends Signal
+ * @module physics
  */
 var Physics = soya2d.class("",{
     extends:Signal,
@@ -2530,6 +3003,7 @@ var Physics = soya2d.class("",{
     },
     /**
      * 建立一个物理引擎，并实现相关接口
+     * @method setup
      * @param  {Object} opts 
      * @param {Function} opts.onStart 引擎启动
      * @param {Function} opts.onUpdate 引擎更新
@@ -2540,8 +3014,10 @@ var Physics = soya2d.class("",{
     },
     /**
      * 启动物理系统,可以传递参数
-     * @param  {[type]} opts [description]
-     * @return {[type]}      [description]
+     * @method start
+     * @param  {Object} opts 物理参数
+     * @param  {Array} [opts.gravity=[0,1]] 重力参数
+     * @param  {Boolean} [opts.enableSleeping] 重力参数
      */
     start:function(opts){
     	opts = opts || {};
@@ -2554,6 +3030,10 @@ var Physics = soya2d.class("",{
 
 		this.running = true;
     },
+    /**
+     * 停止物理系统
+     * @method stop
+     */
     stop:function(){
     	this.__cbk.onStop && this.__cbk.onStop();
     	this.running = false;
@@ -2561,6 +3041,10 @@ var Physics = soya2d.class("",{
     update:function(){
     	this.__cbk.onUpdate && this.__cbk.onUpdate(); 
     },
+    /**
+     * 绑定显示对象，建立和物理世界的关联
+     * @private
+     */
     bind:function(obj){
     	var shape;
     	if(this.__cbk.onBind){
@@ -2570,6 +3054,10 @@ var Physics = soya2d.class("",{
     	obj.body.__cbk = this.__cbk.body;
 		shape.__sprite = obj;
     },
+    /**
+     * 把显示对象和物理世界的映射解除
+     * @private
+     */
     unbind:function(obj){
         var shape = obj.body.rigid;
         if(!shape)return;
@@ -2581,6 +3069,10 @@ var Physics = soya2d.class("",{
         }
         obj.body = {};
     },
+    /**
+     * 让一个或多个显示对象启用物理效果
+     * @param  {Array|...} objs 显示对象数组，或多个显示对象的可变参数
+     */
     enable:function(objs){
     	var rs = objs;
     	if(objs instanceof Array || arguments.length>1){
@@ -2591,31 +3083,74 @@ var Physics = soya2d.class("",{
     	}else {
     		this.bind(rs);
     	}
+    },
+    /**
+     * 让一个或多个显示对象关闭物理效果
+     * @param  {Array|...} objs 显示对象数组，或多个显示对象的可变参数
+     */
+    unable:function(objs){
+        var rs = objs;
+        if(objs instanceof Array || arguments.length>1){
+            if(arguments.length>1)rs = arguments;
+            for(var i=rs.length;i--;){
+                this.unbind(rs[i]);
+            }
+        }else {
+            this.unbind(rs);
+        }
     }
 });
 
 /**
  * 事件类型 - 碰撞开始
+ * @property EVENT_CONTACTSTART
+ * @static
+ * @final
+ * @for soya2d
  * @type {String}
  */
 soya2d.EVENT_CONTACTSTART = 'contactstart';
 /**
  * 事件类型 - 碰撞结束
+ * @property EVENT_CONTACTEND
+ * @static
+ * @final
+ * @for soya2d
  * @type {String}
  */
 soya2d.EVENT_CONTACTEND = 'contactend';
+
+
 /**
- * 物理事件对象
- * @type {Object}
- * @typedef {Object} soya2d.PhysicsEvent
- * @property {Array} collisionPairs - 碰撞对一维数组[{a:xx,b:xx},{a:yy,b:yy}, ...]
- * @property {soya2d.DisplayObject} otherCollider - 与当前对象产生碰撞的显示对象
+ * 物理事件
+ * @event collisionStart
+ * @for soya2d.DisplayObject
+ * @param {soya2d.DisplayObject} otherCollider 碰撞对象
+ */
+/**
+ * 物理事件
+ * @event collisionEnd
+ * @for soya2d.DisplayObject
+ * @param {soya2d.DisplayObject} otherCollider 碰撞对象
  */
 
-
 /**
- * 显示对象工厂提供了一种代理服务，简化了创建soya2d中所有可显示对象的工作，并且会自动加入game.world中.
- * 同时，该类提供了用于注册自定义显示对象到快捷列表中的方法，这样可以在使用XML构建UI时，使用自定义标签
+ * 物理事件
+ * @event collisionStart
+ * @for Physics
+ * @param {soya2d.DisplayObject} colliderA 碰撞对象A
+ * @param {soya2d.DisplayObject} colliderB 碰撞对象B
+ */
+/**
+ * 物理事件
+ * @event collisionEnd
+ * @for Physics
+ * @param {soya2d.DisplayObject} colliderA 碰撞对象A
+ * @param {soya2d.DisplayObject} colliderB 碰撞对象B
+ */
+/**
+ * 显示对象工厂保存了显示对象的别名，简化了创建soya2d中所有可显示对象的工作，并且会自动加入game.world中.
+ * 该类提供了用于注册自定义显示对象到快捷列表中的方法，这样可以在使用XML构建UI时，使用自定义标签
  * ```
  *     game.objects.register('rect',soya2d.Rect);
  * ```
@@ -2629,16 +3164,29 @@ function DisplayObjectFactory(game){
 }
 
 DisplayObjectFactory.prototype = {
-    register:function(type,constructor){
-        this.map[type] = constructor;
-        this.game.add[type] = function(data){
-            return this.__newInstance(type,data);
+	/**
+	 * 注册一个别称到显示对象工厂中。注册后，可以在XML中使用别称，以及使用快速创建接口，如下
+	 * ```
+ 	*     game.add.alias({...});
+ 	* ```
+ 	* ```html
+ 	* <alias></alias>
+ 	* ```
+ 	* @method register
+	 * @param  {String} alias  别名
+	 * @param  {Function} constructor 构造函数
+	 */
+    register:function(alias,constructor){
+        this.map[alias] = constructor;
+        this.game.add[alias] = function(data){
+            return this.__newInstance(alias,data);
         }
     }
 };
 /**
- * 显示对象工厂代理提供用于从显示对象工厂中获取指定类型实例，并自动插入world中
- * @class 
+ * 显示对象工厂代理提供用于从显示对象工厂中获取指定类型实例，并自动插入world中。
+ * 工厂提供了一种代理服务，能够从别名中识别出对应的构造函数
+ * @class DisplayObjectFactoryProxy
  */
 function DisplayObjectFactoryProxy(game){
     this.game = game;
@@ -2667,34 +3215,38 @@ soya2d.class("soya2d.DisplayObject",{
         this.__seq = soya2d.__roIndex++;
         /**
          * 对父类的引用
-         * @var {soya2d.DisplayObject} soya2d.DisplayObject#_super
+         * @property _super
+         * @type {soya2d.DisplayObject}
          */
 
         /**
-         * 渲染对象id，只读
+         * 渲染对象id
+         * @property roid
+         * @readOnly
          * @type {string}
          */
         this.roid = 'roid_' + this.__seq;
         /**
-         * 名称
+         * 名称——用于识别显示对象。如果创建时不指定，默认和roid相同
+         * @property name
          * @type {string}
          */
         this.name = data.name||this.roid;
         /**
-         * 是否可见<br/>
-         * true:可见
-         * false:不可见
+         * 是否可见
+         * @property visible
          * @type boolean
          * @default true
          */
         this.visible = data.visible===false?false:data.visible||true;
         /**
-         * 布局对象，属性列表如下：
+         * 布局对象允许以更灵活的方式设置显示对象的尺寸或坐标，属性列表如下：
          * left 当值是百分比时，相对父类的宽度
          * top  当值是百分比时，相对父类的高度
          * offsetLeft 当值是百分比时，相对自身的宽度
          * offsetTop 当值是百分比时，相对自身的高度
          * 都支持数值和百分比
+         * @property layout
          * @type {Object}
          */
         this.layout = data.layout;
@@ -2714,12 +3266,11 @@ soya2d.class("soya2d.DisplayObject",{
 
         Object.defineProperties(this,{
             /**
-             * 可见度0-1
+             * 不可见度0-1
              * 1:不透明
              * 0:全透明
              * @type Number
-             * @instance
-             * @memberof soya2d.DisplayObject
+             * @property opacity
              * @default 1
              */
             opacity:{
@@ -2738,8 +3289,7 @@ soya2d.class("soya2d.DisplayObject",{
             /**
              * x坐标。使用top-left坐标系
              * @type Number
-             * @instance
-             * @memberof soya2d.DisplayObject
+             * @property x
              * @default 0
              */
             x:{
@@ -2759,8 +3309,7 @@ soya2d.class("soya2d.DisplayObject",{
             /**
              * y坐标。使用top-left坐标系
              * @type Number
-             * @instance
-             * @memberof soya2d.DisplayObject
+             * @property y
              * @default 0
              */
             y:{
@@ -2781,8 +3330,7 @@ soya2d.class("soya2d.DisplayObject",{
              * 宽度。和高度一起，标识对象的碰撞区、以及事件触发区<br/>
              * *anchorX属性也依赖该属性
              * @type Number
-             * @instance
-             * @memberof soya2d.DisplayObject
+             * @property w
              * @default 0
              */
             w:{
@@ -2799,8 +3347,7 @@ soya2d.class("soya2d.DisplayObject",{
              * 高度。和宽度一起，标识对象的碰撞区、以及事件触发区<br/>
              * *anchorY属性也依赖该属性
              * @type Number
-             * @instance
-             * @memberof soya2d.DisplayObject
+             * @property h
              * @default 0
              */
             h:{
@@ -2814,10 +3361,9 @@ soya2d.class("soya2d.DisplayObject",{
                 enumerable:true
             },
             /**
-             * x轴参考点，对象变形时的原点,可以设置百分比字符串或者数字。
+             * x轴参考点，对象变形时的原点,可以设置百分比字符串或者数字
              * @type {String|Number}
-             * @instance
-             * @memberof soya2d.DisplayObject
+             * @property anchorX
              * @default 0
              */
             anchorX:{
@@ -2831,10 +3377,9 @@ soya2d.class("soya2d.DisplayObject",{
                 enumerable:true
             },
             /**
-             * y轴参考点，对象变形时的原点,可以设置百分比字符串或者数字。
+             * y轴参考点，对象变形时的原点,可以设置百分比字符串或者数字
              * @type {String|Number}
-             * @instance
-             * @memberof soya2d.DisplayObject
+             * @property anchorY
              * @default 0
              */
             anchorY:{
@@ -2850,8 +3395,7 @@ soya2d.class("soya2d.DisplayObject",{
             /**
              * 当前旋转角度
              * @type {Number}
-             * @instance
-             * @memberof soya2d.DisplayObject
+             * @property angle
              * @default 0
              */
             angle:{
@@ -2873,9 +3417,8 @@ soya2d.class("soya2d.DisplayObject",{
              * 如果大于1，则会把对象横向拉伸<br/>
              * 如果等于1，不改变<br/>
              * 如果小于1，则会把对象横向缩短
-             * @type Number
-             * @instance
-             * @memberof soya2d.DisplayObject
+             * @type {Number}
+             * @property scaleX
              * @default 1
              */
             scaleX:{
@@ -2893,9 +3436,8 @@ soya2d.class("soya2d.DisplayObject",{
              * 如果大于1，则会把对象纵向拉伸<br/>
              * 如果等于1，不改变<br/>
              * 如果小于1，则会把对象纵向缩短
-             * @type Number
-             * @instance
-             * @memberof soya2d.DisplayObject
+             * @type {Number}
+             * @property scaleY
              * @default 1
              */
             scaleY:{
@@ -2910,9 +3452,8 @@ soya2d.class("soya2d.DisplayObject",{
             },
             /**
              * x轴偏移角。单位：角度
-             * @type Number
-             * @instance
-             * @memberof soya2d.DisplayObject
+             * @type {Number}
+             * @property skewX
              * @default 0
              */
             skewX:{
@@ -2927,9 +3468,8 @@ soya2d.class("soya2d.DisplayObject",{
             },
             /**
              * y轴偏移角。单位：角度
-             * @type Number
-             * @instance
-             * @memberof soya2d.DisplayObject
+             * @type {Number}
+             * @property skewY
              * @default 0
              */
             skewY:{
@@ -2946,7 +3486,8 @@ soya2d.class("soya2d.DisplayObject",{
 
         /**
          * z坐标。标识对象所属图层，并且引擎会按照z值的大小进行渲染
-         * @type Number
+         * @type {Number}
+         * @property z
          * @default 0
          */
         this.z = data.z||0;
@@ -2977,22 +3518,26 @@ soya2d.class("soya2d.DisplayObject",{
         /**
          * 世界坐标
          * @readOnly
+         * @property worldPosition
          * @type {soya2d.Point}
          */
         this.worldPosition = new soya2d.Point();
         /**
          * 锚点坐标
+         * @property anchorPosition
          * @readOnly
          * @type {soya2d.Point}
          */
         this.anchorPosition = new soya2d.Point();
         /**
          * 屏幕坐标
-         * @type {soya2d}
+         * @type {soya2d.Point}
+         * @private
          */
         this.__screenPosition = new soya2d.Point();
         /**
          * 混合方式
+         * @property blendMode
          * @type String
          * @default soya2d.BLEND_NORMAL
          * @see soya2d.BLEND_NORMAL
@@ -3007,9 +3552,8 @@ soya2d.class("soya2d.DisplayObject",{
              * 被用于遮罩的对象只能同时存在一个需要遮罩的对象上，多次设置只会保留最后一次，
              * 并且被用于遮罩的对象不会出现在画面上<br/>
              * *如果需要动态控制遮罩对象，需要把遮罩对象添加到场景中
+             * @property mask
              * @type {soya2d.DisplayObject}
-             * @instance
-             * @memberof soya2d.DisplayObject
              * @default null; 
              */
             mask:{
@@ -3029,6 +3573,7 @@ soya2d.class("soya2d.DisplayObject",{
             },
             /**
              * 是否固定到摄像机。如果该属性为true，当摄像机移动时，精灵会固定在摄像机的指定位置
+             * @property fixedToCamera
              * @type {Boolean}
              */
             fixedToCamera:{
@@ -3050,6 +3595,7 @@ soya2d.class("soya2d.DisplayObject",{
         this.__masker = null;
         /**
          * 对象范围，用于拾取测试和物理碰撞
+         * @property bounds
          * @type {soya2d.Rectangle | soya2d.Circle | soya2d.Polygon}
          * @default soya2d.Rectangle实例
          */
@@ -3061,6 +3607,7 @@ soya2d.class("soya2d.DisplayObject",{
         this.__boundRect = new soya2d.Rectangle(0,0,1,1);
         /**
          * 对象在物理世界中的实体
+         * @property body
          * @type {Body}
          */
         this.body = new Body(this);
@@ -3068,6 +3615,7 @@ soya2d.class("soya2d.DisplayObject",{
          * 对象所属的游戏实例。当对象被添加到一个game上时，该值为game实例的引用。
          * 当对象被创建或从game实例上删除时，该值为null<br/>
          * 必须先创建game实例(这样引擎会自动引用该实例)或者显式指定game参数，否则会引起异常
+         * @property game
          * @default null
          * @readOnly
          * @type {soya2d.Game}
@@ -3075,6 +3623,7 @@ soya2d.class("soya2d.DisplayObject",{
         this.game = data.game || soya2d.games[0];
         /**
          * 对象缓存的的内部图形。删除该属性可以取消缓存
+         * @property imageCache
          * @type {HTMLCanvasElement}
          * @default null 
          */
@@ -3082,8 +3631,10 @@ soya2d.class("soya2d.DisplayObject",{
         this.__updateCache = false;
 
         /**
-         * 相对镜头左上角的偏移对象，默认{x:0,y:0}
+         * 相对镜头左上角的偏移对象
+         * @property cameraOffset
          * @type {Object}
+         * @default {x:0,y:0}
          */
         this.cameraOffset = new soya2d.Point();
 
@@ -3108,6 +3659,11 @@ soya2d.class("soya2d.DisplayObject",{
 
         if(this.onAdded)this.onAdded();
     },
+    /**
+     * 设置显示对象的布局
+     * @method setLayout
+     * @param {Object} layout 布局对象
+     */
     setLayout:function(layout){
         if(!layout)return this;
         
@@ -3135,11 +3691,16 @@ soya2d.class("soya2d.DisplayObject",{
 
         return this;
     },
+    /**
+     * @method toString
+     * @return {String}
+     */
     toString:function(){
         return '{roid:"'+this.roid+'";name:"'+this.name+'"}';
     },
     /**
-     * 更新本地和世界变换
+     * 更新本地和世界变换。通常该方法由引擎自己调用
+     * @method tranform
      */
     transform:function(){
         var x = this.__x,
@@ -3216,8 +3777,9 @@ soya2d.class("soya2d.DisplayObject",{
         this.__localChange = this.__anchorChange = false;
     },
     /**
-     * 返回当前对象是否被渲染了
-     * @return {boolean} true/false
+     * 返回当前对象是否被渲染了。比如父节点被隐藏时，子节点实际上不会被渲染
+     * @method isRendered
+     * @return {Boolean} true/false
      */
     isRendered:function(){
         if(!this.visible || this.opacity===0)return false;
@@ -3231,6 +3793,7 @@ soya2d.class("soya2d.DisplayObject",{
     },
     /**
 	 * 复制方法,不会复制当前节点的子节点
+     * @method clone
      * @param {boolean} [isRecur=false] 递归复制标识
      * @param {soya2d.DisplayObject} [copy=null] 副本,用于子类覆盖
      * @return {soya2d.DisplayObject} 新的实例
@@ -3273,6 +3836,7 @@ soya2d.class("soya2d.DisplayObject",{
 	},
 	/**
 	 * 增加精灵偏移
+     * @method moveBy
 	 * @param {Number} ox x轴偏移
 	 * @param {Number} oy y轴偏移
      * @return {soya2d.DisplayObject} this
@@ -3287,6 +3851,7 @@ soya2d.class("soya2d.DisplayObject",{
 	},
 	/**
 	 * 移动精灵到指定的坐标
+     * @method moveTo
 	 * @param {Number} x x坐标
 	 * @param {Number} y y坐标
      * @return {soya2d.DisplayObject} this
@@ -3301,6 +3866,7 @@ soya2d.class("soya2d.DisplayObject",{
 	},
 	/**
 	 * 设置透明度
+     * @method opacifyTo
 	 * @param {Number} o 透明度值
      * @return {soya2d.DisplayObject} this
 	 */
@@ -3310,6 +3876,7 @@ soya2d.class("soya2d.DisplayObject",{
 	},
 	/**
 	 * 设置透明度偏移
+     * @method opacifyBy
 	 * @param {Number} o 透明度差值
      * @return {soya2d.DisplayObject} this
 	 */
@@ -3321,6 +3888,7 @@ soya2d.class("soya2d.DisplayObject",{
 	},
     /**
      * 设置尺寸
+     * @method resizeTo
      * @param {Number} w 宽
      * @param {Number} h 高
      * @return {soya2d.DisplayObject} this
@@ -3335,6 +3903,7 @@ soya2d.class("soya2d.DisplayObject",{
 	},
     /**
      * 增加精灵的缩放比例
+     * @method scaleBy
      * @param {Number} sx x轴缩放比
      * @param {Number} sy y轴缩放比
      * @return this
@@ -3349,6 +3918,7 @@ soya2d.class("soya2d.DisplayObject",{
     },
     /**
      * 缩放精灵到指定的比例
+     * @method scaleTo
      * @param {Number} sx x轴缩放比
      * @param {Number} sy y轴缩放比
      * @return this
@@ -3363,6 +3933,7 @@ soya2d.class("soya2d.DisplayObject",{
     },
     /**
      * 增加精灵偏移角度
+     * @method skewBy
      * @param {Number} rx x轴偏移角度
      * @param {Number} ry y轴偏移角度
      * @return this
@@ -3377,6 +3948,7 @@ soya2d.class("soya2d.DisplayObject",{
     },
     /**
      * 偏移精灵到指定角度
+     * @method skewTo
      * @param {Number} rx x轴偏移角度
      * @param {Number} ry y轴偏移角度
      * @return this
@@ -3391,6 +3963,7 @@ soya2d.class("soya2d.DisplayObject",{
     },
     /**
      * 增加精灵旋转角度
+     * @method rotateBy
      * @param {Number} rn 旋转角度
      * @return this
      */
@@ -3400,6 +3973,7 @@ soya2d.class("soya2d.DisplayObject",{
     },
     /**
      * 旋转精灵到指定角度
+     * @method rotateTo
      * @param {Number} rn 角度
      * @return this
      */
@@ -3409,6 +3983,7 @@ soya2d.class("soya2d.DisplayObject",{
     },
     /**
      * 增加精灵参考点
+     * @method anchorBy
      * @param {String|Number} x 相对精灵左上角的x坐标偏移,可以设置百分比字符串或者数字
      * @param {String|Number} y 相对精灵左上角的y坐标偏移,可以设置百分比字符串或者数字
      * @return this
@@ -3423,6 +3998,7 @@ soya2d.class("soya2d.DisplayObject",{
     },
     /**
      * 设置精灵参考点
+     * @method anchorTo
      * @param {String|Number} x 相对精灵左上角的x坐标偏移,可以设置百分比字符串或者数字
      * @param {String|Number} y 相对精灵左上角的y坐标偏移,可以设置百分比字符串或者数字
      * @return this
@@ -3438,6 +4014,7 @@ soya2d.class("soya2d.DisplayObject",{
     /**
      * 返回该对象当前变形状态的4个顶点<br/>
      * *该方法依赖对象的[x、y、w、h、anchorX、anchorY]6个属性
+     * @method getBoundingPoints
      * @return {Array} [ topLeftX,topLeftY,
      *                  topRightX,topRightY,
      *                  bottomRightX,bottomRightY,
@@ -3469,6 +4046,7 @@ soya2d.class("soya2d.DisplayObject",{
     /**
      * 返回该对象当前变形状态的包围矩形<br/>
      * *该方法依赖对象的[x、y、w、h、anchorX、anchorY]6个属性
+     * @method getBoundingBox
      * @return {soya2d.Rectangle} 矩形几何对象
      */
     getBoundingBox:function(){
@@ -3498,9 +4076,10 @@ soya2d.class("soya2d.DisplayObject",{
     },
     /**
      * 拾取测试。依赖当前显示对象的bounds
+     * @method hitTest
      * @param  {number} x x坐标
      * @param  {number} y y坐标
-     * @return {boolean} 点是否在bounds内
+     * @return {Boolean} 点是否在bounds内
      * @see soya2d.DisplayObject#bounds
      */
     hitTest:function(x,y){
@@ -3561,6 +4140,7 @@ soya2d.class("soya2d.DisplayObject",{
     },
     /**
      * 检测两个对象是否相交
+     * @method intersectWith
      * @param  {DisplayObject} obj
      * @return {Boolean}
      */
@@ -3570,6 +4150,11 @@ soya2d.class("soya2d.DisplayObject",{
 
         return sb.intersectWith(db);
     },
+    /**
+     * 获取锚点坐标
+     * @method getAnchorPosition
+     * @return {soya2d.Point} 
+     */
     getAnchorPosition:function(){
         //加载矩阵
         var e = this.__worldTransform.e;
@@ -3596,12 +4181,13 @@ soya2d.class("soya2d.DisplayObject",{
         anchorY =  Math.sin(angle)*r + tl_y;
         
         //计算顶点[x,y,1] * m
-        return [anchorX*m11+anchorY*m21+bx,anchorX*m12+anchorY*m22+by];
+        return new soya2d.Point(anchorX*m11+anchorY*m21+bx,anchorX*m12+anchorY*m22+by);
     },
     /**
      * 缓存当前对象的矢量绘图为贴图，提高显示性能。提高幅度根据所使用的path API的复杂度决定。
      * 越复杂的path绘制，cache效果越明显。缓存大小根据对象的w/h决定，但是不能超过1024*1024。
      * 需要注意的是，缓存不会自动更新，当对象发生变形时，并不会反馈到缓存，直到你显式调用该方法
+     * @method cache
      */
     cache:function(){
         if(this.__w > 1024 || this.__h > 1024)return;
@@ -3619,8 +4205,8 @@ soya2d.class("soya2d.DisplayObject",{
         this.__updateCache = false;
     },
     /**
-     * 销毁当前对象，以及所有子对象
-     * @return {[type]} [description]
+     * 销毁当前对象，以及所有子对象。
+     * @method destroy
      */
     destroy:function(){
         game.physics.unbind(this);
@@ -3694,25 +4280,20 @@ function getH(parent,rate){
 }
 
 /**
- * @name soya2d.DisplayObject#onRender
- * @desc 渲染事件，每帧触法。在该回调中使用绘图对象g进行图像绘制
- * @event
+ * 渲染回调，每帧调用。在该回调中使用绘图对象g进行图像绘制
+ * @method onRender
  * @param {soya2d.CanvasGraphics} g 绘图对象，根据渲染器类型不同而不同
  */
 /**
- * @name soya2d.DisplayObject#onUpdate
- * @desc 更新事件，每帧触法。在该回调中可以编写更新逻辑
- * @event
+ * 更新回调，每帧调用。在该回调中可以编写更新逻辑
+ * @method onUpdate
  * @param {soya2d.Game} game 当前精灵所在的游戏实例
  */
+/**
+ * 添加到渲染树回调
+ * @method onAdded
+ */
 
-
-// soya2d.ALIGN_LEFT = 'left';
-// soya2d.ALIGN_CENTER = 'center';
-// soya2d.ALIGN_RIGHT = 'right';
-// soya2d.ALIGN_TOP = 'top';
-// soya2d.ALIGN_MIDDLE = 'middle';
-// soya2d.ALIGN_BOTTOM = 'bottom';
 /**
  * 显示对象容器继承自显示对象，是所有显示容器的基类。该类提供了用于管理包含子节点的容器相关的方法。<br/>
  该类不能被实例化
@@ -3726,12 +4307,14 @@ soya2d.class("soya2d.DisplayObjectContainer",{
     constructor:function(data){
         /**
          * 子节点数组
+         * @property children
          * @type {Array}
          * @default []
          */
         this.children = [];
         /**
          * 父节点引用
+         * @property parent
          * @type {soya2d.DisplayObject}
          * @default null
          */
@@ -3739,6 +4322,7 @@ soya2d.class("soya2d.DisplayObjectContainer",{
     },
     /**
      * 增加子节点
+     * @method add
      * @param {...soya2d.DisplayObject} children 一个或者多个可渲染对象，使用逗号分割
      * @return this
      */
@@ -3760,6 +4344,7 @@ soya2d.class("soya2d.DisplayObjectContainer",{
     },
     /**
      * 删除子节点
+     * @method remove
      * @param {...soya2d.DisplayObject} children 一个或者多个可渲染对象，使用逗号分割
      * @return this
      */
@@ -3777,6 +4362,7 @@ soya2d.class("soya2d.DisplayObjectContainer",{
     },
     /**
      * 清除所有子节点
+     * @method clear
      * @return {Array} 子节点
      */
     clear:function(destroy){
@@ -3794,8 +4380,9 @@ soya2d.class("soya2d.DisplayObjectContainer",{
     },
     /**
      * 在当前节点下查找符合条件的所有子节点
-     * @param {function(obj)} filter 过滤回调，接收显示对象为参数，返回true表示该对象返回
-     * @param {boolean} [isRecur=false] 递归查找标识
+     * @method find
+     * @param {Function} filter 过滤回调，接收显示对象为参数，返回true表示该对象返回
+     * @param {Boolean} [isRecur=false] 递归查找标识
      * @return {Array} 符合过滤条件的节点数组，如果没有，返回空数组
      */
     find:function(filter,isRecur){
@@ -3824,10 +4411,12 @@ function recur(parent,filter,rs){
     }
 }
 /**
- * 舞台对象表现为一个soya2D的渲染窗口，每个game实例都只包含唯一的一个stage。
+ * 舞台对象表现为一个soya2D的渲染窗口，每个game实例都有且仅有一个stage对象。
  * stage也是渲染树中的顶级对象，stage的大小和渲染窗口一致。
- * stage是渲染树的顶级节点
- * stage对象可以用于设置窗口视图规则，包括分辨率适应、窗口事件回调等
+ * stage对象可以用于设置窗口视图规则，包括分辨率适应、窗口事件回调等。
+ * <br>通常stage只有一个world子节点，但是可以增加其他显示对象。注意，
+ * stage的直接子节点不受{{#crossLink "Camera"}}{{/crossLink}}的控制。
+ * 
  * @class Stage
  * @extends soya2d.DisplayObjectContainer
  * @param {Object} data 所有父类参数
@@ -3839,31 +4428,36 @@ var Stage = soya2d.class("",{
         this.__anchorX = this.__anchorY = 0;
         /**
          * 缩放最小宽度
+         * @property minWidth
          * @type {Number}
          * @default 0
          */
         this.minWidth = 0;
         /**
          * 缩放最小高度
+         * @property minHeight
          * @type {Number}
          * @default 0
          */
         this.minHeight = 0;
         /**
          * 缩放最大宽度
+         * @property maxWidth
          * @type {Number}
          * @default 0
          */
         this.maxWidth = 0;
         /**
          * 缩放最大高度
+         * @property maxHeight
          * @type {Number}
          * @default 0
          */
         this.maxHeight = 0;
         /**
          * 是否在横竖屏切换、resize窗口时，都进行缩放
-         * @type {boolean}
+         * @property autoScale
+         * @type {Boolean}
          * @default true
          */
         this.autoScale = true;
@@ -3872,7 +4466,9 @@ var Stage = soya2d.class("",{
 
         /**
          * 视图方向。portrait或者landscape
+         * @property orientation
          * @type {string}
+         * @readOnly
          * @default portrait
          */
         this.orientation = getOrientation();
@@ -3902,6 +4498,7 @@ var Stage = soya2d.class("",{
             ////////////////////////////舞台相关
             /**
              * 缩放类型
+             * @property scaleMode
              * @type {int}
              * @default soya2d.SCALEMODE_SHOWALL
              */
@@ -3915,6 +4512,7 @@ var Stage = soya2d.class("",{
             },
             /**
              * 设置或者获取该视图对齐模式。SHOWALL模式下有效
+             * @property alignMode
              * @type  {int} alignMode 对齐模式
              */
             alignMode : {
@@ -3947,6 +4545,7 @@ var Stage = soya2d.class("",{
             },
             /**
              * 设置或者获取该视图旋转模式
+             * @property rotateMode
              * @type  {int} rotateMode 旋转模式
              */
             rotateMode:{
@@ -3983,10 +4582,13 @@ var Stage = soya2d.class("",{
     },
     /**
      * 设置背景
+     * @method background
      * @param  {Object} color 根据类型不同，会解析为不同的背景设置<br/>
-     * String 颜色字符串，支持HEX或者RGB
-     * Image  背景图，支持第二个参数设置repeat
-     * Int    渐变方式，支持GRADIENT_LINEAR / GRADIENT_RADIAL，后面参数依次为ratio数组，颜色数组，渐变长度
+     * |type|desc|
+     * |----|:----|
+     * |String| 颜色字符串，支持HEX或者RGB |
+     * |Image | 背景图，支持第二个参数设置repeat |
+     * |Int   | 渐变方式，支持GRADIENT_LINEAR / GRADIENT_RADIAL，后面参数依次为ratio数组，颜色数组，渐变长度 |
      * 
      */
     background:function(color){
@@ -4049,7 +4651,6 @@ function updateMx(ro){
             }
         }
 }
-
 function update(list,game,delta){
     for(var i=list.length;i--;){
         var c = list[i];
@@ -4128,48 +4729,92 @@ function getOrientation(){
 }
 /**
  * 视图缩放类型，不缩放。游戏默认值
+ * @property SCALEMODE_NOSCALE
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.SCALEMODE_NOSCALE = 0;
 /**
  * 视图缩放类型，等比缩放，总是显示全部
+ * @property SCALEMODE_SHOWALL
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.SCALEMODE_SHOWALL = 1;
 /**
  * 视图缩放类型，等比缩放，不一定显示全部
+ * @property SCALEMODE_NOBORDER
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.SCALEMODE_NOBORDER = 2;
 /**
  * 视图缩放类型，非等比缩放。完全适配容器
+ * @property SCALEMODE_EXACTFIT
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.SCALEMODE_EXACTFIT = 3;
 
 /**
  * 视图对齐类型
+ * @property ALIGNMODE_LEFT
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.ALIGNMODE_LEFT = 1;
 /**
  * 视图对齐类型
+ * @property ALIGNMODE_CENTER
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.ALIGNMODE_CENTER = 2;
 /**
  * 视图对齐类型
+ * @property ALIGNMODE_RIGHT
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.ALIGNMODE_RIGHT = 3;
 
 /**
  * 视图旋转类型
+ * @property ROTATEMODE_0
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.ROTATEMODE_0 = 1;
 /**
  * 视图旋转类型
+ * @property ROTATEMODE_90
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.ROTATEMODE_90 = 2;
 /**
  * 视图旋转类型
+ * @property ROTATEMODE_180
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.ROTATEMODE_180 = 3;
 /**
  * 视图旋转类型
+ * @property ROTATEMODE_270
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.ROTATEMODE_270 = 4;
 
@@ -4216,26 +4861,41 @@ function EXACTFIT(dw,dh,cw,ch,mw,mh,mxw,mxh){
 
 /**
  * 纹理重复类型——REPEAT
- * @constant
+ * @property BG_REPEAT
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.BG_REPEAT = 'repeat';
 /**
  * 纹理重复类型——NOREPEAT
- * @constant
+ * @property BG_NOREPEAT
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.BG_NOREPEAT = 'no-repeat';
 /**
  * 纹理重复类型——REPEAT_X
- * @constant
+ * @property BG_REPEAT_X
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.BG_REPEAT_X = 'repeat-x';
 /**
  * 纹理重复类型——REPEAT_Y
- * @constant
+ * @property BG_REPEAT_Y
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.BG_REPEAT_Y = 'repeat-y';
 /**
- * World保存了当前所有的活动对象，同时也为这些对象提供物理环境。
+ * World是逻辑上所有显示对象的容器，并为这些对象提供物理环境。
+ * world是stage下的直接子节点，所以并不会受到{{#crossLink "Camera"}}{{/crossLink}}的影响，
+ * 而world中的显示对象都会受到{{#crossLink "Camera"}}{{/crossLink}}的影响。
+ * 这样就可以实现镜头跟踪，相对移动等效果。<br>
  * 每个game实例只有唯一的world对象
  * 
  * @class World
@@ -4247,6 +4907,12 @@ var World = soya2d.class("",{
     constructor:function() {
     	this.__soya_type = 'world';
     },
+    /**
+     * 设置世界范围
+     * @method setBounds
+     * @param {Number} w 宽度
+     * @param {Number} h 高度
+     */
     setBounds:function(w,h){
     	this.bounds.w = w;
     	this.bounds.h = h;
@@ -4256,7 +4922,8 @@ var World = soya2d.class("",{
 });
 
 /**
- * 空绘图类，需要实现onRender回调
+ * 空绘图类，需要实现onRender回调。如果需要创建一种自定义绘图逻辑的显示对象，
+ * 该类可以实现这个功能
  * @class soya2d.Shape
  * @extends soya2d.DisplayObjectContainer
  * @param {Object} data 所有父类参数
@@ -4267,30 +4934,45 @@ soya2d.class("soya2d.Shape",{
 /**
  * 动画类。用于保存一个自定义精灵帧序列。并按照指定的间隔和循环标识进行播放。
  * 通常使用多组动画来表示一个精灵的不同状态
+ * @class Animation
+ * @module display
  */
 function Animation(frames,frameRate,loop) {
 	this.frames = frames;
 	this.index = 0;
 	this.lastUpdateTime = 0;
 	/**
-	 * 纹理切换帧率。单位：帧<br/>
+	 * 纹理切换帧率。单位：帧
+	 * @property frameRate
 	 * @type int
 	 * @default 1
 	 */
 	this.frameRate = frameRate || 10;
 	/**
 	 * 动画是否循环
+	 * @property loop
 	 * @type boolean
 	 * @default true
 	 */
 	this.loop = loop===false?false:loop||true;
 }
+/**
+ * 重置动画的帧序列索引为0
+ * @method reset
+ */
 Animation.prototype.reset = function(){
 	this.index = 0;
 	this.lastUpdateTime = 0;
 }
 
-
+/**
+ * 动画管理器被嵌入在{{#crossLink "soya2d.Sprite"}}中，每个Sprite实例都有且只有一个
+ * 管理器属性。
+ * 使用动画管理器可以创建针对Sprite实例的多组不同动画，并在这些动画之间进行切换播放。
+ * 当管理器被创建时，会默认创建一个以该Sprite实例中所有帧序列为一组的动画——该动画没有key
+ * @class AnimationManager
+ * @extends Signal
+ */
 var AnimationManager = soya2d.class("",{
     extends:Signal,
     __signalHandler : new SignalHandler(),
@@ -4304,19 +4986,34 @@ var AnimationManager = soya2d.class("",{
 		this.animation = null;
 		this.playingK = null;
     },
+    /**
+     * 销毁管理器实例
+     * @method destroy
+     */
     destroy:function(){
     	this.defaultAnimation = null;
     	this.animation = null;
     	this.playingK = null;
     	this.__signalHandler = null;
     },
+    /**
+     * 添加一个帧动画
+     * @method add
+     * @param {String} key 动画在该Sprite实例内唯一的标识
+     * @param {Array} frameQ   指定顺序的帧序列
+     * @param {Number} [frameRate=10] 帧动画播放的速度，越小越快
+     * @param {Boolean} [loop=true] 是否循环播放
+     * @return this
+     */
     add:function(key,frameQ,frameRate,loop){
 		this.map[key] = new Animation(frameQ,frameRate,loop);
-
 		return this;
 	},
 	/**
 	 * 播放指定动画组
+	 * @method play
+	 * @param {String} [key] 动画在该Sprite实例内唯一的标识。如果该参数为空，
+	 * 会播放默认的帧序列
 	 * @return this
 	 */
 	play:function(key){
@@ -4327,7 +5024,12 @@ var AnimationManager = soya2d.class("",{
 
 		return this;
 	},
-	stop:function(key){
+	/**
+	 * 停止动画
+	 * @method stop
+	 * @return this
+	 */
+	stop:function(){
 		this.playingK = null;
 		if(this.animation)
 			this.animation.reset();
@@ -4337,8 +5039,8 @@ var AnimationManager = soya2d.class("",{
 	}
 });
 /**
- * 精灵类。具有绘图功能的容器类<br/>
- * 支持子对象渲染,以及矩阵变换
+ * 精灵类。用于显示.9贴图、静态贴图以及贴图动画，精灵中包含了多个图像帧，可以通过创建
+ * 多个{{#crossLink "Animation"}}{{/crossLink}}来实现精灵不同动画效果的表现和改变
  * 
  * @class soya2d.Sprite
  * @extends soya2d.DisplayObjectContainer
@@ -4395,6 +5097,12 @@ soya2d.class("soya2d.Sprite",{
 	    	}
 	    });
 	},
+	/**
+	 * 复制精灵
+	 * @method clone
+	 * @param  {Boolean} isRecur 是否递归复制
+	 * @return {soya2d.Sprite}  
+	 */
 	clone:function(isRecur){
 		var copy = new this.constructor({
 			images:this.images.concat()
@@ -4548,6 +5256,7 @@ soya2d.class("soya2d.Sprite",{
     },
     /**
 	 * 设置当前帧数+1
+	 * @method nextFrame
 	 */
 	nextFrame:function(){
 		this.frameIndex++;
@@ -4561,6 +5270,7 @@ soya2d.class("soya2d.Sprite",{
 	},
 	/**
 	 * 设置当前帧数-1
+	 * @method prevFrame
 	 */
 	prevFrame:function(){
 		this.frameIndex--;
@@ -4574,7 +5284,9 @@ soya2d.class("soya2d.Sprite",{
 	},
 	/**
 	 * 设置或者更改精灵纹理
+	 * @method setImages
 	 * @param {String | HTMLImageElement | Array<String> | Array<HTMLImageElement>} images 图像加载时的key/key数组/图形对象/图形对象数组
+	 * @param {Boolean} [changeSize] 同步修改精灵的w/h
 	 */
 	setImages:function(images,changeSize){
 		if(typeof images === 'string'){
@@ -4669,6 +5381,9 @@ soya2d.class("soya2d.TileSprite",{
 	/**
      * 滚动tile中的纹理。
      * 滚动速度和方向依赖实例对应参数
+     * @method scroll
+     * @param {Number} x 横向偏移
+     * @param {Number} y 纵向偏移
      */
     scroll:function(x,y){
         if(x || y){
@@ -4680,6 +5395,12 @@ soya2d.class("soya2d.TileSprite",{
             this.__tileOffy += soya2d.Math.SINTABLE[angle]*this.speed;
         }
     },
+    /**
+     * 复制精灵
+     * @method clone
+     * @param  {Boolean} isRecur 是否递归复制
+     * @return {soya2d.TileSprite} 
+     */
     clone: function(isRecur) {
         var copy = new this.constructor({
             sprite: this.sprite
@@ -4743,21 +5464,25 @@ soya2d.class("soya2d.TileSprite",{
 });
 /**
  * 图形类,提供了贴图和矢量绘制的接口。<br/>
- * 注意，该类不应被显示实例化。引擎会在onRender回调中注入该类的实例。<br/>
+ * 注意，该类不应被实例化。引擎会在onRender回调中注入该类的实例。<br/>
  * 该图形对象基于Canvas构建。
+ * 
+ * @class soya2d.CanvasGraphics
+ * @constructor
  * @param ctx CanvasRenderingContext2D的实例
- * @class 
- * @author {@link http://weibo.com/soya2d MrSoya}
+ * @module renderer
  */
 soya2d.CanvasGraphics = function(ctx){
     /**
      * 一个对当前绘图对象的引用
+     * @property ctx
      * @type {CanvasRenderingContext2D}
      */
 	this.ctx = ctx;
 
     /**
      * 设置或者获取当前绘图环境的渲染透明度
+     * @method opacity
      * @param {Number} op 0.0 - 1.0
      * @return {this|Number}
      */
@@ -4772,6 +5497,7 @@ soya2d.CanvasGraphics = function(ctx){
 
     /**
      * 闭合当前路径
+     * @method closePath
      * @return this
      */
     this.closePath = function(){
@@ -4780,6 +5506,7 @@ soya2d.CanvasGraphics = function(ctx){
     };
     /**
      * 移动当前画笔
+     * @method moveTo
      * @param {Number} x
      * @param {Number} y
      * @return this
@@ -4791,6 +5518,7 @@ soya2d.CanvasGraphics = function(ctx){
     /**
      * 向当前path中添加直线subpath<br/>
      * 线条起点为path绘制前画笔坐标，终点为x,y
+     * @method lineTo
      * @param {Number} x
      * @param {Number} y
      * @return this
@@ -4802,6 +5530,7 @@ soya2d.CanvasGraphics = function(ctx){
     /**
      * 向当前path中添加2次曲线subpath<br/>
      * 线条起点为path绘制前画笔坐标，终点为x,y
+     * @method quadraticCurveTo
      * @param {Number} cpx 控制点
      * @param {Number} cpy 控制点
      * @param {Number} x
@@ -4815,6 +5544,7 @@ soya2d.CanvasGraphics = function(ctx){
     /**
      * 向当前path中添加贝塞尔曲线subpath<br/>
      * 线条起点为path绘制前画笔坐标，终点为x,y
+     * @method bezierCurveTo
      * @param {Number} cp1x 控制点1
      * @param {Number} cp1y 控制点1
      * @param {Number} cp2x 控制点2
@@ -4829,6 +5559,7 @@ soya2d.CanvasGraphics = function(ctx){
     };
     /**
      * 向当前path中添加使用控制点和半径定义的弧型subpath<br/>
+     * @method arcTo
      * @param {Number} x1
      * @param {Number} y1
      * @param {Number} x2
@@ -4842,6 +5573,7 @@ soya2d.CanvasGraphics = function(ctx){
     };
     /**
      * 向当前path中添加圆弧形subpath
+     * @method arc
      * @param {Number} cx 圆心
      * @param {Number} cy 圆心
      * @param {Number} r 半径
@@ -4855,6 +5587,7 @@ soya2d.CanvasGraphics = function(ctx){
     };
     /**
      * 向当前path中添加椭圆弧形subpath
+     * @method eArc
      * @param {Number} cx 圆心
      * @param {Number} cy 圆心
      * @param {Number} a 长半径
@@ -4886,6 +5619,7 @@ soya2d.CanvasGraphics = function(ctx){
     };
     /**
      * 向当前path中添加矩形subpath
+     * @method rect
      * @param {Number} x
      * @param {Number} y
      * @param {Number} w
@@ -4898,11 +5632,15 @@ soya2d.CanvasGraphics = function(ctx){
     };
     /**
      * 向当前path中添加多边形subpath，边的数量由顶点数决定
+     * @method polygon
      * @param {Array} vtx 一维顶点数组,坐标为相对中心点。<br/>
      * 比如绘制[0,0]点为重心的正三角形:<br/>
+     * ```
      * [0,-5,//top point<br/>
      * -5,x,//left point<br/>
      * 5,y]
+     * ```
+     * 
      * @return this
      */
     this.polygon = function(vtx){
@@ -4917,6 +5655,7 @@ soya2d.CanvasGraphics = function(ctx){
     };
     /**
      * 向当前path中添加椭圆形subpath
+     * @method ellipse
      * @param {Number} x
      * @param {Number} y
      * @param {Number} w
@@ -4941,6 +5680,7 @@ soya2d.CanvasGraphics = function(ctx){
     };
     /**
      * 向当前path中添加圆角矩形subpath
+     * @method roundRect
      * @param {Number} x
      * @param {Number} y
      * @param {Number} w
@@ -4963,9 +5703,10 @@ soya2d.CanvasGraphics = function(ctx){
     };
     /**
      * 向当前path中添加正多边形subpath
+     * @method regularPolygon
      * @param {Number} cx 多边形重心
      * @param {Number} cy 多边形重心
-     * @param {int} ec 多边形的边数，不能小于3
+     * @param {Number} ec 多边形的边数，不能小于3
      * @param {Number} r1 半径1
      * @param {Number} r2 半径2
      * @return this
@@ -4996,6 +5737,7 @@ soya2d.CanvasGraphics = function(ctx){
 
     /**
      * 设置或者获取当前绘图环境的图元混合模式
+     * @method blendMode
      * @param {String} blendMode 混合方式
      * @default soya2d.BLEND_NORMAL
      * @see soya2d.BLEND_NORMAL
@@ -5011,6 +5753,7 @@ soya2d.CanvasGraphics = function(ctx){
     };
     /**
      * 设置或者获取当前绘图环境的线框样式
+     * @method strokeStyle
      * @param {Object} style 可以是命名颜色、RGB、16进制等标准颜色。也可以是CanvasGradient或者CanvasPattern
      * @return this
      */
@@ -5024,6 +5767,7 @@ soya2d.CanvasGraphics = function(ctx){
     };
     /**
      * 设置或者获取当前绘图环境的填充样式
+     * @method fillStyle
      * @param {Object} style 可以是命名颜色、RGB、16进制等标准颜色。也可以是CanvasGradient或者CanvasPattern
      * @return this
      */
@@ -5038,10 +5782,12 @@ soya2d.CanvasGraphics = function(ctx){
 
     /**
      * 设置当前绘图环境的阴影样式
+     * @method shadow
      * @param {Number} blur 模糊度
      * @param {String} [color=rgba(0,0,0,0)] 颜色
      * @param {Number} [offx=0] x偏移
      * @param {Number} [offy=0] y偏移
+     * @return this
      */
     this.shadow = function(blur,color,offx,offy){
         this.ctx.shadowBlur = blur;
@@ -5053,6 +5799,7 @@ soya2d.CanvasGraphics = function(ctx){
 
     /**
      * 设置当前绘图环境的线条样式
+     * @method lineStyle
      * @param {Number} width 宽度
      * @param {String} cap 线条末端样式
      * @param {String} join 线条交点样式
@@ -5071,6 +5818,7 @@ soya2d.CanvasGraphics = function(ctx){
 
     /**
      * 设置当前绘图环境的字体样式
+     * @method font
      * @param {soya2d.Font} font
      * @return this
      */
@@ -5082,7 +5830,7 @@ soya2d.CanvasGraphics = function(ctx){
 
     /**
      * 裁剪路径
-     * @method
+     * @method clip
      * @return this
      */
 	this.clip = function(){
@@ -5091,6 +5839,7 @@ soya2d.CanvasGraphics = function(ctx){
 	};
     /**
      * 保存当前绘图状态
+     * @method push
      * @return this
      */
 	this.push = function(){
@@ -5099,6 +5848,7 @@ soya2d.CanvasGraphics = function(ctx){
 	};
     /**
      * 恢复最近一次push的绘图状态
+     * @method pop
      * @return this
      */
 	this.pop = function(){
@@ -5107,6 +5857,7 @@ soya2d.CanvasGraphics = function(ctx){
 	};
     /**
      * 清空当前path中的所有subpath
+     * @method beginPath
      * @return this
      */
 	this.beginPath = function(){
@@ -5115,6 +5866,7 @@ soya2d.CanvasGraphics = function(ctx){
 	};
     /**
      * 关闭当前path
+     * @method closePath
      * @return this
      */
     this.closePath = function(){
@@ -5124,7 +5876,7 @@ soya2d.CanvasGraphics = function(ctx){
 
     /**
      * 填充path
-     * @method
+     * @method fill
      * @return this
      */
     this.fill = function(){
@@ -5133,7 +5885,7 @@ soya2d.CanvasGraphics = function(ctx){
     };
     /**
      * 描绘path的轮廓
-     * @method
+     * @method stroke
      * @return this
      */
     this.stroke = function(){
@@ -5143,10 +5895,10 @@ soya2d.CanvasGraphics = function(ctx){
 
     /**
      * 向当前path中添加指定的subpath
+     * 
      * @param {soya2d.Path} path 路径结构
-     * @method
+     * @method path
      * @return this
-     * @since 1.2.0
      */
     this.path = function(path){
         path._insQ.forEach(function(ins){
@@ -5192,6 +5944,7 @@ soya2d.CanvasGraphics = function(ctx){
 
     /**
      * 以x,y为左上角填充一个宽w高h的矩形
+     * @method fillRect
      * @param {Number} x
      * @param {Number} y
      * @param {Number} w
@@ -5204,6 +5957,7 @@ soya2d.CanvasGraphics = function(ctx){
 	};
     /**
      * 以x,y为左上角描绘一个宽w高h的矩形
+     * @method strokeRect
      * @param {Number} x
      * @param {Number} y
      * @param {Number} w
@@ -5217,6 +5971,7 @@ soya2d.CanvasGraphics = function(ctx){
     /**
      * 以x,y为左上角清空一个宽w高h的矩形区域<br/>
      * 清空颜色为rgba(0,0,0,0);
+     * @method clearRect
      * @param {Number} x
      * @param {Number} y
      * @param {Number} w
@@ -5230,15 +5985,16 @@ soya2d.CanvasGraphics = function(ctx){
 	/**
      * 
      * 贴图接口
+     * @method map
      * @param {HTMLImageElement} tex 需要绘制的纹理
-     * @param  {int} sx  纹理起始坐标x
-     * @param  {int} sy  纹理起始坐标y
-     * @param  {int} sw  纹理起始尺寸w
-     * @param  {int} sh  纹理起始尺寸h
-     * @param  {int} dx  纹理目标坐标x
-     * @param  {int} dy  纹理目标坐标y
-     * @param  {int} dw  纹理目标尺寸w
-     * @param  {int} dh  纹理目标尺寸h
+     * @param  {int} [sx]  纹理起始坐标x
+     * @param  {int} [sy]  纹理起始坐标y
+     * @param  {int} [sw]  纹理起始尺寸w
+     * @param  {int} [sh]  纹理起始尺寸h
+     * @param  {int} [dx]  纹理目标坐标x
+     * @param  {int} [dy]  纹理目标坐标y
+     * @param  {int} [dw]  纹理目标尺寸w
+     * @param  {int} [dh]  纹理目标尺寸h
      * @return this
      */
 	this.map = function(img,dx,dy,dw,dh,sx,sy,sw,sh){
@@ -5258,6 +6014,7 @@ soya2d.CanvasGraphics = function(ctx){
 	};
     /**
      * 填充文字
+     * @method fillText
      * @param {String} str 需要绘制的文字
      * @param {int} [x=0] x坐标，相对于当前精灵的x
      * @param {int} [y=0] y坐标，相对于当前精灵的y
@@ -5274,6 +6031,7 @@ soya2d.CanvasGraphics = function(ctx){
     };
     /**
      * 描绘文字
+     * @method strokeText
      * @param {String} str 需要绘制的文字
      * @param {int} [x=0] x坐标，相对于当前精灵的x
      * @param {int} [y=0] y坐标，相对于当前精灵的y
@@ -5300,11 +6058,12 @@ soya2d.CanvasGraphics = function(ctx){
  * @param {Object} data 构造参数对象
  * @param {DOMElement} data.container 渲染容器，渲染器会在该容器范围内进行渲染
  * 容器可以是一个块级元素比如div。
- * @param {boolean} [data.autoClear=true] 是否自动清除图层，如果不清除，则渲染效果会叠加
- * @param {boolean} [data.sortEnable=false] 是否开启自动排序。如果开启渲染器会在渲染前对所有DO进行Z轴排序
- * @param {boolean} [data.smoothEnable=true] 是否启用对图像边缘的平滑处理
- * @param {boolean} [data.crispEnable=false] 是否启用图像非平滑渲染
- * @class 
+ * @param {Boolean} [data.autoClear=true] 是否自动清除图层，如果不清除，则渲染效果会叠加
+ * @param {Boolean} [data.sortEnable=false] 是否开启自动排序。如果开启渲染器会在渲染前对所有DO进行Z轴排序
+ * @param {Boolean} [data.smoothEnable=true] 是否启用对图像边缘的平滑处理
+ * @param {Boolean} [data.crispEnable=false] 是否启用图像非平滑渲染
+ * @class soya2d.CanvasRenderer
+ * @module renderer
  */
 soya2d.CanvasRenderer = function(data){
     data = data||{};
@@ -5316,23 +6075,29 @@ soya2d.CanvasRenderer = function(data){
     var container = data.container;
     /**
      * 世界宽度，通常为可视窗口宽度
-     * @type int
+     * @property w
+     * @type {Number}
      * @default 960
      */
     this.w = data.w||(container?container.clientWidth:0);
     /**
      * 世界高度，通常为可视窗口高度
-     * @type int
+     * @property h
+     * @type {Number}
      * @default 480
      */
     this.h = data.h||(container?container.clientHeight:0);
     /**
      * 是否自动清除图层，如果不清除，则渲染效果会叠加
+     * @property autoClear
+     * @type {Boolean}
      * @default true
      */
     this.autoClear = data.autoClear===undefined?true:data.autoClear;
     /**
      * 是否开启自动排序。如果开启渲染器会在渲染前对所有DO进行Z轴排序
+     * @property sortEnable
+     * @type {Boolean}
      * @default false
      */
     this.sortEnable = data.sortEnable || false;
@@ -5363,6 +6128,7 @@ soya2d.CanvasRenderer = function(data){
 
     /**
      * 获取渲染器绑定的canvas
+     * @method getCanvas
      * @return {HTMLCanvasElement} 
      */
     this.getCanvas = function(){
@@ -5371,6 +6137,7 @@ soya2d.CanvasRenderer = function(data){
 
     /**
      * 渲染方法。每调用一次，只进行一次渲染
+     * @method render
      */
     this.render = function(stage,camera){
         if(!stage instanceof Stage)return;
@@ -5537,6 +6304,7 @@ soya2d.CanvasRenderer = function(data){
     
     /**
      * 缩放所渲染窗口
+     * @method resize
      * @param {int} w 宽度
      * @param {int} h 高度
      */
@@ -5557,6 +6325,7 @@ soya2d.CanvasRenderer = function(data){
 
     /**
      * 设置或者获取渲染器的平滑选项
+     * @method smooth
      * @param {Boolean} enabled 开启/关闭
      * @return this
      */
@@ -5578,6 +6347,7 @@ soya2d.CanvasRenderer = function(data){
 
     /**
      * 设置或者获取图像清晰渲染
+     * @method crisp
      * @param {Boolean} enabled 开启/关闭
      * @return this
      */
@@ -5599,6 +6369,7 @@ soya2d.CanvasRenderer = function(data){
 
     /**
      * 获取指定范围的图像数据
+     * @method getImageData
      * @param {int} x x坐标
      * @param {int} y y坐标
      * @param {int} w 宽度
@@ -5615,6 +6386,7 @@ soya2d.CanvasRenderer = function(data){
     };
     /**
      * 返回当前渲染器的图片数据描述串
+     * @method toDataURL
      * @param {String} type 图片类型
      * @default image/png
      * @return {String} URL
@@ -5625,6 +6397,7 @@ soya2d.CanvasRenderer = function(data){
 
     /**
      * 创建一个图像绘制模式
+     * @method createPattern
      * @param {HTMLImageElement|HTMLCanvasElement|HTMLVideoElement} image 图像
      * @param {string} [repetition=soya2d.REPEAT] 重复类型
      * @return pattern
@@ -5636,6 +6409,7 @@ soya2d.CanvasRenderer = function(data){
 
     /**
      * 创建一个渐变实例，用于填充和线框的绘制
+     * @method createGradient
      * @param {Array} ratios 渐变比率数组，有效值为[0.0,1.0]
      * @param {Array} colors 渐变颜色数组，和ratios对应，一个比率对应一个颜色，如果对应不上，默认rgba(0,0,0,0)
      * @param {Number} len 渐变长度；线性渐变为长度，放射渐变为半径
@@ -5683,6 +6457,7 @@ soya2d.CanvasRenderer = function(data){
 
 /**
  * 把一个可渲染对象转换成一个Image对象
+ * @method getImageFrom
  * @param {soya2d.DisplayObject} ro 可渲染对象
  * @param {int} [w] image宽度.可选，默认ro尺寸
  * @param {int} [h] image高度.可选，默认ro尺寸
@@ -5708,8 +6483,68 @@ soya2d.CanvasRenderer.prototype.getImageFrom = function(ro,w,h){
     return img;
 };
 /**
+ * 路径描述结构。既可用于支持路径动画的路径检索，也可以用于绘制路径
+ * @class soya2d.Path
+ */
+soya2d.Path = function(d){
+    /**
+     * 路径指令集。同{@link http://www.w3.org/TR/SVG11/paths.html SVG}，但仅支持绝对坐标，
+     * 并限于以下指令：
+     * <table border="1">
+     *     <tr style="background: #ddd;"><th>段类型</th><th>命令</th><th>参数</th><th>示例</th></tr>
+     *     <tr><td>moveto</td><td>M/m</td><td>x y</td><td><code>M 50 50</code> － 将画笔移到 50,50</td></tr>
+     *     <tr><td>lineto</td><td>L/l</td><td>(x y)+</td><td><code>L 50 50 100 100</code> － 直线到 50,50再到100,100</td></tr>
+     *     <tr><td>quadraticCurveTo</td><td>Q/q</td><td>(cpx cpy x y)+</td><td><code>Q 110 45 90 30</code> - 曲线到 90, 30，控制点位于 110, 45</td></tr>
+     *     <tr><td>bezierCurveTo</td><td>C/c</td><td>(cp1x cp1y cp2x cp2y x y)+</td><td><code>C 45 50 20 30 10 20</code> － 曲线到 10, 20，第一个控制点位于 45, 50，第二个控制点位于 20, 30</td></tr>
+     *     <tr><td>closepath</td><td>Z/z</td><td>无</td><td>关闭路径</td></tr>
+     * </table>
+     * @property d
+     * @type {String}
+     */
+    this.d = d || '';
+
+    this.cmd = ['m','l','c','q','z'];
+
+    this._insQ = [];
+
+    this.__parse();
+}
+soya2d.ext(soya2d.Path.prototype,{
+    /**
+     * 解析指令
+     * @private
+     */
+    __parse:function(){
+        var exp = new RegExp("["+this.cmd.join('')+"]([^"+this.cmd.join('')+"]+|$)",'img');
+        var segs = this.d.replace(/^\s+|\s+$/,'').match(exp);
+
+        //过滤有效指令，插入指令队列
+        segs.forEach(function(seg){
+            seg = seg.replace(/^\s+|\s+$/,'');
+            var cmd = seg[0].toLowerCase();
+            if(this.cmd.indexOf(cmd) > -1){
+                //解析坐标值
+                var xys = seg.substr(1).replace(/^\s/mg,'').split(/\n|,|\s/gm);
+
+                this._insQ.push([cmd,xys]);
+            }
+        },this);
+    },
+    /**
+     * 设置path指令串，并解析
+     * @method setPath
+     * @param {string} d path指令串
+     */
+    setPath:function(d){
+        this.d = d;
+        this.__parse();
+    }
+});
+/**
  * 引擎当前运行所在设备的信息<br/>
- * @namespace soya2d.Device
+ * @class soya2d.Device
+ * @static
+ * @module system
  */
 soya2d.Device = new function(){
   	var userAgent = this.userAgent = self.navigator.userAgent.toLowerCase();
@@ -5725,49 +6560,58 @@ soya2d.Device = new function(){
     //移动端信息
     /**
      * 是否为iphone
-     * @type {boolean}
+     * @property iphone
+     * @type {Boolean}
      */
     this.iphone = isIphone;
     /**
      * 是否为ipad
-     * @type {boolean}
+     * @property ipad
+     * @type {Boolean}
      */
     this.ipad = isIpad;
     /**
      * 是否为ios
-     * @type {boolean}
+     * @property ios
+     * @type {Boolean}
      */
     this.ios = isIphone || isIpad;
     /**
      * 是否为android
-     * @type {boolean}
+     * @property android
+     * @type {Boolean}
      */
     this.android = isAndroid;
     /**
      * 是否为wp
-     * @type {boolean}
+     * @property wp
+     * @type {Boolean}
      */
     this.wp = isWphone;
     /**
      * 是否移动系统
-     * @type {boolean}
+     * @property mobile
+     * @type {Boolean}
      */
     this.mobile = this.ios || isAndroid || isWphone;
 
     //pc端信息
     /**
      * 是否为windows
-     * @type {boolean}
+     * @property windows
+     * @type {Boolean}
      */
     this.windows = isWindows;
     /**
      * 是否为linux
-     * @type {boolean}
+     * @property linux
+     * @type {Boolean}
      */
     this.linux = isLinux;
     /**
      * 是否为mac os
-     * @type {boolean}
+     * @property mac
+     * @type {Boolean}
      */
     this.mac = isMacOS;
 
@@ -5780,34 +6624,40 @@ soya2d.Device = new function(){
     };
     /**
      * 如果当前浏览器为IE，那么值为true。
-     * @type boolean
+     * @property ie
+     * @type {Boolean}
      */
     this.ie = /msie|trident.*rv:/.test(userAgent.toLowerCase());
     /**
      * 如果当前浏览器为FireFox，那么值为true。
-     * @type boolean
+     * @property ff
+     * @type {Boolean}
      */
     this.ff = type.Firefox?true:false;
     /**
      * 如果当前浏览器为Opera，那么值为true。
-     * @type boolean
+     * @property opera
+     * @type {Boolean}
      */
     this.opera = type.Opera?true:false;
     /**
      * 如果当前浏览器为Chrome，那么值为true。
-     * @type boolean
+     * @property chrome
+     * @type {Boolean}
      */
     this.chrome = type.Chrome?true:false;
     /**
      * 如果当前浏览器为Safari，那么值为true。
-     * @type boolean
+     * @property safari
+     * @type {Boolean}
      */
     this.safari = type.Safari?true:false;
 };
 /**
  * 字体类。用于指定绘制字体的样式、大小等
- * @class
+ * @class soya2d.Font
  * @param {String} desc 字体描述字符串，可以为空。为空时创建默认样式字体:[normal 400 13px/normal sans-serif]<br/>符合W3C[CSSFONTS]规范
+ * @module text
  */
 soya2d.Font = function(desc){
     var fontElement = document.createElement('span');
@@ -5815,11 +6665,14 @@ soya2d.Font = function(desc){
                                         +(desc||"normal 400 13px/normal sans-serif");                         
     /**
      * 字体描述字符串
+     * @property fontString
+     * @type {String}
      */
     this.fontString = fontElement.style.font;
 
     /**
      * 字体大小
+     * @property fontSize
      * @type {int}
      */
     this.fontSize = parseInt(fontElement.style.fontSize) || 13;
@@ -5849,22 +6702,25 @@ soya2d.Font = function(desc){
                                         
     /**
      * 用当前参数复制一个新的字体对象。<br/>
-     * @returns {soya2d.Font} 新的字体对象
+     * @method clone
+     * @return {soya2d.Font} 新的字体对象
      */
     this.clone = function(){
         return new soya2d.Font(this.getDesc());
     };
     /**
      * 返回字体描述的字符串
-     * @returns {String}
+     * @method getDesc
+     * @return {String}
      */
     this.getDesc = function(){
         return fontElement.style.font;
     };
     /**
      * 设置或者获取字体样式
+     * @method style
      * @param {String} style 字体样式字符串
-     * @returns {this|String}
+     * @return {this|String}
      */
     this.style = function(style){
         if(arguments.length>0){
@@ -5878,8 +6734,9 @@ soya2d.Font = function(desc){
     };
     /**
      * 设置或者获取字体粗细
+     * @method weight
      * @param {String} weight 字体粗细字符串
-     * @returns {this|String}
+     * @return {this|String}
      */
     this.weight = function(weight){
         if(arguments.length>0){
@@ -5893,8 +6750,9 @@ soya2d.Font = function(desc){
     };
     /**
      * 设置或者获取字体大小
+     * @method size
      * @param {int} size 字体大小字符串
-     * @returns {this|int}
+     * @return {this|int}
      */
     this.size = function(size){
         if(arguments.length>0){
@@ -5910,8 +6768,9 @@ soya2d.Font = function(desc){
     };
     /**
      * 设置或者获取字体类型
+     * @method family
      * @param {String} family 字体类型字符串
-     * @returns {this|String}
+     * @return {this|String}
      */
     this.family = function(family){
         if(arguments.length>0){
@@ -5927,6 +6786,7 @@ soya2d.Font = function(desc){
     };
     /**
      * 获取字体宽高
+     * @method getBounds
      * @param {String} str 测试字符串
      * @return {Object} 指定字符串在当前字体下的宽高。｛w:w,h:h｝
      */
@@ -5940,17 +6800,24 @@ soya2d.Font = function(desc){
 
 /**
  * 使用图像集对象，构建一个图像字体类。
- * 图像字体类用于创建一个传递给文本精灵的字体对象，通过图片和映射文件创建。映射文件同精灵表。其实n为需要
+ * 图像字体类用于创建一个传递给文本精灵的字体对象，通过图片和映射文件创建。
+ * 映射文件同精灵表。其中n为需要
  * 替换的字符
- * @class
+ * @class soya2d.ImageFont
  * @param {soya2d.Atlas} data 用于字体映射的图像集对象
  * @param {Number} size 图像字体大小
+ * @module text
  */
 soya2d.ImageFont = function(data,size){
     
     this.__fontMap = data;
 
     var oriFontSize = data.texs[Object.keys(data.texs)[0]].height;
+    /**
+     * 字体大小
+     * @property fontSize
+     * @type {int}
+     */
     this.fontSize = oriFontSize;
     this.fontWidth = data.texs[Object.keys(data.texs)[0]].width;
     var scaleRate = 1;//缩放比率
@@ -5990,15 +6857,17 @@ soya2d.ImageFont = function(data,size){
                                             
     /**
      * 用当前参数复制一个新的字体对象。<br/>
-     * @returns {soya2d.Font} 新的字体对象
+     * @method clone
+     * @return {soya2d.Font} 新的字体对象
      */
     this.clone = function(){
         return new soya2d.ImageFont(this.__fontMap);
     };
     /**
      * 设置或者获取字体大小
+     * @method size
      * @param {int} size 字体大小
-     * @returns {this|int}
+     * @return {this|int}
      */
     this.size = function(size){
         if(arguments.length>0){
@@ -6012,6 +6881,7 @@ soya2d.ImageFont = function(data,size){
     };
     /**
      * 获取字体宽高
+     * @method getBounds
      * @param {String} str 测试字符串
      * @return {Object} 指定字符串在当前字体下的宽高。｛w:w,h:h｝
      */
@@ -6029,11 +6899,12 @@ soya2d.ImageFont = function(data,size){
  * 文本类用于显示指定的文本内容，支持多行文本显示。
  * 文本渲染效果取决于所指定的font，默认为普通字体soya2d.Font。<br/>
  * 注意，需要显示的指定实例的w属性，来让引擎知道文本是否需要分行显示
- * @class 
+ * @class soya2d.Text
  * @extends soya2d.DisplayObjectContainer
  * @param {Object} data 所有父类参数
  * @see soya2d.Font
  * @see soya2d.ImageFont
+ * @module text
  */
 soya2d.class("soya2d.Text",{
     extends:soya2d.DisplayObjectContainer,
@@ -6042,26 +6913,28 @@ soya2d.class("soya2d.Text",{
          * 文本内容
          * *注意，直接设置该属性后，需要手动刷新才会更新显示内容。如果不想手动刷新，可以使用setText函数来更新内容
          * @see soya2d.Text.refresh
+         * @property text
          * @type {String}
          */
         this.text = data.text||'';
         /**
          * 字符间距
+         * @property letterSpacing
          * @type {int}
          * @default 1
          */
         this.letterSpacing = data.letterSpacing || 0;
         /**
          * 行间距
+         * @property lineSpacing
          * @type {int}
          * @default 5
          */
         this.lineSpacing = data.lineSpacing||0;
 
-        //data.size 用于图像字体的初始大小
-
         /**
          * 字体对象
+         * @property font
          * @type {String | soya2d.Font | soya2d.ImageFont | soya2d.Atlas}
          * @default soya2d.Font
          * @see soya2d.Font
@@ -6081,6 +6954,11 @@ soya2d.class("soya2d.Text",{
 
         this.__renderer = this.font.__renderText;//绑定渲染
 
+        /**
+         * 渲染样式
+         * @property fillStyle
+         * @type {String}
+         */
         this.fillStyle = data.fillStyle || '#000';
 
         if(!this.w)this.w = this.font.getBounds(this.text).w;
@@ -6092,12 +6970,14 @@ soya2d.class("soya2d.Text",{
     /**
      * 刷新显示内容<br/>
      * 用在修改了宽度时调用
+     * @method refresh
      */
     refresh:function(){
         this.__changed = true;
     },
     /**
      * 重新设置文本域字体
+     * @method setFont
      * @param {soya2d.Font | soya2d.ImageFont} font 字体
      */
     setFont:function(font){
@@ -6107,6 +6987,7 @@ soya2d.class("soya2d.Text",{
     },
     /**
      * 设置文本内容，并刷新
+     * @method setText
      * @param {string} txt 文本内容
      * @param {Boolean} changeW 是否自动改变宽度
      */
@@ -6196,16 +7077,18 @@ soya2d.class("soya2d.Text",{
     }
 });
 /**
- * 游戏对象是构建soya2d应用的入口类，用于构建和启动一个soya2d应用。
+ * 游戏对象是构建soya2d应用的核心类，调度soya2d内的所有过程。
  * 一个页面可以同时运行多个游戏对象，并且拥有不同的FPS和场景
  * @class soya2d.Game
+ * @constructor
  * @param {Object} opts 构造参数对象，参数如下：
- * @param {string | HTMLElement} opts.container 游戏渲染的容器，可以是一个选择器字符串或者节点对象
- * @param {int} opts.rendererType 渲染器类型，目前只支持canvas
- * @param {int} opts.w 游戏的宽度
- * @param {int} opts.h 游戏的高度
- * @param {boolean} opts.autoClear 自动清除背景
- * @param {boolean} opts.smoothEnable 是否平滑处理
+ * @param {String | HTMLElement} opts.container 游戏渲染的容器，可以是一个选择器字符串或者节点对象
+ * @param {Number} [opts.rendererType] 渲染器类型，目前只支持canvas
+ * @param {Number} [opts.w] 游戏的宽度
+ * @param {Number} [opts.h] 游戏的高度
+ * @param {Boolean} opts.autoClear 自动清除背景
+ * @param {Boolean} opts.smoothEnable 是否平滑处理
+ * 
  */
 soya2d.Game = function(opts){
 	opts = opts || {};
@@ -6232,76 +7115,84 @@ soya2d.Game = function(opts){
 	//}
 
 	soya2d.ext(this,opts);
-	/********** 外部接口 ***********/
+	//////////////////////////////////外部接口 
 
     /**
      * 渲染器
+     * @property renderer
      */
     this.renderer = renderer;
     /**
      * 对象工厂，用来注册新的显示对象类型
+     * @property objects
      * @type {DisplayObjectFactory}
      */
     this.objects = new DisplayObjectFactory(this);
     /**
-     * 对象工厂，用来注册新的显示对象类型
+     * 对象代理工厂，用来添加新的显示对象到世界中
+     * @property add
      * @type {DisplayObjectFactoryProxy}
      */
     this.add = new DisplayObjectFactoryProxy(this);
     /**
      * 全局事件监听器，包括DOM事件和自定义事件
+     * @property events
      * @type {Signal}
      */
     this.events = new Signal();
     this.events.__signalHandler = new SignalHandler();
     /**
      * 场景管理器
+     * @property scene
      * @type {SceneManager}
      */
     this.scene = new SceneManager(this);
 	/**
 	 * 舞台
+     * @property stage
 	 * @type {soya2d.Stage}
 	 */
 	this.stage = new Stage({game:this,w:renderer.w,h:renderer.h});
     /**
      * 世界
+     * @property world
      * @type {soya2d.World}
      */
     this.world = new World({game:this,w:renderer.w,h:renderer.h});
     this.stage.add(this.world);
     /**
      * 每个game实例只存在唯一的一个摄像机，摄像机展示了世界中的内容
+     * @property camera
      * @type {Camera}
      */
     this.camera = new Camera(renderer.w,renderer.h,this);
 	/**
 	 * 资源管理器
+     * @property assets
 	 * @type {Assets}
 	 */
 	this.assets = new Assets();
 	/**
      * 加载器
+     * @property load
      * @type {Loader}
      */
 	this.load = new Loader(this);
     /**
      * 定时器
+     * @property timer
      * @type {Timer}
      */
     this.timer = new Timer();
     /**
      * 物理系统
+     * @property physics
      * @type {Physics}
      */
     this.physics = new Physics();
-    /**
-     * 瓦片地图管理器
-     * @type {TilemapManager}
-     */
-    this.tilemap = new TilemapManager(this);
 	/**
 	 * 当前游戏的宽度
+     * @property w
 	 * @type {int}
 	 * @default 960
 	 */
@@ -6309,6 +7200,7 @@ soya2d.Game = function(opts){
 
 	/**
 	 * 当前游戏的高度
+     * @property h
 	 * @type {int}
 	 * @default 480
 	 */
@@ -6316,12 +7208,15 @@ soya2d.Game = function(opts){
 
 	/**
 	 * 当前游戏是否正在运行
+     * @property running
 	 * @type {boolean}
 	 * @default false
 	 */
 	this.running = false;
 	/**
 	 * 启动当前游戏实例
+     * @method start
+     * @private
 	 * @param {soya2d.Scene} scene 启动场景
      * @return this
 	 */
@@ -6446,7 +7341,8 @@ soya2d.Game = function(opts){
     };
 
     /**
-     * 设置该游戏实例的FPS
+     * 设置该game实例的FPS。一个页面上可以同时存在多个不同FPS的game实例
+     * @method setFPS
      * @param {Number} fps 最大60
      * @return this
      */
@@ -6459,6 +7355,7 @@ soya2d.Game = function(opts){
     };
 	/**
 	 * 停止当前游戏实例
+     * @method stop
      * @return this
 	 */
 	this.stop = function() {
@@ -6497,6 +7394,7 @@ soya2d.Game = function(opts){
 };
 /**
  * 游戏实例列表，保存当前域所有的game实例
+ * @property games
  * @type {Array}
  */
 soya2d.games = [];
@@ -6511,16 +7409,19 @@ soya2d.console.info(t2);
 /**
  * 渲染器类型,自动选择。
  * 引擎会根据运行环境自动选择渲染器类型
+ * @property RENDERER_TYPE_AUTO
  */
 soya2d.RENDERER_TYPE_AUTO = 1;
 /**
  * 渲染器类型,canvas。
  * 引擎会使用canvas 2d方式进行渲染
+ * @property RENDERER_TYPE_CANVAS
  */
 soya2d.RENDERER_TYPE_CANVAS = 2;
 /**
  * 渲染器类型,webgl
  * 引擎会使用webgl方式进行渲染
+ * @property RENDERER_TYPE_WEBGL
  */
 soya2d.RENDERER_TYPE_WEBGL = 3;
 

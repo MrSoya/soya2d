@@ -1,6 +1,7 @@
 /**
  * 可以进行圆弧形填充或线框绘制的显示对象
- * @class 
+ * @class soya2d.Arc
+ * @constructor
  * @extends soya2d.DisplayObjectContainer
  * @param {Object} data 所有父类参数,以及新增参数
  * @param {String} data.fillStyle 填充样式
@@ -8,6 +9,7 @@
  * @param {String} data.lineWidth 线条宽度
  * @param {String} data.startAngle 弧形的开始角度
  * @param {String} data.endAngle 弧形的结束角度
+ * @module shapes
  */
 soya2d.class("soya2d.Arc",{
     extends:soya2d.DisplayObjectContainer,

@@ -1,14 +1,40 @@
 ﻿!function(){
+    /**
+     * 补间对象，可以对显示对象的属性进行线性插值，从而实现平滑的变换动画。
+     * 补间对象是一个链式结构，内部保存了一个补间序列，根据创建时添加的补间块，
+     * 可以实现多段顺序补间效果。
+     * ```
+     * game.tween.add(this).to(...).to(...).to(...).play();
+     * ```
+     * 同时，针对一个显示对象可以创建多个补间对象，形成并行补间效果。注意，如果不同补间对象
+     * 针对同一个属性进行补间，那么先执行的会被覆盖
+     * ```
+     * game.tween.add(this).to({x:'+50',y:'+150'},0.1).play();
+     * game.tween.add(this).to({w:200,h:400},1).play();
+     * ```
+     * @class soya2d.Tween
+     * @constructor
+     * @param {Object} target 补间目标
+     * @module tween
+     */
     soya2d.class("soya2d.Tween",{
         extends:Signal,
         constructor:function(target){
             this.__signalHandler = new SignalHandler();
-
+            /**
+             * 补间目标
+             * @property target
+             * @type {Object}
+             */
             this.target = target;
             this.__tds = {};
             this.__startTimes = [];
             this.__long = 0;
-
+            /**
+             * 播放头位置
+             * @property position
+             * @type {Number}
+             */
             this.position = 0;
             this.__reversed = false;
             this.__paused = false;
@@ -67,15 +93,17 @@
             return [attr,cacheRatio];
         },
         /**
-         * @param {Object} attris 补间目标属性
+        * 给当前补间链添加一个补间块
+        * @method to
+        * @param {Object} attris 补间目标属性
         * @param {int} duration 补间周期(ms)
         * @param {Object} [opts] 补间属性
-        * @param {function} [opts.easing=soya2d.Tween.Linear] 补间类型
-        * @param {boolean} [opts.cacheable=false] 是否缓存，启用缓存可以提高动画性能，但是动画过程会有些许误差
-        * @param {int} [opts.repeat=0] 循环播放次数，-1为无限
-        * @param {boolean} [opts.yoyo=false] 是否交替反向播放动画，只在循环启用时生效
-        * @param {int} [opts.delay] 延迟时间(ms)
-        * @param {boolean} [opts.clear=true] 是否在执行完成后自动销毁释放内存
+        * @param {Function} [opts.easing=soya2d.Tween.Linear] 补间类型
+        * @param {Boolean} [opts.cacheable=false] 是否缓存，启用缓存可以提高动画性能，但是动画过程会有些许误差
+        * @param {Number} [opts.repeat=0] 循环播放次数，-1为无限
+        * @param {Boolean} [opts.yoyo=false] 是否交替反向播放动画，只在循环启用时生效
+        * @param {Number} [opts.delay] 延迟时间(ms)
+        * @param {Boolean} [opts.clear=true] 是否在执行完成后自动销毁释放内存
         * @see {soya2d.Tween.Linear}
          */
         to:function(attris,duration,opts){
@@ -118,7 +146,9 @@
             return this;
         },
         /**
-         * 启动补间器
+         * 启动补间器。执行完后自动删除该补间实例
+         * @method play
+         * @param {Boolean} keepAlive 是否在补间执行完后继续保留实例
          * @return this
          */
         play:function(keepAlive){
@@ -129,22 +159,37 @@
             
             return this;
         },
+        /**
+         * 反向执行补间
+         * @method reverse
+         * @return this
+         */
         reverse:function(){
             if(this.__infinite)return;
             this.__status = 'running';
             this.__reversed = true;
+
+            return this;
         },
         /**
          * 暂停补间器
+         * @method pause
+         * @return this
          */
         pause:function(){
             this.__status = 'paused';
             this.emit('pause');
             return this;
         },
+        /**
+         * 重置补间，播放头归0
+         * @return this
+         */
         restart:function(){
             this.position = 0;
             this.play();
+
+            return this;
         },
         __getTD:function(){
             for(var i=this.__startTimes.length;i--;){
@@ -201,6 +246,10 @@
                 this,
                 this.position);
         },
+        /**
+         * 销毁补间实例
+         * @method destroy
+         */
         destroy:function(){
             this.__manager.__remove(this);
             
@@ -214,11 +263,13 @@
     });
 
     /**
-     * 补间数据
+     * 补间数据，保存了一个补间段的相关信息。一个补间实例包含1-N个补间数据
+     * @class TweenData
      */
     function TweenData(data,state,duration,opts){
         /**
          * 补间时长(s)
+         * @property duration
          * @type {Number}
          */
         this.duration = duration * 1000;
@@ -226,26 +277,31 @@
         opts = opts||{};
         /**
          * 补间算法
+         * @property easing
          * @type {Function}
          */
         this.easing = opts.easing||soya2d.Tween.Linear;
         /**
          * 循环播放次数，-1为无限
+         * @property repeat
          * @type {int}
          */
         this.repeat = opts.repeat||0;
         /**
          * 是否交替反向播放动画，只在循环多于1次时有效
+         * @property yoyo
          * @type {Boolean}
          */
         this.yoyo = opts.yoyo||false;
         /**
          * 是否缓存，启用缓存可以提高动画性能，但是动画过程会有些许误差
+         * @property cacheable
          * @type {Boolean}
          */
         this.cacheable = opts.cacheable||false;
         /**
          * 延迟时间(s)
+         * @property delay
          * @type {Number}
          */
         this.delay = (opts.delay||0) * 1000;
@@ -335,3 +391,27 @@
     };
 
 }();
+
+/**
+ * 补间执行事件
+ * @event process
+ * @for soya2d.Tween
+ * @param {Number} ratio 补间段执行率
+ * @param {Number} rate 补间完成率
+ */
+/**
+ * 补间段切换时触发
+ * @event change
+ * @for soya2d.Tween
+ * @param {Number} times 切换次数
+ */
+/**
+ * 补间停止事件
+ * @event stop
+ * @for soya2d.Tween
+ */
+/**
+ * 补间暂停事件
+ * @event pause
+ * @for soya2d.Tween
+ */

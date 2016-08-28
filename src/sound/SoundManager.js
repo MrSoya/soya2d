@@ -2,7 +2,8 @@
  * 声音管理器类用来管理所绑定game实例中的所有音频，用于统一处理这些声音，
  * 包括静音、停止等。<br/>
  * 该类无需显式创建，引擎会自动绑定到game实例属性中。
- * @class 
+ * @class soya2d.SoundManager
+ * @module sound
  */
 soya2d.SoundManager = function(game){
     this.game = game;

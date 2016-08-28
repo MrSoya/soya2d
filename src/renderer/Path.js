@@ -1,6 +1,6 @@
 /**
  * 路径描述结构。既可用于支持路径动画的路径检索，也可以用于绘制路径
- * @class 
+ * @class soya2d.Path
  */
 soya2d.Path = function(d){
     /**
@@ -14,7 +14,8 @@ soya2d.Path = function(d){
      *     <tr><td>bezierCurveTo</td><td>C/c</td><td>(cp1x cp1y cp2x cp2y x y)+</td><td><code>C 45 50 20 30 10 20</code> － 曲线到 10, 20，第一个控制点位于 45, 50，第二个控制点位于 20, 30</td></tr>
      *     <tr><td>closepath</td><td>Z/z</td><td>无</td><td>关闭路径</td></tr>
      * </table>
-     * @type {string}
+     * @property d
+     * @type {String}
      */
     this.d = d || '';
 
@@ -24,7 +25,7 @@ soya2d.Path = function(d){
 
     this.__parse();
 }
-soya2d.ext(soya2d.Path.prototype,/** @lends soya2d.Path.prototype */{
+soya2d.ext(soya2d.Path.prototype,{
     /**
      * 解析指令
      * @private
@@ -47,6 +48,7 @@ soya2d.ext(soya2d.Path.prototype,/** @lends soya2d.Path.prototype */{
     },
     /**
      * 设置path指令串，并解析
+     * @method setPath
      * @param {string} d path指令串
      */
     setPath:function(d){

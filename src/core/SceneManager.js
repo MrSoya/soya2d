@@ -1,5 +1,6 @@
 ﻿/**
- *  场景管理器，提供场景注册和切换等
+ *  场景管理器，提供场景注册和切换等。每个game实例都有且只有一个场景管理器game.scene。
+ *  <br/>该类不能被实例化
  *  @class SceneManager
  */
 function SceneManager(game) {
@@ -10,7 +11,8 @@ function SceneManager(game) {
 SceneManager.prototype = {
     /**
      * 启动场景
-     * @param  {String | Object} scene   场景对象，或者注册名称
+     * @method start
+     * @param  {String | Object} scene   场景对象，或者注册名称。
      * @param  {Boolean} clearWorld 是否清空world
      */
     start:function(scene,clearWorld){
@@ -53,10 +55,15 @@ SceneManager.prototype = {
         for(var k in modules){
             if(modules[k].onSceneChange)modules[k].onSceneChange(that,scene);
         }
-        
 
         return this;
     },
+    /**
+     * 添加一个场景，系统自动把描述对象转换成{{#crossLink "Scene"}}{{/crossLink}}实例
+     * @method add
+     * @param {String} key 
+     * @param {Object} scene 带有回调函数的对象，注意并不是{{#crossLink "Scene"}}{{/crossLink}}实例
+     */
     add:function(key,scene){
         this.map[key] = new Scene(scene,game);
         return this.map[key];

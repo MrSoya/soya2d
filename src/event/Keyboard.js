@@ -5,9 +5,7 @@
  *     <li>keydown</li>
  *     <li>keypress</li>
  * </ul>
- * 所有事件的唯一回调参数为键盘事件对象{@link soya2d.KeyboardEvent}
- * @class 
- * @extends soya2d.EventHandler
+ * @class soya2d.Keyboard
  */
 soya2d.Keyboard = function(){
 
@@ -185,27 +183,83 @@ soya2d.Keyboard = function(){
 /**
  * 阻止按键默认行为的按键码数组，当键盘事件发生时，会检测该数组，
  * 如果数组包含当前按键码，就会阻止默认行为
+ * @property soya2d.Keyboard
  * @type {Array}
- * @default [ ]
+ * @default []
  */
 soya2d.Keyboard.preventKeys = [];
 /**
  * 阻止事件传播的按键码数组，当键盘事件发生时，会检测该数组，
  * 如果数组包含当前按键码，就会阻止事件继续传播
+ * @property soya2d.Keyboard
  * @type {Array}
- * @default [ ]
+ * @default []
  */
 soya2d.Keyboard.stopKeys = [];
 
 /**
  * 键盘事件对象，包含按键相关属性
+ * @class soya2d.KeyboardEvent
+ * 
+ */
+/**
+ * 键码值，用来和KeyCode类中的键码值进行比较
+ * @property keyCode
+ * @type {Number}
+ * @for soya2d.KeyboardEvent
+ */
+/**
+ * 是否按下了ctrl键
+ * @property ctrlKey
+ * @type {Boolean}
+ * @for soya2d.KeyboardEvent
+ */
+/**
+ * 是否按下了shift键
+ * @property shiftKey
+ * @type {Boolean}
+ * @for soya2d.KeyboardEvent
+ */
+/**
+ * 是否按下了alt键
+ * @property altKey
+ * @type {Boolean}
+ * @for soya2d.KeyboardEvent
+ */
+/**
+ * 是否按下了meta键
+ * @property metaKey
+ * @type {Boolean}
+ * @for soya2d.KeyboardEvent
+ */
+/**
+ * 键码值数组，包含当前按下的所有按键
+ * @property keyCodes
+ * @type {Array}
+ * @for soya2d.KeyboardEvent
+ */
+/**
+ * DOM事件对象
+ * @property e
  * @type {Object}
- * @typedef {Object} soya2d.KeyboardEvent
- * @property {int} keyCode - 键码值，用来和KeyCode类中的键码值进行比较
- * @property {boolean} ctrlKey - 是否按下了ctrl键
- * @property {boolean} shiftKey - 是否按下了shift键
- * @property {boolean} altKey - 是否按下了shift键
- * @property {boolean} metaKey - 是否按下了shift键
- * @property {boolean} keyCodes - 键码值数组，包含当前按下的所有按键
- * @property {Object} e - HTML事件对象
+ * @for soya2d.KeyboardEvent
+ */
+
+/**
+ * 按键抬起
+ * @event keyup
+ * @for soya2d.DisplayObject
+ * @param {soya2d.KeyboardEvent} ev 事件对象
+ */
+/**
+ * 按键按下
+ * @event keydown
+ * @for soya2d.DisplayObject
+ * @param {soya2d.KeyboardEvent} ev 事件对象
+ */
+/**
+ * 键盘持续按住
+ * @event keypress
+ * @for soya2d.DisplayObject
+ * @param {soya2d.KeyboardEvent} ev 事件对象
  */

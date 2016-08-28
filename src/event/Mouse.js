@@ -10,10 +10,8 @@
  *     <li>mouseover</li>
  *     <li>mouseout</li>
  * </ul>
- * 所有事件的唯一回调参数为鼠标事件对象{@link soya2d.MouseEvent}<br/>
  * *该事件支持传播
- * @class 
- * @extends soya2d.EventHandler
+ * @class soya2d.Mouse
  */
 soya2d.Mouse = function(){
 
@@ -252,54 +250,180 @@ soya2d.Mouse = function(){
 
 /**
  * 事件类型 - 单击
+ * @property EVENT_CLICK
+ * @static
+ * @final
+ * @for soya2d
  * @type {String}
  */
 soya2d.EVENT_CLICK = 'click';
 /**
  * 事件类型 - 双击
+ * @property EVENT_DBLCLICK
+ * @static
+ * @final
  * @type {String}
  */
 soya2d.EVENT_DBLCLICK = 'dblclick';
 /**
  * 事件类型 - 鼠标按下
+ * @property EVENT_MOUSEDOWN
+ * @static
+ * @final
  * @type {String}
  */
 soya2d.EVENT_MOUSEDOWN = 'mousedown';
 /**
  * 事件类型 - 鼠标滚轮
+ * @property EVENT_MOUSEWHEEL
+ * @static
+ * @final
  * @type {String}
  */
 soya2d.EVENT_MOUSEWHEEL = 'mousewheel';
 /**
  * 事件类型 - 鼠标移动
+ * @property EVENT_MOUSEMOVE
+ * @static
+ * @final
  * @type {String}
  */
 soya2d.EVENT_MOUSEMOVE = 'mousemove';
 /**
  * 事件类型 - 鼠标抬起
+ * @property EVENT_MOUSEUP
+ * @static
+ * @final
  * @type {String}
  */
 soya2d.EVENT_MOUSEUP = 'mouseup';
 /**
  * 事件类型 - 鼠标浮动在显示对象
+ * @property EVENT_MOUSEOVER
+ * @static
+ * @final
  * @type {String}
  */
 soya2d.EVENT_MOUSEOVER = 'mouseover';
 /**
  * 事件类型 - 鼠标从显示对象移走
+ * @property EVENT_MOUSEOUT
+ * @static
+ * @final
  * @type {String}
  */
 soya2d.EVENT_MOUSEOUT = 'mouseout';
 
 /**
  * 鼠标事件对象
+ * @class soya2d.MouseEvent
+ */
+/**
+ * 停止事件传播。冒泡方式
+ * @method stopPropagation
+ * @for soya2d.MouseEvent
+ */
+/**
+ * 鼠标当前x坐标
+ * @property x
+ * @type {Number}
+ * @for soya2d.MouseEvent
+ */
+/**
+ * 鼠标当前y坐标
+ * @property y
+ * @type {Number}
+ * @for soya2d.MouseEvent
+ */
+/**
+ * 是否按下了鼠标左键
+ * @property lButton
+ * @type {Boolean}
+ * @for soya2d.MouseEvent
+ */
+/**
+ * 是否按下了鼠标右键
+ * @property rButton
+ * @type {Boolean}
+ * @for soya2d.MouseEvent
+ */
+/**
+ * 是否按下了鼠标中键
+ * @property wButton
+ * @type {Boolean}
+ * @for soya2d.MouseEvent
+ */
+/**
+ * DOM事件对象
+ * @property e
  * @type {Object}
- * @typedef {Object} soya2d.MouseEvent
- * @property {function} stopPropagation 停止事件传播。冒泡方式
- * @property {int} x - 鼠标当前x坐标
- * @property {int} y - 鼠标当前y坐标
- * @property {boolean} lButton - 是否按下了鼠标左键
- * @property {boolean} rButton - 是否按下了鼠标右键
- * @property {boolean} wButton - 是否按下了鼠标中键
- * @property {Object} e - HTML事件对象
+ * @for soya2d.MouseEvent
+ */
+
+
+/**
+ * 单击
+ * @event click
+ * @for soya2d.DisplayObject
+ * @param {soya2d.MouseEvent} ev 事件对象
+ */
+/**
+ * 双击
+ * @event dblclick
+ * @for soya2d.DisplayObject
+ * @param {soya2d.MouseEvent} ev 事件对象
+ */
+/**
+ * 鼠标按下
+ * @event mousedown
+ * @for soya2d.DisplayObject
+ * @param {soya2d.MouseEvent} ev 事件对象
+ */
+/**
+ * 鼠标抬起
+ * @event mouseup
+ * @for soya2d.DisplayObject
+ * @param {soya2d.MouseEvent} ev 事件对象
+ */
+/**
+ * 鼠标移动
+ * @event mousemove
+ * @for soya2d.DisplayObject
+ * @param {soya2d.MouseEvent} ev 事件对象
+ */
+/**
+ * 鼠标滚轮滚动
+ * @event mousewheel
+ * @for soya2d.DisplayObject
+ * @param {soya2d.MouseEvent} ev 事件对象
+ */
+/**
+ * 鼠标悬浮
+ * @event mouseover
+ * @for soya2d.DisplayObject
+ * @param {soya2d.MouseEvent} ev 事件对象
+ */
+/**
+ * 鼠标移出
+ * @event mouseout
+ * @for soya2d.DisplayObject
+ * @param {soya2d.MouseEvent} ev 事件对象
+ */
+/**
+ * 自动兼容事件。如果在移动环境中是touchstart，否则是mousedown
+ * @event pointdown
+ * @for soya2d.DisplayObject
+ * @param {soya2d.MouseEvent|soya2d.TouchEvent} ev 事件对象
+ */
+/**
+ * 自动兼容事件。如果在移动环境中是touchmove，否则是mousemove
+ * @event pointmove
+ * @for soya2d.DisplayObject
+ * @param {soya2d.MouseEvent|soya2d.TouchEvent} ev 事件对象
+ */
+/**
+ * 自动兼容事件。如果在移动环境中是touchend，否则是mouseup
+ * @event pointup
+ * @for soya2d.DisplayObject
+ * @param {soya2d.MouseEvent|soya2d.TouchEvent} ev 事件对象
  */

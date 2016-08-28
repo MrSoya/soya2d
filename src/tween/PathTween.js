@@ -1,14 +1,30 @@
 ﻿!function(){
+    /**
+     * 路径补间对象，功能和{{#crossLink "soya2d.Tween"}}{{/crossLink}}相同，但路径补间只针对
+     * 补间目标的x/y进行补间。
+     * @class soya2d.PathTween
+     * @constructor
+     * @param {Object} target 补间目标
+     * @module tween
+     */
     soya2d.class("soya2d.PathTween",{
         extends:Signal,
         constructor:function(target){
             this.__signalHandler = new SignalHandler();
-
+            /**
+             * 补间目标
+             * @property target
+             * @type {Object}
+             */
             this.target = target;
             this.__tds = {};
             this.__startTimes = [];
             this.__long = 0;
-
+            /**
+             * 播放头位置
+             * @property position
+             * @type {Number}
+             */
             this.position = 0;
             this.__reversed = false;
             this.__paused = false;
@@ -164,6 +180,8 @@
             return __pps;
         },
         /**
+         * 给当前补间链添加一个路径
+         * @method to
          * @param {String | soya2d.Path} path path字符串或者path对象
         * @param {int} duration 补间周期(ms)
         * @param {Object} [opts] 补间属性
@@ -195,7 +213,9 @@
             return this;
         },
         /**
-         * 启动补间器
+         * 启动补间器。执行完后自动删除该补间实例
+         * @method play
+         * @param {Boolean} keepAlive 是否在补间执行完后继续保留实例
          * @return this
          */
         play:function(keepAlive){
@@ -206,22 +226,37 @@
             
             return this;
         },
+        /**
+         * 反向执行补间
+         * @method reverse
+         * @return this
+         */
         reverse:function(){
             if(this.__infinite)return;
             this.__status = 'running';
             this.__reversed = true;
+
+            return this;
         },
         /**
          * 暂停补间器
+         * @method pause
+         * @return this
          */
         pause:function(){
             this.__status = 'paused';
             this.emit('pause');
             return this;
         },
+        /**
+         * 重置补间，播放头归0
+         * @method restart
+         * @return this
+         */
         restart:function(){
             this.position = 0;
             this.play();
+            return this;
         },
         __getTD:function(){
             for(var i=this.__startTimes.length;i--;){
@@ -279,6 +314,10 @@
                 this,
                 this.position);
         },
+        /**
+         * 销毁补间实例
+         * @method destroy
+         */
         destroy:function(){
             this.__manager.__remove(this);
             
@@ -291,9 +330,7 @@
         }
     });
 
-    /**
-     * 补间数据
-     */
+    //补间数据
     function TweenData(data,duration,opts){
         /**
          * 补间时长(s)
@@ -412,3 +449,28 @@
     };
 
 }();
+
+/**
+ * 补间执行事件
+ * @event process
+ * @for soya2d.PathTween
+ * @param {Number} ratio 补间段执行率
+ * @param {Number} rate 补间完成率
+ * @param {Number} angle 当前路径角度
+ */
+/**
+ * 补间段切换时触发
+ * @event change
+ * @for soya2d.PathTween
+ * @param {Number} times 切换次数
+ */
+/**
+ * 补间停止事件
+ * @event stop
+ * @for soya2d.PathTween
+ */
+/**
+ * 补间暂停事件
+ * @event pause
+ * @for soya2d.PathTween
+ */

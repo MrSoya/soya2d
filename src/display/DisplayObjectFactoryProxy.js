@@ -1,6 +1,7 @@
 ﻿/**
- * 显示对象工厂代理提供用于从显示对象工厂中获取指定类型实例，并自动插入world中
- * @class 
+ * 显示对象工厂代理提供用于从显示对象工厂中获取指定类型实例，并自动插入world中。
+ * 工厂提供了一种代理服务，能够从别名中识别出对应的构造函数
+ * @class DisplayObjectFactoryProxy
  */
 function DisplayObjectFactoryProxy(game){
     this.game = game;

@@ -4,11 +4,12 @@
  * 文本类用于显示指定的文本内容，支持多行文本显示。
  * 文本渲染效果取决于所指定的font，默认为普通字体soya2d.Font。<br/>
  * 注意，需要显示的指定实例的w属性，来让引擎知道文本是否需要分行显示
- * @class 
+ * @class soya2d.Text
  * @extends soya2d.DisplayObjectContainer
  * @param {Object} data 所有父类参数
  * @see soya2d.Font
  * @see soya2d.ImageFont
+ * @module text
  */
 soya2d.class("soya2d.Text",{
     extends:soya2d.DisplayObjectContainer,
@@ -17,26 +18,28 @@ soya2d.class("soya2d.Text",{
          * 文本内容
          * *注意，直接设置该属性后，需要手动刷新才会更新显示内容。如果不想手动刷新，可以使用setText函数来更新内容
          * @see soya2d.Text.refresh
+         * @property text
          * @type {String}
          */
         this.text = data.text||'';
         /**
          * 字符间距
+         * @property letterSpacing
          * @type {int}
          * @default 1
          */
         this.letterSpacing = data.letterSpacing || 0;
         /**
          * 行间距
+         * @property lineSpacing
          * @type {int}
          * @default 5
          */
         this.lineSpacing = data.lineSpacing||0;
 
-        //data.size 用于图像字体的初始大小
-
         /**
          * 字体对象
+         * @property font
          * @type {String | soya2d.Font | soya2d.ImageFont | soya2d.Atlas}
          * @default soya2d.Font
          * @see soya2d.Font
@@ -56,6 +59,11 @@ soya2d.class("soya2d.Text",{
 
         this.__renderer = this.font.__renderText;//绑定渲染
 
+        /**
+         * 渲染样式
+         * @property fillStyle
+         * @type {String}
+         */
         this.fillStyle = data.fillStyle || '#000';
 
         if(!this.w)this.w = this.font.getBounds(this.text).w;
@@ -67,12 +75,14 @@ soya2d.class("soya2d.Text",{
     /**
      * 刷新显示内容<br/>
      * 用在修改了宽度时调用
+     * @method refresh
      */
     refresh:function(){
         this.__changed = true;
     },
     /**
      * 重新设置文本域字体
+     * @method setFont
      * @param {soya2d.Font | soya2d.ImageFont} font 字体
      */
     setFont:function(font){
@@ -82,6 +92,7 @@ soya2d.class("soya2d.Text",{
     },
     /**
      * 设置文本内容，并刷新
+     * @method setText
      * @param {string} txt 文本内容
      * @param {Boolean} changeW 是否自动改变宽度
      */

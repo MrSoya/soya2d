@@ -1,16 +1,37 @@
 ﻿/**
- * 瓦片地图。管理固定尺寸瓦片拼接的地图模型。这些地图通常由地图制作工具生成。
+ * 瓦片地图。管理固定尺寸瓦片拼接的地图模型。这些地图通常由地图制作工具生成
+ * @class Tilemap
+ * @extends Signal
+ * @module tilemap
  */
 var Tilemap = soya2d.class("",{
     extends:Signal,
     __signalHandler : new SignalHandler(),
     constructor: function(data){
-        //瓦片大小
+        /**
+         * 单个瓦片宽度
+         * @property tilewidth
+         * @type {Number}
+         */
         this.tilewidth = data.tilewidth;
+        /**
+         * 单个瓦片高度
+         * @property tileheight
+         * @type {Number}
+         */
         this.tileheight = data.tileheight;
 
-        //地图大小
+        /**
+         * 整个地图行数
+         * @property rows
+         * @type {Number}
+         */
         this.rows = data.rows;
+        /**
+         * 整个地图列数
+         * @property columns
+         * @type {Number}
+         */
         this.columns = data.columns;
 
         //图层数据
@@ -70,9 +91,10 @@ var Tilemap = soya2d.class("",{
     },
     /**
      * 把图块集数据和纹理绑定
-     * @param  {[type]} key   [description]
-     * @param  {[type]} image [description]
-     * @return {[type]}       [description]
+     * @method bindTileset
+     * @param  {String} key   地图数据中制定的key
+     * @param  {HTMLImageElement|String} image 图像
+     * @return this
      */
     bindTileset:function(key,image){
         var tileset = this.tilesetsData[key];
@@ -89,6 +111,7 @@ var Tilemap = soya2d.class("",{
     },
     /**
      * 创建图层
+     * @method createLayer
      * @param  {String} key  图层key，用于查找地图数据中对应的图层
      * @param  {soya2d.DisplayObjectContainer} container 所属容器，默认world
      * @param  {Array} data 地图数据
@@ -106,12 +129,16 @@ var Tilemap = soya2d.class("",{
     },
     /**
      * 设置世界size和map相同
+     * @method resizeWorld
      */
     resizeWorld:function(){
         this.game.world.setBounds(this.w,this.h);
     },
     /**
-     * 设置碰撞的瓦片序列区间，比如1-4，那么序号为1,2,3,4的4个瓦片都会响应碰撞
+     * 设置碰撞的瓦片索引区间，比如1-4，那么序号为1,2,3,4的4个瓦片都会响应碰撞
+     * @method setCollisionBetween
+     * @param {Number} start 起始索引
+     * @param {Number} end 结束索引
      */
     setCollisionBetween:function(start,end){
         var startPos = this.tiles[start];
@@ -137,7 +164,10 @@ var Tilemap = soya2d.class("",{
         return this;
     },
     /**
-     * 设置碰撞的瓦片序列区间，比如1-4，那么序号为1,2,3,4的4个瓦片都会响应碰撞
+     * 设置碰撞的一块瓦片，通过行列号
+     * @method setCollision
+     * @param {Number} row 行号
+     * @param {Number} col 列号
      */
     setCollision:function(row,col){
         var startPos = this.tileMatrix[row+"_"+col];
@@ -162,11 +192,12 @@ var Tilemap = soya2d.class("",{
         return this;
     },
     /**
-     * 使用行列值，确定碰撞范围。
-     * @param {int} startRow 起始行
-     * @param {int} startCol 起始列
-     * @param {int} endRow   结束行
-     * @param {int} endCol   结束列
+     * 使用行列值，确定碰撞范围
+     * @method setCollisionZone
+     * @param {Number} startRow 起始行
+     * @param {Number} startCol 起始列
+     * @param {Number} endRow   结束行
+     * @param {Number} endCol   结束列
      */
     setCollisionZone:function(startRow,startCol,endRow,endCol){
         var startPos = this.tileMatrix[startRow+"_"+startCol];
@@ -193,9 +224,10 @@ var Tilemap = soya2d.class("",{
     },
     /**
      * 获取指定行列上的tile对象
-     * @param  {[type]} row [description]
-     * @param  {[type]} col [description]
-     * @return {[type]}     [description]
+     * @method getTile
+     * @param {Number} row 行号
+     * @param {Number} col 列号
+     * @return {Object}  
      */
     getTile:function(row,col){
         return this.tileMatrix[row+"_"+col];
@@ -253,3 +285,11 @@ function onTileCollision(target,another){
     }
     this.tilemap.emit('tileCollision',another,{direction:dir,x:this.x,y:this.y});
 }
+
+/**
+ * 瓦片碰撞事件
+ * @event tileCollision
+ * @for Tilemap
+ * @param {soya2d.DisplayObject} otherCollider 碰撞对象
+ * @param {Object} collision 碰撞信息 {direction:,x:,y:} 
+ */

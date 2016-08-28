@@ -1,11 +1,16 @@
 ﻿/**
- * 地图层，描述了一层具体的地图信息，并绘制在制定的容器中
- * @class
+ * 地图层是实际渲染地图的显示对象。描述了具体的地图信息，并绘制在指定的容器中
+ * @class TilemapLayer
  * @extends soya2d.DisplayObjectContainer
  */
 var TilemapLayer = soya2d.class('',{
     extends:soya2d.DisplayObjectContainer,
     constructor:function(tilemap,data){
+        /**
+         * 所在tilemap引用
+         * @property tilemap
+         * @type {Tilemap}
+         */
         this.tilemap = tilemap;
         this.w = tilemap.w;
         this.h = tilemap.h;

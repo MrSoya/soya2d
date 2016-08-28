@@ -1,20 +1,24 @@
 ﻿/**
  * 图形类,提供了贴图和矢量绘制的接口。<br/>
- * 注意，该类不应被显示实例化。引擎会在onRender回调中注入该类的实例。<br/>
+ * 注意，该类不应被实例化。引擎会在onRender回调中注入该类的实例。<br/>
  * 该图形对象基于Canvas构建。
+ * 
+ * @class soya2d.CanvasGraphics
+ * @constructor
  * @param ctx CanvasRenderingContext2D的实例
- * @class 
- * @author {@link http://weibo.com/soya2d MrSoya}
+ * @module renderer
  */
 soya2d.CanvasGraphics = function(ctx){
     /**
      * 一个对当前绘图对象的引用
+     * @property ctx
      * @type {CanvasRenderingContext2D}
      */
 	this.ctx = ctx;
 
     /**
      * 设置或者获取当前绘图环境的渲染透明度
+     * @method opacity
      * @param {Number} op 0.0 - 1.0
      * @return {this|Number}
      */
@@ -29,6 +33,7 @@ soya2d.CanvasGraphics = function(ctx){
 
     /**
      * 闭合当前路径
+     * @method closePath
      * @return this
      */
     this.closePath = function(){
@@ -37,6 +42,7 @@ soya2d.CanvasGraphics = function(ctx){
     };
     /**
      * 移动当前画笔
+     * @method moveTo
      * @param {Number} x
      * @param {Number} y
      * @return this
@@ -48,6 +54,7 @@ soya2d.CanvasGraphics = function(ctx){
     /**
      * 向当前path中添加直线subpath<br/>
      * 线条起点为path绘制前画笔坐标，终点为x,y
+     * @method lineTo
      * @param {Number} x
      * @param {Number} y
      * @return this
@@ -59,6 +66,7 @@ soya2d.CanvasGraphics = function(ctx){
     /**
      * 向当前path中添加2次曲线subpath<br/>
      * 线条起点为path绘制前画笔坐标，终点为x,y
+     * @method quadraticCurveTo
      * @param {Number} cpx 控制点
      * @param {Number} cpy 控制点
      * @param {Number} x
@@ -72,6 +80,7 @@ soya2d.CanvasGraphics = function(ctx){
     /**
      * 向当前path中添加贝塞尔曲线subpath<br/>
      * 线条起点为path绘制前画笔坐标，终点为x,y
+     * @method bezierCurveTo
      * @param {Number} cp1x 控制点1
      * @param {Number} cp1y 控制点1
      * @param {Number} cp2x 控制点2
@@ -86,6 +95,7 @@ soya2d.CanvasGraphics = function(ctx){
     };
     /**
      * 向当前path中添加使用控制点和半径定义的弧型subpath<br/>
+     * @method arcTo
      * @param {Number} x1
      * @param {Number} y1
      * @param {Number} x2
@@ -99,6 +109,7 @@ soya2d.CanvasGraphics = function(ctx){
     };
     /**
      * 向当前path中添加圆弧形subpath
+     * @method arc
      * @param {Number} cx 圆心
      * @param {Number} cy 圆心
      * @param {Number} r 半径
@@ -112,6 +123,7 @@ soya2d.CanvasGraphics = function(ctx){
     };
     /**
      * 向当前path中添加椭圆弧形subpath
+     * @method eArc
      * @param {Number} cx 圆心
      * @param {Number} cy 圆心
      * @param {Number} a 长半径
@@ -143,6 +155,7 @@ soya2d.CanvasGraphics = function(ctx){
     };
     /**
      * 向当前path中添加矩形subpath
+     * @method rect
      * @param {Number} x
      * @param {Number} y
      * @param {Number} w
@@ -155,11 +168,15 @@ soya2d.CanvasGraphics = function(ctx){
     };
     /**
      * 向当前path中添加多边形subpath，边的数量由顶点数决定
+     * @method polygon
      * @param {Array} vtx 一维顶点数组,坐标为相对中心点。<br/>
      * 比如绘制[0,0]点为重心的正三角形:<br/>
+     * ```
      * [0,-5,//top point<br/>
      * -5,x,//left point<br/>
      * 5,y]
+     * ```
+     * 
      * @return this
      */
     this.polygon = function(vtx){
@@ -174,6 +191,7 @@ soya2d.CanvasGraphics = function(ctx){
     };
     /**
      * 向当前path中添加椭圆形subpath
+     * @method ellipse
      * @param {Number} x
      * @param {Number} y
      * @param {Number} w
@@ -198,6 +216,7 @@ soya2d.CanvasGraphics = function(ctx){
     };
     /**
      * 向当前path中添加圆角矩形subpath
+     * @method roundRect
      * @param {Number} x
      * @param {Number} y
      * @param {Number} w
@@ -220,9 +239,10 @@ soya2d.CanvasGraphics = function(ctx){
     };
     /**
      * 向当前path中添加正多边形subpath
+     * @method regularPolygon
      * @param {Number} cx 多边形重心
      * @param {Number} cy 多边形重心
-     * @param {int} ec 多边形的边数，不能小于3
+     * @param {Number} ec 多边形的边数，不能小于3
      * @param {Number} r1 半径1
      * @param {Number} r2 半径2
      * @return this
@@ -253,6 +273,7 @@ soya2d.CanvasGraphics = function(ctx){
 
     /**
      * 设置或者获取当前绘图环境的图元混合模式
+     * @method blendMode
      * @param {String} blendMode 混合方式
      * @default soya2d.BLEND_NORMAL
      * @see soya2d.BLEND_NORMAL
@@ -268,6 +289,7 @@ soya2d.CanvasGraphics = function(ctx){
     };
     /**
      * 设置或者获取当前绘图环境的线框样式
+     * @method strokeStyle
      * @param {Object} style 可以是命名颜色、RGB、16进制等标准颜色。也可以是CanvasGradient或者CanvasPattern
      * @return this
      */
@@ -281,6 +303,7 @@ soya2d.CanvasGraphics = function(ctx){
     };
     /**
      * 设置或者获取当前绘图环境的填充样式
+     * @method fillStyle
      * @param {Object} style 可以是命名颜色、RGB、16进制等标准颜色。也可以是CanvasGradient或者CanvasPattern
      * @return this
      */
@@ -295,10 +318,12 @@ soya2d.CanvasGraphics = function(ctx){
 
     /**
      * 设置当前绘图环境的阴影样式
+     * @method shadow
      * @param {Number} blur 模糊度
      * @param {String} [color=rgba(0,0,0,0)] 颜色
      * @param {Number} [offx=0] x偏移
      * @param {Number} [offy=0] y偏移
+     * @return this
      */
     this.shadow = function(blur,color,offx,offy){
         this.ctx.shadowBlur = blur;
@@ -310,6 +335,7 @@ soya2d.CanvasGraphics = function(ctx){
 
     /**
      * 设置当前绘图环境的线条样式
+     * @method lineStyle
      * @param {Number} width 宽度
      * @param {String} cap 线条末端样式
      * @param {String} join 线条交点样式
@@ -328,6 +354,7 @@ soya2d.CanvasGraphics = function(ctx){
 
     /**
      * 设置当前绘图环境的字体样式
+     * @method font
      * @param {soya2d.Font} font
      * @return this
      */
@@ -339,7 +366,7 @@ soya2d.CanvasGraphics = function(ctx){
 
     /**
      * 裁剪路径
-     * @method
+     * @method clip
      * @return this
      */
 	this.clip = function(){
@@ -348,6 +375,7 @@ soya2d.CanvasGraphics = function(ctx){
 	};
     /**
      * 保存当前绘图状态
+     * @method push
      * @return this
      */
 	this.push = function(){
@@ -356,6 +384,7 @@ soya2d.CanvasGraphics = function(ctx){
 	};
     /**
      * 恢复最近一次push的绘图状态
+     * @method pop
      * @return this
      */
 	this.pop = function(){
@@ -364,6 +393,7 @@ soya2d.CanvasGraphics = function(ctx){
 	};
     /**
      * 清空当前path中的所有subpath
+     * @method beginPath
      * @return this
      */
 	this.beginPath = function(){
@@ -372,6 +402,7 @@ soya2d.CanvasGraphics = function(ctx){
 	};
     /**
      * 关闭当前path
+     * @method closePath
      * @return this
      */
     this.closePath = function(){
@@ -381,7 +412,7 @@ soya2d.CanvasGraphics = function(ctx){
 
     /**
      * 填充path
-     * @method
+     * @method fill
      * @return this
      */
     this.fill = function(){
@@ -390,7 +421,7 @@ soya2d.CanvasGraphics = function(ctx){
     };
     /**
      * 描绘path的轮廓
-     * @method
+     * @method stroke
      * @return this
      */
     this.stroke = function(){
@@ -400,10 +431,10 @@ soya2d.CanvasGraphics = function(ctx){
 
     /**
      * 向当前path中添加指定的subpath
+     * 
      * @param {soya2d.Path} path 路径结构
-     * @method
+     * @method path
      * @return this
-     * @since 1.2.0
      */
     this.path = function(path){
         path._insQ.forEach(function(ins){
@@ -449,6 +480,7 @@ soya2d.CanvasGraphics = function(ctx){
 
     /**
      * 以x,y为左上角填充一个宽w高h的矩形
+     * @method fillRect
      * @param {Number} x
      * @param {Number} y
      * @param {Number} w
@@ -461,6 +493,7 @@ soya2d.CanvasGraphics = function(ctx){
 	};
     /**
      * 以x,y为左上角描绘一个宽w高h的矩形
+     * @method strokeRect
      * @param {Number} x
      * @param {Number} y
      * @param {Number} w
@@ -474,6 +507,7 @@ soya2d.CanvasGraphics = function(ctx){
     /**
      * 以x,y为左上角清空一个宽w高h的矩形区域<br/>
      * 清空颜色为rgba(0,0,0,0);
+     * @method clearRect
      * @param {Number} x
      * @param {Number} y
      * @param {Number} w
@@ -487,15 +521,16 @@ soya2d.CanvasGraphics = function(ctx){
 	/**
      * 
      * 贴图接口
+     * @method map
      * @param {HTMLImageElement} tex 需要绘制的纹理
-     * @param  {int} sx  纹理起始坐标x
-     * @param  {int} sy  纹理起始坐标y
-     * @param  {int} sw  纹理起始尺寸w
-     * @param  {int} sh  纹理起始尺寸h
-     * @param  {int} dx  纹理目标坐标x
-     * @param  {int} dy  纹理目标坐标y
-     * @param  {int} dw  纹理目标尺寸w
-     * @param  {int} dh  纹理目标尺寸h
+     * @param  {int} [sx]  纹理起始坐标x
+     * @param  {int} [sy]  纹理起始坐标y
+     * @param  {int} [sw]  纹理起始尺寸w
+     * @param  {int} [sh]  纹理起始尺寸h
+     * @param  {int} [dx]  纹理目标坐标x
+     * @param  {int} [dy]  纹理目标坐标y
+     * @param  {int} [dw]  纹理目标尺寸w
+     * @param  {int} [dh]  纹理目标尺寸h
      * @return this
      */
 	this.map = function(img,dx,dy,dw,dh,sx,sy,sw,sh){
@@ -515,6 +550,7 @@ soya2d.CanvasGraphics = function(ctx){
 	};
     /**
      * 填充文字
+     * @method fillText
      * @param {String} str 需要绘制的文字
      * @param {int} [x=0] x坐标，相对于当前精灵的x
      * @param {int} [y=0] y坐标，相对于当前精灵的y
@@ -531,6 +567,7 @@ soya2d.CanvasGraphics = function(ctx){
     };
     /**
      * 描绘文字
+     * @method strokeText
      * @param {String} str 需要绘制的文字
      * @param {int} [x=0] x坐标，相对于当前精灵的x
      * @param {int} [y=0] y坐标，相对于当前精灵的y

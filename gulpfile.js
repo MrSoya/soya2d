@@ -57,6 +57,7 @@ var src_core = [
     //renderer
     "src/renderer/CanvasGraphics.js",
     "src/renderer/CanvasRenderer.js",
+    "src/renderer/Path.js",
     "src/system/Device.js",
     "src/text/Font.js",
     "src/text/ImageFont.js",
@@ -67,7 +68,6 @@ var src_core = [
 var src_ext = [
     //tween
     "src/tween/Tween.js",
-    "src/tween/Path.js",
     "src/tween/PathTween.js",
     "src/tween/TweenManager.js",
     "src/tween/Easing.js",
@@ -104,7 +104,8 @@ var src_ext = [
     "src/tilemap/TilemapManager.js",
     "src/tilemap/TilemapLayer.js",
     "src/tilemap/Tilemap.js",
-    "src/tilemap/Tileset.js"
+    "src/tilemap/Tileset.js",
+    "src/tilemap/install.js"
 ];
 
 var shellEnd = ["src/shellEnd.js"];

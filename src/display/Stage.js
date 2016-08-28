@@ -1,8 +1,10 @@
 ﻿/**
- * 舞台对象表现为一个soya2D的渲染窗口，每个game实例都只包含唯一的一个stage。
+ * 舞台对象表现为一个soya2D的渲染窗口，每个game实例都有且仅有一个stage对象。
  * stage也是渲染树中的顶级对象，stage的大小和渲染窗口一致。
- * stage是渲染树的顶级节点
- * stage对象可以用于设置窗口视图规则，包括分辨率适应、窗口事件回调等
+ * stage对象可以用于设置窗口视图规则，包括分辨率适应、窗口事件回调等。
+ * <br>通常stage只有一个world子节点，但是可以增加其他显示对象。注意，
+ * stage的直接子节点不受{{#crossLink "Camera"}}{{/crossLink}}的控制。
+ * 
  * @class Stage
  * @extends soya2d.DisplayObjectContainer
  * @param {Object} data 所有父类参数
@@ -14,31 +16,36 @@ var Stage = soya2d.class("",{
         this.__anchorX = this.__anchorY = 0;
         /**
          * 缩放最小宽度
+         * @property minWidth
          * @type {Number}
          * @default 0
          */
         this.minWidth = 0;
         /**
          * 缩放最小高度
+         * @property minHeight
          * @type {Number}
          * @default 0
          */
         this.minHeight = 0;
         /**
          * 缩放最大宽度
+         * @property maxWidth
          * @type {Number}
          * @default 0
          */
         this.maxWidth = 0;
         /**
          * 缩放最大高度
+         * @property maxHeight
          * @type {Number}
          * @default 0
          */
         this.maxHeight = 0;
         /**
          * 是否在横竖屏切换、resize窗口时，都进行缩放
-         * @type {boolean}
+         * @property autoScale
+         * @type {Boolean}
          * @default true
          */
         this.autoScale = true;
@@ -47,7 +54,9 @@ var Stage = soya2d.class("",{
 
         /**
          * 视图方向。portrait或者landscape
+         * @property orientation
          * @type {string}
+         * @readOnly
          * @default portrait
          */
         this.orientation = getOrientation();
@@ -77,6 +86,7 @@ var Stage = soya2d.class("",{
             ////////////////////////////舞台相关
             /**
              * 缩放类型
+             * @property scaleMode
              * @type {int}
              * @default soya2d.SCALEMODE_SHOWALL
              */
@@ -90,6 +100,7 @@ var Stage = soya2d.class("",{
             },
             /**
              * 设置或者获取该视图对齐模式。SHOWALL模式下有效
+             * @property alignMode
              * @type  {int} alignMode 对齐模式
              */
             alignMode : {
@@ -122,6 +133,7 @@ var Stage = soya2d.class("",{
             },
             /**
              * 设置或者获取该视图旋转模式
+             * @property rotateMode
              * @type  {int} rotateMode 旋转模式
              */
             rotateMode:{
@@ -158,10 +170,13 @@ var Stage = soya2d.class("",{
     },
     /**
      * 设置背景
+     * @method background
      * @param  {Object} color 根据类型不同，会解析为不同的背景设置<br/>
-     * String 颜色字符串，支持HEX或者RGB
-     * Image  背景图，支持第二个参数设置repeat
-     * Int    渐变方式，支持GRADIENT_LINEAR / GRADIENT_RADIAL，后面参数依次为ratio数组，颜色数组，渐变长度
+     * |type|desc|
+     * |----|:----|
+     * |String| 颜色字符串，支持HEX或者RGB |
+     * |Image | 背景图，支持第二个参数设置repeat |
+     * |Int   | 渐变方式，支持GRADIENT_LINEAR / GRADIENT_RADIAL，后面参数依次为ratio数组，颜色数组，渐变长度 |
      * 
      */
     background:function(color){
@@ -224,7 +239,6 @@ function updateMx(ro){
             }
         }
 }
-
 function update(list,game,delta){
     for(var i=list.length;i--;){
         var c = list[i];
@@ -303,48 +317,92 @@ function getOrientation(){
 }
 /**
  * 视图缩放类型，不缩放。游戏默认值
+ * @property SCALEMODE_NOSCALE
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.SCALEMODE_NOSCALE = 0;
 /**
  * 视图缩放类型，等比缩放，总是显示全部
+ * @property SCALEMODE_SHOWALL
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.SCALEMODE_SHOWALL = 1;
 /**
  * 视图缩放类型，等比缩放，不一定显示全部
+ * @property SCALEMODE_NOBORDER
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.SCALEMODE_NOBORDER = 2;
 /**
  * 视图缩放类型，非等比缩放。完全适配容器
+ * @property SCALEMODE_EXACTFIT
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.SCALEMODE_EXACTFIT = 3;
 
 /**
  * 视图对齐类型
+ * @property ALIGNMODE_LEFT
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.ALIGNMODE_LEFT = 1;
 /**
  * 视图对齐类型
+ * @property ALIGNMODE_CENTER
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.ALIGNMODE_CENTER = 2;
 /**
  * 视图对齐类型
+ * @property ALIGNMODE_RIGHT
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.ALIGNMODE_RIGHT = 3;
 
 /**
  * 视图旋转类型
+ * @property ROTATEMODE_0
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.ROTATEMODE_0 = 1;
 /**
  * 视图旋转类型
+ * @property ROTATEMODE_90
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.ROTATEMODE_90 = 2;
 /**
  * 视图旋转类型
+ * @property ROTATEMODE_180
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.ROTATEMODE_180 = 3;
 /**
  * 视图旋转类型
+ * @property ROTATEMODE_270
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.ROTATEMODE_270 = 4;
 
@@ -391,21 +449,33 @@ function EXACTFIT(dw,dh,cw,ch,mw,mh,mxw,mxh){
 
 /**
  * 纹理重复类型——REPEAT
- * @constant
+ * @property BG_REPEAT
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.BG_REPEAT = 'repeat';
 /**
  * 纹理重复类型——NOREPEAT
- * @constant
+ * @property BG_NOREPEAT
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.BG_NOREPEAT = 'no-repeat';
 /**
  * 纹理重复类型——REPEAT_X
- * @constant
+ * @property BG_REPEAT_X
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.BG_REPEAT_X = 'repeat-x';
 /**
  * 纹理重复类型——REPEAT_Y
- * @constant
+ * @property BG_REPEAT_Y
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.BG_REPEAT_Y = 'repeat-y';

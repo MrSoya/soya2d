@@ -8,11 +8,12 @@
  * @param {Object} data 构造参数对象
  * @param {DOMElement} data.container 渲染容器，渲染器会在该容器范围内进行渲染
  * 容器可以是一个块级元素比如div。
- * @param {boolean} [data.autoClear=true] 是否自动清除图层，如果不清除，则渲染效果会叠加
- * @param {boolean} [data.sortEnable=false] 是否开启自动排序。如果开启渲染器会在渲染前对所有DO进行Z轴排序
- * @param {boolean} [data.smoothEnable=true] 是否启用对图像边缘的平滑处理
- * @param {boolean} [data.crispEnable=false] 是否启用图像非平滑渲染
- * @class 
+ * @param {Boolean} [data.autoClear=true] 是否自动清除图层，如果不清除，则渲染效果会叠加
+ * @param {Boolean} [data.sortEnable=false] 是否开启自动排序。如果开启渲染器会在渲染前对所有DO进行Z轴排序
+ * @param {Boolean} [data.smoothEnable=true] 是否启用对图像边缘的平滑处理
+ * @param {Boolean} [data.crispEnable=false] 是否启用图像非平滑渲染
+ * @class soya2d.CanvasRenderer
+ * @module renderer
  */
 soya2d.CanvasRenderer = function(data){
     data = data||{};
@@ -24,23 +25,29 @@ soya2d.CanvasRenderer = function(data){
     var container = data.container;
     /**
      * 世界宽度，通常为可视窗口宽度
-     * @type int
+     * @property w
+     * @type {Number}
      * @default 960
      */
     this.w = data.w||(container?container.clientWidth:0);
     /**
      * 世界高度，通常为可视窗口高度
-     * @type int
+     * @property h
+     * @type {Number}
      * @default 480
      */
     this.h = data.h||(container?container.clientHeight:0);
     /**
      * 是否自动清除图层，如果不清除，则渲染效果会叠加
+     * @property autoClear
+     * @type {Boolean}
      * @default true
      */
     this.autoClear = data.autoClear===undefined?true:data.autoClear;
     /**
      * 是否开启自动排序。如果开启渲染器会在渲染前对所有DO进行Z轴排序
+     * @property sortEnable
+     * @type {Boolean}
      * @default false
      */
     this.sortEnable = data.sortEnable || false;
@@ -71,6 +78,7 @@ soya2d.CanvasRenderer = function(data){
 
     /**
      * 获取渲染器绑定的canvas
+     * @method getCanvas
      * @return {HTMLCanvasElement} 
      */
     this.getCanvas = function(){
@@ -79,6 +87,7 @@ soya2d.CanvasRenderer = function(data){
 
     /**
      * 渲染方法。每调用一次，只进行一次渲染
+     * @method render
      */
     this.render = function(stage,camera){
         if(!stage instanceof Stage)return;
@@ -245,6 +254,7 @@ soya2d.CanvasRenderer = function(data){
     
     /**
      * 缩放所渲染窗口
+     * @method resize
      * @param {int} w 宽度
      * @param {int} h 高度
      */
@@ -265,6 +275,7 @@ soya2d.CanvasRenderer = function(data){
 
     /**
      * 设置或者获取渲染器的平滑选项
+     * @method smooth
      * @param {Boolean} enabled 开启/关闭
      * @return this
      */
@@ -286,6 +297,7 @@ soya2d.CanvasRenderer = function(data){
 
     /**
      * 设置或者获取图像清晰渲染
+     * @method crisp
      * @param {Boolean} enabled 开启/关闭
      * @return this
      */
@@ -307,6 +319,7 @@ soya2d.CanvasRenderer = function(data){
 
     /**
      * 获取指定范围的图像数据
+     * @method getImageData
      * @param {int} x x坐标
      * @param {int} y y坐标
      * @param {int} w 宽度
@@ -323,6 +336,7 @@ soya2d.CanvasRenderer = function(data){
     };
     /**
      * 返回当前渲染器的图片数据描述串
+     * @method toDataURL
      * @param {String} type 图片类型
      * @default image/png
      * @return {String} URL
@@ -333,6 +347,7 @@ soya2d.CanvasRenderer = function(data){
 
     /**
      * 创建一个图像绘制模式
+     * @method createPattern
      * @param {HTMLImageElement|HTMLCanvasElement|HTMLVideoElement} image 图像
      * @param {string} [repetition=soya2d.REPEAT] 重复类型
      * @return pattern
@@ -344,6 +359,7 @@ soya2d.CanvasRenderer = function(data){
 
     /**
      * 创建一个渐变实例，用于填充和线框的绘制
+     * @method createGradient
      * @param {Array} ratios 渐变比率数组，有效值为[0.0,1.0]
      * @param {Array} colors 渐变颜色数组，和ratios对应，一个比率对应一个颜色，如果对应不上，默认rgba(0,0,0,0)
      * @param {Number} len 渐变长度；线性渐变为长度，放射渐变为半径
@@ -391,6 +407,7 @@ soya2d.CanvasRenderer = function(data){
 
 /**
  * 把一个可渲染对象转换成一个Image对象
+ * @method getImageFrom
  * @param {soya2d.DisplayObject} ro 可渲染对象
  * @param {int} [w] image宽度.可选，默认ro尺寸
  * @param {int} [h] image高度.可选，默认ro尺寸

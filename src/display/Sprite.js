@@ -1,6 +1,6 @@
 ﻿/**
- * 精灵类。具有绘图功能的容器类<br/>
- * 支持子对象渲染,以及矩阵变换
+ * 精灵类。用于显示.9贴图、静态贴图以及贴图动画，精灵中包含了多个图像帧，可以通过创建
+ * 多个{{#crossLink "Animation"}}{{/crossLink}}来实现精灵不同动画效果的表现和改变
  * 
  * @class soya2d.Sprite
  * @extends soya2d.DisplayObjectContainer
@@ -57,6 +57,12 @@ soya2d.class("soya2d.Sprite",{
 	    	}
 	    });
 	},
+	/**
+	 * 复制精灵
+	 * @method clone
+	 * @param  {Boolean} isRecur 是否递归复制
+	 * @return {soya2d.Sprite}  
+	 */
 	clone:function(isRecur){
 		var copy = new this.constructor({
 			images:this.images.concat()
@@ -210,6 +216,7 @@ soya2d.class("soya2d.Sprite",{
     },
     /**
 	 * 设置当前帧数+1
+	 * @method nextFrame
 	 */
 	nextFrame:function(){
 		this.frameIndex++;
@@ -223,6 +230,7 @@ soya2d.class("soya2d.Sprite",{
 	},
 	/**
 	 * 设置当前帧数-1
+	 * @method prevFrame
 	 */
 	prevFrame:function(){
 		this.frameIndex--;
@@ -236,7 +244,9 @@ soya2d.class("soya2d.Sprite",{
 	},
 	/**
 	 * 设置或者更改精灵纹理
+	 * @method setImages
 	 * @param {String | HTMLImageElement | Array<String> | Array<HTMLImageElement>} images 图像加载时的key/key数组/图形对象/图形对象数组
+	 * @param {Boolean} [changeSize] 同步修改精灵的w/h
 	 */
 	setImages:function(images,changeSize){
 		if(typeof images === 'string'){

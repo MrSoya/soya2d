@@ -1,4 +1,8 @@
-﻿function SignalHandler(){
+﻿/**
+ * 信号类用来实现soya2D内部的消息系统
+ * @class SignalHandler
+ */
+function SignalHandler(){
     this.map = {};
 }
 SignalHandler.prototype = {

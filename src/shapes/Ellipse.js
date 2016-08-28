@@ -1,6 +1,7 @@
 /**
  * 可以进行椭圆填充或线框绘制的显示对象
- * @class 
+ * @class soya2d.Ellipse
+ * @constructor
  * @extends soya2d.DisplayObjectContainer
  * @param {Object} data 所有父类参数,以及新增参数
  * @param {String} data.fillStyle 填充样式

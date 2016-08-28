@@ -2,12 +2,13 @@
 	/**
 	 * 发射器用于在给定的坐标发射粒子。默认的粒子都是dead状态，不可见，
 	 * 引擎会激活粒子为活跃状态，并按照参数发射粒子，这时粒子为可见。
-	 * @class 
+	 * @class soya2d.Emitter
 	 * @extends soya2d.DisplayObjectContainer
+	 * @constructor
 	 * @param {Object} opts 构造参数对象，参数如下：
 	 * @param {Number} [opts.frequency=0.1] 粒子发射间隔 s
 	 * @param {int} opts.max 总粒子数
-	 * @param {soya2d.DisplayObject} opts.particles 粒子，可以是图片或者显示对象
+	 * @param {String | HTMLImageElement | Array | soya2d.DisplayObject} opts.particles 粒子，可以是图片或者显示对象
 	 * @param {Number} [opts.lifeSpan=1] 粒子生命周期 s
 	 * @param {Number} [opts.lifeSpanVar=0] 粒子生命周期，可变累加值
 	 * @param {Number} [opts.speed=0] 粒子移动速度
@@ -22,7 +23,8 @@
 	 * @param {Number} [opts.startSpinVar=0] 自转速度范围起始，可变累加值
 	 * @param {Number} [opts.endSpin=0] 自转速度范围结束
 	 * @param {Number} [opts.endSpinVar=0] 自转速度范围结束，可变累加值
-	 * @param {function} [opts.onActive] 回调事件，粒子激活时调用
+	 *
+	 * @module particle
 	 */
 	soya2d.class("soya2d.Emitter",{
 	    extends:soya2d.DisplayObjectContainer,
@@ -87,6 +89,7 @@
 	    },
 	    /**
 		 * 发射粒子
+		 * @method emit
 		 */
 	    emit:function(){
 			if(this.running)return;
@@ -104,6 +107,7 @@
 		/**
 		 * 发射器停止产生新粒子<br/>
 		 * *调用emit方法可以解除该状态
+		 * @method stop
 		 * @param {int} ms 停止激活的延迟毫秒数
 		 */
 		stop:function(ms){
@@ -124,7 +128,7 @@
 			this.running = false;
 			return this;
 		},
-		onUpdate:function(game,delta){
+		_onUpdate:function(game,delta){
 			if(!this.running)return;
 
 			this.__deltaSum += delta;
@@ -253,4 +257,14 @@
 		}
 		
 	}
+
+	/**
+	 * 粒子激活时回调
+	 * @method onActive
+	 */
+	/**
+	 * 粒子运行时回调，每帧调用
+	 * @method onRunning
+	 * @param {Array} particles 发射器中包含的所有粒子
+	 */
 }();

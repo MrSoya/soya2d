@@ -2,6 +2,7 @@
  * 构造一个用于任务调度的触发器。
  * 触发器是调度器进行任务调度时，触发任务的依据。根据触发器提供的表达式，进行触发。一个触发器只能绑定一个任务。
  * @class TimerTrigger
+ * @private
  * @param {string} exp 触发器表达式，根据触发类型而定
  */
 function TimerTrigger(exp){

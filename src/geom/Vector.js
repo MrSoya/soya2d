@@ -1,12 +1,14 @@
 ﻿/**
  * 2D向量。提供向量相关计算。<br/>参数为0时，将构造一个0向量
- * @class 
+ * @class soya2d.Vector
+ * @constructor
  * @param {Number} x
  * @param {Number} y
  */
 soya2d.Vector = function(x,y){
     /**
      * 向量结构数组
+     * @property e
      * @type {Float32Array}
      * @default [0,0]
      */
@@ -16,11 +18,16 @@ soya2d.Vector = function(x,y){
 };
 
 soya2d.Vector.prototype = {
+	/**
+     * @method toString
+     * @return {String} 
+     */
 	toString:function(){
 		return "{x:"+this.e[0]+",y:"+this.e[1]+"}";
 	},
 	/**
 	 * 使用当前向量参数，复制一个新的2D向量
+	 * @method clone
 	 * @return {soya2d.Vector} 和当前向量值相同的新向量
 	 */
 	clone:function(){
@@ -28,8 +35,9 @@ soya2d.Vector.prototype = {
 	},
 	/**
 	 * 设置向量值
-	 * @param {int} x x轴分量值
-	 * @param {int} y y轴分量值
+	 * @method set
+	 * @param {Number} x x轴分量值
+	 * @param {Number} y y轴分量值
 	 * @return {soya2d.Vector} this
 	 */
 	set:function(x,y){
@@ -40,6 +48,7 @@ soya2d.Vector.prototype = {
 	},
 	/**
 	 * 计算和指定向量的点积
+	 * @method dot
 	 * @param {soya2d.Vector} v 指定向量
 	 * @return {Number} 点积值
 	 */
@@ -48,6 +57,7 @@ soya2d.Vector.prototype = {
 	},
 	/**
 	 * 当前向量取反
+	 * @method negate
 	 */
 	negate:function(){
 		this.e[0] *= -1;
@@ -56,6 +66,7 @@ soya2d.Vector.prototype = {
 	},
 	/**
 	 * 和增加指定向量相加
+	 * @method add
 	 * @param {soya2d.Vector} v 指定向量
 	 */
 	add:function(v){
@@ -65,6 +76,7 @@ soya2d.Vector.prototype = {
 	},
 	/**
 	 * 和增加指定向量相减
+	 * @method sub
 	 * @param {soya2d.Vector} v 指定向量
 	 */
 	sub:function(v){
@@ -74,6 +86,7 @@ soya2d.Vector.prototype = {
 	},
 	/**
 	 * 当前向量乘以指定实数
+	 * @method mul
 	 * @param {Number} s 实数
 	 */
 	mul:function(s){
@@ -83,6 +96,7 @@ soya2d.Vector.prototype = {
 	},
 	/**
 	 * 当前向量除以指定实数
+	 * @method div
 	 * @param {Number} s 实数
 	 */
 	div:function(s){
@@ -97,6 +111,7 @@ soya2d.Vector.prototype = {
 	},
 	/**
 	 * 获得当前向量夹角
+	 * @method getAngle
 	 * @return {Number} 夹角值
 	 */
 	getAngle:function(){
@@ -104,6 +119,7 @@ soya2d.Vector.prototype = {
 	},
 	/**
 	 * 获得和指定向量夹角
+	 * @method getAngleBetween
 	 * @param {soya2d.Vector} v 指定向量
 	 * @return {Number} 夹角值
 	 */
@@ -114,6 +130,7 @@ soya2d.Vector.prototype = {
 	},
 	/**
 	 * 旋转当前向量指定角度
+	 * @method rotate
 	 * @param {Number} angle 指定角度
 	 */
 	rotate:function(angle){
@@ -134,6 +151,7 @@ soya2d.Vector.prototype = {
 	},
 	/**
 	 * 获得当前向量长度平方
+	 * @method lengthSq
 	 * @return {Number} 平方值
 	 */
 	lengthSq: function () {
@@ -141,6 +159,7 @@ soya2d.Vector.prototype = {
 	},
 	/**
 	 * 获得当前向量长度
+	 * @method length
 	 * @return {Number} 长度值
 	 */
 	length: function () {
@@ -148,6 +167,7 @@ soya2d.Vector.prototype = {
 	},
 	/**
 	 * 把当前向量变为单位向量
+	 * @method normalize
 	 * @return {soya2d.Vector} 单位向量
 	 */
 	normalize: function () {

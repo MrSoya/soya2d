@@ -1,5 +1,5 @@
 ﻿/**
- *  场景用来管理场景内的所有注册对象，如UI元素
+ *  场景用来管理通过XML构建的UI
  *  @class Scene
  */
 function Scene(data,game) {
@@ -10,15 +10,43 @@ function Scene(data,game) {
 }
 
 Scene.prototype = {
-    //
+    /**
+     * 通过XML文档设置UI
+     * @method setView
+     * @param {XMLDocument} doc xml文档对象
+     */
     setView:function(doc){
         var world = doc.children[0];
         build(this,world,this.game.world,this.game);
     },
+    /**
+     * 通过id属性查找显示对象
+     * @method findview
+     * @param  {String} id xml中节点的id属性
+     * @return {soya2d.DisplayObject}
+     */
     findView:function(id){
         return this.map[id];
     }
 }
+
+
+/**
+ * 预加载事件，该事件中可以进行资源加载操作。资源加载完成后，会自动调用onInit回调
+ * @event onPreload
+ * @param {soya2d.Game} game 场景所属game
+ */
+/**
+ * 初始化事件，在onPreload后调用
+ * @event onInit
+ * @param {soya2d.Game} game 场景所属game
+ */
+/**
+ * 更新事件，每帧调用
+ * @event onUpdate
+ * @param {soya2d.Game} game 场景所属game
+ * @param {Number} d 上一次调用的间隔
+ */
 
 function build(scene,node,parent,game){
     for(var i=0;i<node.children.length;i++){
@@ -91,7 +119,6 @@ function bindEvent(attrs,ins,scene){
         }
     }
 }
-
 
 function filter(type,val,parent){
     switch(type){

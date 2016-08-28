@@ -1,5 +1,9 @@
 /**
- * 该类是soya中应用物理系统的统一接口
+ * 物理类是soya2d中应用物理系统的统一接口，该接口屏蔽了不同物理系统的实现，
+ * 使用统一的调用接口实现物理关联
+ * @class Physics
+ * @extends Signal
+ * @module physics
  */
 var Physics = soya2d.class("",{
     extends:Signal,
@@ -9,6 +13,7 @@ var Physics = soya2d.class("",{
     },
     /**
      * 建立一个物理引擎，并实现相关接口
+     * @method setup
      * @param  {Object} opts 
      * @param {Function} opts.onStart 引擎启动
      * @param {Function} opts.onUpdate 引擎更新
@@ -19,8 +24,10 @@ var Physics = soya2d.class("",{
     },
     /**
      * 启动物理系统,可以传递参数
-     * @param  {[type]} opts [description]
-     * @return {[type]}      [description]
+     * @method start
+     * @param  {Object} opts 物理参数
+     * @param  {Array} [opts.gravity=[0,1]] 重力参数
+     * @param  {Boolean} [opts.enableSleeping] 重力参数
      */
     start:function(opts){
     	opts = opts || {};
@@ -33,6 +40,10 @@ var Physics = soya2d.class("",{
 
 		this.running = true;
     },
+    /**
+     * 停止物理系统
+     * @method stop
+     */
     stop:function(){
     	this.__cbk.onStop && this.__cbk.onStop();
     	this.running = false;
@@ -40,6 +51,10 @@ var Physics = soya2d.class("",{
     update:function(){
     	this.__cbk.onUpdate && this.__cbk.onUpdate(); 
     },
+    /**
+     * 绑定显示对象，建立和物理世界的关联
+     * @private
+     */
     bind:function(obj){
     	var shape;
     	if(this.__cbk.onBind){
@@ -49,6 +64,10 @@ var Physics = soya2d.class("",{
     	obj.body.__cbk = this.__cbk.body;
 		shape.__sprite = obj;
     },
+    /**
+     * 把显示对象和物理世界的映射解除
+     * @private
+     */
     unbind:function(obj){
         var shape = obj.body.rigid;
         if(!shape)return;
@@ -60,6 +79,10 @@ var Physics = soya2d.class("",{
         }
         obj.body = {};
     },
+    /**
+     * 让一个或多个显示对象启用物理效果
+     * @param  {Array|...} objs 显示对象数组，或多个显示对象的可变参数
+     */
     enable:function(objs){
     	var rs = objs;
     	if(objs instanceof Array || arguments.length>1){
@@ -70,24 +93,68 @@ var Physics = soya2d.class("",{
     	}else {
     		this.bind(rs);
     	}
+    },
+    /**
+     * 让一个或多个显示对象关闭物理效果
+     * @param  {Array|...} objs 显示对象数组，或多个显示对象的可变参数
+     */
+    unable:function(objs){
+        var rs = objs;
+        if(objs instanceof Array || arguments.length>1){
+            if(arguments.length>1)rs = arguments;
+            for(var i=rs.length;i--;){
+                this.unbind(rs[i]);
+            }
+        }else {
+            this.unbind(rs);
+        }
     }
 });
 
 /**
  * 事件类型 - 碰撞开始
+ * @property EVENT_CONTACTSTART
+ * @static
+ * @final
+ * @for soya2d
  * @type {String}
  */
 soya2d.EVENT_CONTACTSTART = 'contactstart';
 /**
  * 事件类型 - 碰撞结束
+ * @property EVENT_CONTACTEND
+ * @static
+ * @final
+ * @for soya2d
  * @type {String}
  */
 soya2d.EVENT_CONTACTEND = 'contactend';
+
+
 /**
- * 物理事件对象
- * @type {Object}
- * @typedef {Object} soya2d.PhysicsEvent
- * @property {Array} collisionPairs - 碰撞对一维数组[{a:xx,b:xx},{a:yy,b:yy}, ...]
- * @property {soya2d.DisplayObject} otherCollider - 与当前对象产生碰撞的显示对象
+ * 物理事件
+ * @event collisionStart
+ * @for soya2d.DisplayObject
+ * @param {soya2d.DisplayObject} otherCollider 碰撞对象
+ */
+/**
+ * 物理事件
+ * @event collisionEnd
+ * @for soya2d.DisplayObject
+ * @param {soya2d.DisplayObject} otherCollider 碰撞对象
  */
 
+/**
+ * 物理事件
+ * @event collisionStart
+ * @for Physics
+ * @param {soya2d.DisplayObject} colliderA 碰撞对象A
+ * @param {soya2d.DisplayObject} colliderB 碰撞对象B
+ */
+/**
+ * 物理事件
+ * @event collisionEnd
+ * @for Physics
+ * @param {soya2d.DisplayObject} colliderA 碰撞对象A
+ * @param {soya2d.DisplayObject} colliderB 碰撞对象B
+ */

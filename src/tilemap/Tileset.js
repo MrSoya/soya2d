@@ -1,8 +1,9 @@
 ﻿
 /**
  * 图块集合。管理地图相关的图块信息。
- * 图块集合以起始索引为基准，对每一个图块进行left-right/top-bottom方式的编号，
+ * 图块集合以起始索引为基准，对每一个图块进行topLeft-bottomRight方式的编号，
  * 每个编号的图块都对应地图中的一个tile
+ * @class Tileset
  */
 var Tileset = soya2d.class('',{
     constructor:function(image,sIndex,tileWidth,tileHeight) {

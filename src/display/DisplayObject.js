@@ -14,34 +14,38 @@ soya2d.class("soya2d.DisplayObject",{
         this.__seq = soya2d.__roIndex++;
         /**
          * 对父类的引用
-         * @var {soya2d.DisplayObject} soya2d.DisplayObject#_super
+         * @property _super
+         * @type {soya2d.DisplayObject}
          */
 
         /**
-         * 渲染对象id，只读
+         * 渲染对象id
+         * @property roid
+         * @readOnly
          * @type {string}
          */
         this.roid = 'roid_' + this.__seq;
         /**
-         * 名称
+         * 名称——用于识别显示对象。如果创建时不指定，默认和roid相同
+         * @property name
          * @type {string}
          */
         this.name = data.name||this.roid;
         /**
-         * 是否可见<br/>
-         * true:可见
-         * false:不可见
+         * 是否可见
+         * @property visible
          * @type boolean
          * @default true
          */
         this.visible = data.visible===false?false:data.visible||true;
         /**
-         * 布局对象，属性列表如下：
+         * 布局对象允许以更灵活的方式设置显示对象的尺寸或坐标，属性列表如下：
          * left 当值是百分比时，相对父类的宽度
          * top  当值是百分比时，相对父类的高度
          * offsetLeft 当值是百分比时，相对自身的宽度
          * offsetTop 当值是百分比时，相对自身的高度
          * 都支持数值和百分比
+         * @property layout
          * @type {Object}
          */
         this.layout = data.layout;
@@ -61,12 +65,11 @@ soya2d.class("soya2d.DisplayObject",{
 
         Object.defineProperties(this,{
             /**
-             * 可见度0-1
+             * 不可见度0-1
              * 1:不透明
              * 0:全透明
              * @type Number
-             * @instance
-             * @memberof soya2d.DisplayObject
+             * @property opacity
              * @default 1
              */
             opacity:{
@@ -85,8 +88,7 @@ soya2d.class("soya2d.DisplayObject",{
             /**
              * x坐标。使用top-left坐标系
              * @type Number
-             * @instance
-             * @memberof soya2d.DisplayObject
+             * @property x
              * @default 0
              */
             x:{
@@ -106,8 +108,7 @@ soya2d.class("soya2d.DisplayObject",{
             /**
              * y坐标。使用top-left坐标系
              * @type Number
-             * @instance
-             * @memberof soya2d.DisplayObject
+             * @property y
              * @default 0
              */
             y:{
@@ -128,8 +129,7 @@ soya2d.class("soya2d.DisplayObject",{
              * 宽度。和高度一起，标识对象的碰撞区、以及事件触发区<br/>
              * *anchorX属性也依赖该属性
              * @type Number
-             * @instance
-             * @memberof soya2d.DisplayObject
+             * @property w
              * @default 0
              */
             w:{
@@ -146,8 +146,7 @@ soya2d.class("soya2d.DisplayObject",{
              * 高度。和宽度一起，标识对象的碰撞区、以及事件触发区<br/>
              * *anchorY属性也依赖该属性
              * @type Number
-             * @instance
-             * @memberof soya2d.DisplayObject
+             * @property h
              * @default 0
              */
             h:{
@@ -161,10 +160,9 @@ soya2d.class("soya2d.DisplayObject",{
                 enumerable:true
             },
             /**
-             * x轴参考点，对象变形时的原点,可以设置百分比字符串或者数字。
+             * x轴参考点，对象变形时的原点,可以设置百分比字符串或者数字
              * @type {String|Number}
-             * @instance
-             * @memberof soya2d.DisplayObject
+             * @property anchorX
              * @default 0
              */
             anchorX:{
@@ -178,10 +176,9 @@ soya2d.class("soya2d.DisplayObject",{
                 enumerable:true
             },
             /**
-             * y轴参考点，对象变形时的原点,可以设置百分比字符串或者数字。
+             * y轴参考点，对象变形时的原点,可以设置百分比字符串或者数字
              * @type {String|Number}
-             * @instance
-             * @memberof soya2d.DisplayObject
+             * @property anchorY
              * @default 0
              */
             anchorY:{
@@ -197,8 +194,7 @@ soya2d.class("soya2d.DisplayObject",{
             /**
              * 当前旋转角度
              * @type {Number}
-             * @instance
-             * @memberof soya2d.DisplayObject
+             * @property angle
              * @default 0
              */
             angle:{
@@ -220,9 +216,8 @@ soya2d.class("soya2d.DisplayObject",{
              * 如果大于1，则会把对象横向拉伸<br/>
              * 如果等于1，不改变<br/>
              * 如果小于1，则会把对象横向缩短
-             * @type Number
-             * @instance
-             * @memberof soya2d.DisplayObject
+             * @type {Number}
+             * @property scaleX
              * @default 1
              */
             scaleX:{
@@ -240,9 +235,8 @@ soya2d.class("soya2d.DisplayObject",{
              * 如果大于1，则会把对象纵向拉伸<br/>
              * 如果等于1，不改变<br/>
              * 如果小于1，则会把对象纵向缩短
-             * @type Number
-             * @instance
-             * @memberof soya2d.DisplayObject
+             * @type {Number}
+             * @property scaleY
              * @default 1
              */
             scaleY:{
@@ -257,9 +251,8 @@ soya2d.class("soya2d.DisplayObject",{
             },
             /**
              * x轴偏移角。单位：角度
-             * @type Number
-             * @instance
-             * @memberof soya2d.DisplayObject
+             * @type {Number}
+             * @property skewX
              * @default 0
              */
             skewX:{
@@ -274,9 +267,8 @@ soya2d.class("soya2d.DisplayObject",{
             },
             /**
              * y轴偏移角。单位：角度
-             * @type Number
-             * @instance
-             * @memberof soya2d.DisplayObject
+             * @type {Number}
+             * @property skewY
              * @default 0
              */
             skewY:{
@@ -293,7 +285,8 @@ soya2d.class("soya2d.DisplayObject",{
 
         /**
          * z坐标。标识对象所属图层，并且引擎会按照z值的大小进行渲染
-         * @type Number
+         * @type {Number}
+         * @property z
          * @default 0
          */
         this.z = data.z||0;
@@ -324,22 +317,26 @@ soya2d.class("soya2d.DisplayObject",{
         /**
          * 世界坐标
          * @readOnly
+         * @property worldPosition
          * @type {soya2d.Point}
          */
         this.worldPosition = new soya2d.Point();
         /**
          * 锚点坐标
+         * @property anchorPosition
          * @readOnly
          * @type {soya2d.Point}
          */
         this.anchorPosition = new soya2d.Point();
         /**
          * 屏幕坐标
-         * @type {soya2d}
+         * @type {soya2d.Point}
+         * @private
          */
         this.__screenPosition = new soya2d.Point();
         /**
          * 混合方式
+         * @property blendMode
          * @type String
          * @default soya2d.BLEND_NORMAL
          * @see soya2d.BLEND_NORMAL
@@ -354,9 +351,8 @@ soya2d.class("soya2d.DisplayObject",{
              * 被用于遮罩的对象只能同时存在一个需要遮罩的对象上，多次设置只会保留最后一次，
              * 并且被用于遮罩的对象不会出现在画面上<br/>
              * *如果需要动态控制遮罩对象，需要把遮罩对象添加到场景中
+             * @property mask
              * @type {soya2d.DisplayObject}
-             * @instance
-             * @memberof soya2d.DisplayObject
              * @default null; 
              */
             mask:{
@@ -376,6 +372,7 @@ soya2d.class("soya2d.DisplayObject",{
             },
             /**
              * 是否固定到摄像机。如果该属性为true，当摄像机移动时，精灵会固定在摄像机的指定位置
+             * @property fixedToCamera
              * @type {Boolean}
              */
             fixedToCamera:{
@@ -397,6 +394,7 @@ soya2d.class("soya2d.DisplayObject",{
         this.__masker = null;
         /**
          * 对象范围，用于拾取测试和物理碰撞
+         * @property bounds
          * @type {soya2d.Rectangle | soya2d.Circle | soya2d.Polygon}
          * @default soya2d.Rectangle实例
          */
@@ -408,6 +406,7 @@ soya2d.class("soya2d.DisplayObject",{
         this.__boundRect = new soya2d.Rectangle(0,0,1,1);
         /**
          * 对象在物理世界中的实体
+         * @property body
          * @type {Body}
          */
         this.body = new Body(this);
@@ -415,6 +414,7 @@ soya2d.class("soya2d.DisplayObject",{
          * 对象所属的游戏实例。当对象被添加到一个game上时，该值为game实例的引用。
          * 当对象被创建或从game实例上删除时，该值为null<br/>
          * 必须先创建game实例(这样引擎会自动引用该实例)或者显式指定game参数，否则会引起异常
+         * @property game
          * @default null
          * @readOnly
          * @type {soya2d.Game}
@@ -422,6 +422,7 @@ soya2d.class("soya2d.DisplayObject",{
         this.game = data.game || soya2d.games[0];
         /**
          * 对象缓存的的内部图形。删除该属性可以取消缓存
+         * @property imageCache
          * @type {HTMLCanvasElement}
          * @default null 
          */
@@ -429,8 +430,10 @@ soya2d.class("soya2d.DisplayObject",{
         this.__updateCache = false;
 
         /**
-         * 相对镜头左上角的偏移对象，默认{x:0,y:0}
+         * 相对镜头左上角的偏移对象
+         * @property cameraOffset
          * @type {Object}
+         * @default {x:0,y:0}
          */
         this.cameraOffset = new soya2d.Point();
 
@@ -455,6 +458,11 @@ soya2d.class("soya2d.DisplayObject",{
 
         if(this.onAdded)this.onAdded();
     },
+    /**
+     * 设置显示对象的布局
+     * @method setLayout
+     * @param {Object} layout 布局对象
+     */
     setLayout:function(layout){
         if(!layout)return this;
         
@@ -482,11 +490,16 @@ soya2d.class("soya2d.DisplayObject",{
 
         return this;
     },
+    /**
+     * @method toString
+     * @return {String}
+     */
     toString:function(){
         return '{roid:"'+this.roid+'";name:"'+this.name+'"}';
     },
     /**
-     * 更新本地和世界变换
+     * 更新本地和世界变换。通常该方法由引擎自己调用
+     * @method tranform
      */
     transform:function(){
         var x = this.__x,
@@ -563,8 +576,9 @@ soya2d.class("soya2d.DisplayObject",{
         this.__localChange = this.__anchorChange = false;
     },
     /**
-     * 返回当前对象是否被渲染了
-     * @return {boolean} true/false
+     * 返回当前对象是否被渲染了。比如父节点被隐藏时，子节点实际上不会被渲染
+     * @method isRendered
+     * @return {Boolean} true/false
      */
     isRendered:function(){
         if(!this.visible || this.opacity===0)return false;
@@ -578,6 +592,7 @@ soya2d.class("soya2d.DisplayObject",{
     },
     /**
 	 * 复制方法,不会复制当前节点的子节点
+     * @method clone
      * @param {boolean} [isRecur=false] 递归复制标识
      * @param {soya2d.DisplayObject} [copy=null] 副本,用于子类覆盖
      * @return {soya2d.DisplayObject} 新的实例
@@ -620,6 +635,7 @@ soya2d.class("soya2d.DisplayObject",{
 	},
 	/**
 	 * 增加精灵偏移
+     * @method moveBy
 	 * @param {Number} ox x轴偏移
 	 * @param {Number} oy y轴偏移
      * @return {soya2d.DisplayObject} this
@@ -634,6 +650,7 @@ soya2d.class("soya2d.DisplayObject",{
 	},
 	/**
 	 * 移动精灵到指定的坐标
+     * @method moveTo
 	 * @param {Number} x x坐标
 	 * @param {Number} y y坐标
      * @return {soya2d.DisplayObject} this
@@ -648,6 +665,7 @@ soya2d.class("soya2d.DisplayObject",{
 	},
 	/**
 	 * 设置透明度
+     * @method opacifyTo
 	 * @param {Number} o 透明度值
      * @return {soya2d.DisplayObject} this
 	 */
@@ -657,6 +675,7 @@ soya2d.class("soya2d.DisplayObject",{
 	},
 	/**
 	 * 设置透明度偏移
+     * @method opacifyBy
 	 * @param {Number} o 透明度差值
      * @return {soya2d.DisplayObject} this
 	 */
@@ -668,6 +687,7 @@ soya2d.class("soya2d.DisplayObject",{
 	},
     /**
      * 设置尺寸
+     * @method resizeTo
      * @param {Number} w 宽
      * @param {Number} h 高
      * @return {soya2d.DisplayObject} this
@@ -682,6 +702,7 @@ soya2d.class("soya2d.DisplayObject",{
 	},
     /**
      * 增加精灵的缩放比例
+     * @method scaleBy
      * @param {Number} sx x轴缩放比
      * @param {Number} sy y轴缩放比
      * @return this
@@ -696,6 +717,7 @@ soya2d.class("soya2d.DisplayObject",{
     },
     /**
      * 缩放精灵到指定的比例
+     * @method scaleTo
      * @param {Number} sx x轴缩放比
      * @param {Number} sy y轴缩放比
      * @return this
@@ -710,6 +732,7 @@ soya2d.class("soya2d.DisplayObject",{
     },
     /**
      * 增加精灵偏移角度
+     * @method skewBy
      * @param {Number} rx x轴偏移角度
      * @param {Number} ry y轴偏移角度
      * @return this
@@ -724,6 +747,7 @@ soya2d.class("soya2d.DisplayObject",{
     },
     /**
      * 偏移精灵到指定角度
+     * @method skewTo
      * @param {Number} rx x轴偏移角度
      * @param {Number} ry y轴偏移角度
      * @return this
@@ -738,6 +762,7 @@ soya2d.class("soya2d.DisplayObject",{
     },
     /**
      * 增加精灵旋转角度
+     * @method rotateBy
      * @param {Number} rn 旋转角度
      * @return this
      */
@@ -747,6 +772,7 @@ soya2d.class("soya2d.DisplayObject",{
     },
     /**
      * 旋转精灵到指定角度
+     * @method rotateTo
      * @param {Number} rn 角度
      * @return this
      */
@@ -756,6 +782,7 @@ soya2d.class("soya2d.DisplayObject",{
     },
     /**
      * 增加精灵参考点
+     * @method anchorBy
      * @param {String|Number} x 相对精灵左上角的x坐标偏移,可以设置百分比字符串或者数字
      * @param {String|Number} y 相对精灵左上角的y坐标偏移,可以设置百分比字符串或者数字
      * @return this
@@ -770,6 +797,7 @@ soya2d.class("soya2d.DisplayObject",{
     },
     /**
      * 设置精灵参考点
+     * @method anchorTo
      * @param {String|Number} x 相对精灵左上角的x坐标偏移,可以设置百分比字符串或者数字
      * @param {String|Number} y 相对精灵左上角的y坐标偏移,可以设置百分比字符串或者数字
      * @return this
@@ -785,6 +813,7 @@ soya2d.class("soya2d.DisplayObject",{
     /**
      * 返回该对象当前变形状态的4个顶点<br/>
      * *该方法依赖对象的[x、y、w、h、anchorX、anchorY]6个属性
+     * @method getBoundingPoints
      * @return {Array} [ topLeftX,topLeftY,
      *                  topRightX,topRightY,
      *                  bottomRightX,bottomRightY,
@@ -816,6 +845,7 @@ soya2d.class("soya2d.DisplayObject",{
     /**
      * 返回该对象当前变形状态的包围矩形<br/>
      * *该方法依赖对象的[x、y、w、h、anchorX、anchorY]6个属性
+     * @method getBoundingBox
      * @return {soya2d.Rectangle} 矩形几何对象
      */
     getBoundingBox:function(){
@@ -845,9 +875,10 @@ soya2d.class("soya2d.DisplayObject",{
     },
     /**
      * 拾取测试。依赖当前显示对象的bounds
+     * @method hitTest
      * @param  {number} x x坐标
      * @param  {number} y y坐标
-     * @return {boolean} 点是否在bounds内
+     * @return {Boolean} 点是否在bounds内
      * @see soya2d.DisplayObject#bounds
      */
     hitTest:function(x,y){
@@ -908,6 +939,7 @@ soya2d.class("soya2d.DisplayObject",{
     },
     /**
      * 检测两个对象是否相交
+     * @method intersectWith
      * @param  {DisplayObject} obj
      * @return {Boolean}
      */
@@ -917,6 +949,11 @@ soya2d.class("soya2d.DisplayObject",{
 
         return sb.intersectWith(db);
     },
+    /**
+     * 获取锚点坐标
+     * @method getAnchorPosition
+     * @return {soya2d.Point} 
+     */
     getAnchorPosition:function(){
         //加载矩阵
         var e = this.__worldTransform.e;
@@ -943,12 +980,13 @@ soya2d.class("soya2d.DisplayObject",{
         anchorY =  Math.sin(angle)*r + tl_y;
         
         //计算顶点[x,y,1] * m
-        return [anchorX*m11+anchorY*m21+bx,anchorX*m12+anchorY*m22+by];
+        return new soya2d.Point(anchorX*m11+anchorY*m21+bx,anchorX*m12+anchorY*m22+by);
     },
     /**
      * 缓存当前对象的矢量绘图为贴图，提高显示性能。提高幅度根据所使用的path API的复杂度决定。
      * 越复杂的path绘制，cache效果越明显。缓存大小根据对象的w/h决定，但是不能超过1024*1024。
      * 需要注意的是，缓存不会自动更新，当对象发生变形时，并不会反馈到缓存，直到你显式调用该方法
+     * @method cache
      */
     cache:function(){
         if(this.__w > 1024 || this.__h > 1024)return;
@@ -966,8 +1004,8 @@ soya2d.class("soya2d.DisplayObject",{
         this.__updateCache = false;
     },
     /**
-     * 销毁当前对象，以及所有子对象
-     * @return {[type]} [description]
+     * 销毁当前对象，以及所有子对象。
+     * @method destroy
      */
     destroy:function(){
         game.physics.unbind(this);
@@ -1041,22 +1079,16 @@ function getH(parent,rate){
 }
 
 /**
- * @name soya2d.DisplayObject#onRender
- * @desc 渲染事件，每帧触法。在该回调中使用绘图对象g进行图像绘制
- * @event
+ * 渲染回调，每帧调用。在该回调中使用绘图对象g进行图像绘制
+ * @method onRender
  * @param {soya2d.CanvasGraphics} g 绘图对象，根据渲染器类型不同而不同
  */
 /**
- * @name soya2d.DisplayObject#onUpdate
- * @desc 更新事件，每帧触法。在该回调中可以编写更新逻辑
- * @event
+ * 更新回调，每帧调用。在该回调中可以编写更新逻辑
+ * @method onUpdate
  * @param {soya2d.Game} game 当前精灵所在的游戏实例
  */
-
-
-// soya2d.ALIGN_LEFT = 'left';
-// soya2d.ALIGN_CENTER = 'center';
-// soya2d.ALIGN_RIGHT = 'right';
-// soya2d.ALIGN_TOP = 'top';
-// soya2d.ALIGN_MIDDLE = 'middle';
-// soya2d.ALIGN_BOTTOM = 'bottom';
+/**
+ * 添加到渲染树回调
+ * @method onAdded
+ */

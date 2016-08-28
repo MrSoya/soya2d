@@ -1,6 +1,8 @@
 ﻿/**
  * 引擎当前运行所在设备的信息<br/>
- * @namespace soya2d.Device
+ * @class soya2d.Device
+ * @static
+ * @module system
  */
 soya2d.Device = new function(){
   	var userAgent = this.userAgent = self.navigator.userAgent.toLowerCase();
@@ -16,49 +18,58 @@ soya2d.Device = new function(){
     //移动端信息
     /**
      * 是否为iphone
-     * @type {boolean}
+     * @property iphone
+     * @type {Boolean}
      */
     this.iphone = isIphone;
     /**
      * 是否为ipad
-     * @type {boolean}
+     * @property ipad
+     * @type {Boolean}
      */
     this.ipad = isIpad;
     /**
      * 是否为ios
-     * @type {boolean}
+     * @property ios
+     * @type {Boolean}
      */
     this.ios = isIphone || isIpad;
     /**
      * 是否为android
-     * @type {boolean}
+     * @property android
+     * @type {Boolean}
      */
     this.android = isAndroid;
     /**
      * 是否为wp
-     * @type {boolean}
+     * @property wp
+     * @type {Boolean}
      */
     this.wp = isWphone;
     /**
      * 是否移动系统
-     * @type {boolean}
+     * @property mobile
+     * @type {Boolean}
      */
     this.mobile = this.ios || isAndroid || isWphone;
 
     //pc端信息
     /**
      * 是否为windows
-     * @type {boolean}
+     * @property windows
+     * @type {Boolean}
      */
     this.windows = isWindows;
     /**
      * 是否为linux
-     * @type {boolean}
+     * @property linux
+     * @type {Boolean}
      */
     this.linux = isLinux;
     /**
      * 是否为mac os
-     * @type {boolean}
+     * @property mac
+     * @type {Boolean}
      */
     this.mac = isMacOS;
 
@@ -71,27 +82,32 @@ soya2d.Device = new function(){
     };
     /**
      * 如果当前浏览器为IE，那么值为true。
-     * @type boolean
+     * @property ie
+     * @type {Boolean}
      */
     this.ie = /msie|trident.*rv:/.test(userAgent.toLowerCase());
     /**
      * 如果当前浏览器为FireFox，那么值为true。
-     * @type boolean
+     * @property ff
+     * @type {Boolean}
      */
     this.ff = type.Firefox?true:false;
     /**
      * 如果当前浏览器为Opera，那么值为true。
-     * @type boolean
+     * @property opera
+     * @type {Boolean}
      */
     this.opera = type.Opera?true:false;
     /**
      * 如果当前浏览器为Chrome，那么值为true。
-     * @type boolean
+     * @property chrome
+     * @type {Boolean}
      */
     this.chrome = type.Chrome?true:false;
     /**
      * 如果当前浏览器为Safari，那么值为true。
-     * @type boolean
+     * @property safari
+     * @type {Boolean}
      */
     this.safari = type.Safari?true:false;
 };

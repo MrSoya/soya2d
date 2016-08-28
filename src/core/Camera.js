@@ -1,13 +1,15 @@
 ﻿/**
- * 摄像机是游戏世界的视口，game.world里的内容都会呈现在camera的镜头内。
+ * 摄像机是世界的视口，game.world里的内容都会呈现在camera的镜头内。
+ * 当移动镜头时，world中的内容会向反方向移动，就像真实世界中样
  * @class Camera
+ * 
  */
 function Camera(w,h,game) {
-
     Object.defineProperties(this,{
         /**
          * camera在world中的位置
-         * @type {int}
+         * @property x
+         * @type {Number}
          */
         x : {
             set:function(v){
@@ -20,7 +22,8 @@ function Camera(w,h,game) {
         },
         /**
          * camera在world中的位置
-         * @type {int}
+         * @property y
+         * @type {Number}
          */
         y : {
             set:function(v){
@@ -31,11 +34,21 @@ function Camera(w,h,game) {
                 return this.__view.y;
             }
         },
+        /**
+         * camera的宽度，等同于舞台宽度
+         * @property w
+         * @type {Number}
+         */
         w : {
             get:function(){
                 return this.__view.w;
             }
         },
+        /**
+         * camera的高度，等同于舞台高度
+         * @property w
+         * @type {Number}
+         */
         h : {
             get:function(){
                 return this.__view.h;
@@ -45,6 +58,7 @@ function Camera(w,h,game) {
     /**
      * 镜头内限制目标跟踪范围的矩形区域，跟踪目标时有效。
      * freezone的x/y/w/h都是相对于camera的
+     * @property freezone
      * @type {soya2d.Rectangle}
      */
     this.freezone = null;
@@ -56,6 +70,7 @@ Camera.prototype = {
     /**
      * 设置camera跟踪一个精灵。<br/>一旦设置有效精灵后，camera将根据freezone设置进行精灵位置跟踪，
      * 而忽略camera本身的任何移动方法。
+     * @method follow
      * @param  {soya2d.DisplayObject} target camera跟踪目标，必须是容器内的精灵
      */
     follow:function(target){
@@ -69,12 +84,14 @@ Camera.prototype = {
     },
     /**
      * 取消跟踪
+     * @method unfollow
      */
     unfollow:function(){
         this.target = null;
     },
     /**
      * 移动卷轴指定坐标
+     * @method moveTo
      * @param  {number} x x轴坐标
      * @param  {number} y y轴坐标
      */
@@ -87,6 +104,7 @@ Camera.prototype = {
     },
     /**
      * 移动卷轴指定偏移
+     * @method moveBy
      * @param  {number} offX x轴偏移量
      * @param  {number} offY y轴偏移量
      */
@@ -97,12 +115,13 @@ Camera.prototype = {
         
         this.__checkBounds();
     },
+    /**
+     * 重置camera的位置为 0,0
+     * @method reset
+     */
     reset:function(){
         this.__view.x = this.__view.y = 0;
     },
-    /**
-     * @private
-     */
     __checkBounds:function(){
         var scope = this.__game.world.bounds;
 
@@ -124,6 +143,7 @@ Camera.prototype = {
     },
     /**
      * 设置camera freezone范围
+     * @method setFreezone
      * @param {soya2d.Rectangle} freezone 范围矩形
      */
     setFreezone:function(scope){

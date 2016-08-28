@@ -1,10 +1,14 @@
 ﻿/**
- * 创建一个2*2单位矩阵，该矩阵用来描述2D变换信息
- * @class 
+ * 创建一个2*2单位矩阵，该矩阵用来描述2D变换信息。
+ * 每个显示对象都有一个该矩阵实例用来执行变换操作
+ * @class soya2d.Matrix2x2
+ * @constructor
+ * @module geom
  */
 soya2d.Matrix2x2 = function(){
     /**
      * 矩阵结构数组
+     * @property e
      * @type {Float32Array}
      * @default [1,0,0,1]
      */
@@ -13,11 +17,16 @@ soya2d.Matrix2x2 = function(){
 };
 
 soya2d.Matrix2x2.prototype = {
+	/**
+	 * @method toString
+	 * @return {String} 
+	 */
 	toString:function(){
 		return "["+this.e[0]+","+this.e[1]+","+this.e[2]+","+this.e[3]+"]";
 	},
     /**
      * 设置矩阵数据
+     * @method set
      * @param m11
      * @param m12
      * @param m21
@@ -32,6 +41,7 @@ soya2d.Matrix2x2.prototype = {
 	},
     /**
      * 克隆当前矩阵
+     * @method clone
      * @return {soya2d.Matrix2x2} a new matrix
      */
 	clone:function(){
@@ -39,6 +49,7 @@ soya2d.Matrix2x2.prototype = {
 	},
     /**
      * 重置矩阵为单位矩阵
+     * @method identity
      * @return {soya2d.Matrix2x2} this
      */
 	identity:function(){
@@ -49,6 +60,7 @@ soya2d.Matrix2x2.prototype = {
 	},
     /**
      * 当前矩阵左乘m
+     * @method mul
      * @param {soya2d.Matrix2x2} m
      * @return {soya2d.Matrix2x2} this
      */
@@ -62,8 +74,9 @@ soya2d.Matrix2x2.prototype = {
 	},
     /**
      * 缩放当前矩阵
-     * @param x
-     * @param y
+     * @method scale
+     * @param {Number} x
+     * @param {Number} y
      * @return {soya2d.Matrix2x2} this
      */
 	scale:function(x,y){
@@ -73,6 +86,7 @@ soya2d.Matrix2x2.prototype = {
 	},
     /**
      * 旋转当前矩阵
+     * @method rotate
      * @param {Number} angle 旋转角度0-360
      * @return {soya2d.Matrix2x2} this
      */
@@ -99,6 +113,7 @@ soya2d.Matrix2x2.prototype = {
 	},
     /**
      * 倾斜当前矩阵
+     * @method skew
      * @param {Number} x 水平倾角
      * @param {Number} y 垂直倾角
      * @return {soya2d.Matrix2x2} this

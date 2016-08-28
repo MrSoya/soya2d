@@ -6,11 +6,8 @@
  *     <li>touchend</li>
  *     <li>touchcancel</li>
  * </ul>
- * 所有事件的唯一回调参数为触摸事件对象{@link soya2d.TouchEvent}<br/>
  * *该事件支持传播
- * @class 
- * @extends soya2d.EventHandler
- * @author {@link http://weibo.com/soya2d MrSoya}
+ * @class soya2d.Touch
  */
 soya2d.Touch = function(){
 
@@ -317,21 +314,34 @@ soya2d.Touch = function(){
 };
 /**
  * 事件类型 - 触摸按下
+ * @property EVENT_TOUCHSTART
+ * @static
+ * @final
+ * @for soya2d
  * @type {String}
  */
 soya2d.EVENT_TOUCHSTART = 'touchstart';
 /**
  * 事件类型 - 触摸移动
+ * @property EVENT_TOUCHMOVE
+ * @static
+ * @final
  * @type {String}
  */
 soya2d.EVENT_TOUCHMOVE = 'touchmove';
 /**
  * 事件类型 - 触摸抬起
+ * @property EVENT_TOUCHEND
+ * @static
+ * @final
  * @type {String}
  */
 soya2d.EVENT_TOUCHEND = 'touchend';
 /**
  * 事件类型 - 触摸取消
+ * @property EVENT_TOUCHCANCEL
+ * @static
+ * @final
  * @type {String}
  */
 soya2d.EVENT_TOUCHCANCEL = 'touchcancel';
@@ -339,8 +349,47 @@ soya2d.EVENT_TOUCHCANCEL = 'touchcancel';
 /**
  * 触摸事件对象
  * @type {Object}
- * @typedef {Object} soya2d.TouchEvent
- * @property {function} stopPropagation 停止事件传播。冒泡方式
- * @property {Array} touchList - 触摸点一维数组[x1,y1, x2,y2, ...]
- * @property {Object} e - HTML事件对象
+ * @class soya2d.TouchEvent
+ */
+/**
+ * 停止事件传播。冒泡方式
+ * @method stopPropagation
+ * @for soya2d.TouchEvent
+ */
+/**
+ * 触摸点一维数组[x1,y1, x2,y2, ...]
+ * @property touchList
+ * @type {Array}
+ * @for soya2d.TouchEvent
+ */
+/**
+ * DOM事件对象
+ * @property e
+ * @type {Object}
+ * @for soya2d.TouchEvent
+ */
+
+/**
+ * 触摸按下
+ * @event touchstart
+ * @for soya2d.DisplayObject
+ * @param {soya2d.TouchEvent} ev 事件对象
+ */
+/**
+ * 触摸移动
+ * @event touchmove
+ * @for soya2d.DisplayObject
+ * @param {soya2d.TouchEvent} ev 事件对象
+ */
+/**
+ * 触摸抬起
+ * @event touchend
+ * @for soya2d.DisplayObject
+ * @param {soya2d.TouchEvent} ev 事件对象
+ */
+/**
+ * 触摸取消
+ * @event touchcancel
+ * @for soya2d.DisplayObject
+ * @param {soya2d.TouchEvent} ev 事件对象
  */

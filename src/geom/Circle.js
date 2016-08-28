@@ -1,9 +1,13 @@
 /**
- * 几何结构，圆形。用于保存圆形结构数据
- * @class 
+ * 几何结构，圆形。用于保存圆形结构数据，可以设置为{{#crossLink "soya2d.DisplayObject"}}的bounds，
+ * 用于检测碰撞
+ * @class soya2d.Circle
+ * @constructor
  * @param {Number} x
  * @param {Number} y
  * @param {Number} r
+ *
+ * @module geom
  */
 soya2d.Circle  = function(x,y,r){
 	this.x = x || 0;
@@ -11,12 +15,26 @@ soya2d.Circle  = function(x,y,r){
     this.r = r || 0;
 };
 soya2d.Circle.prototype = {
+    /**
+     * @method toString
+     * @return {String}
+     */
     toString:function(){
         return "{x:"+this.x+",y:"+this.y+",r:"+this.r+"}";
     },
+    /**
+     * @method clone
+     * @return {soya2d.Circle} 
+     */
     clone:function(){
         return new soya2d.Circle(this.x,this.y,this.r);
     },
+    /**
+     * 是否和另一个几何图形相交
+     * @method intersectWidth
+     * @param  {soya2d.Circle | soya2d.Rectangle} geom 几何图形
+     * @return {Boolean}
+     */
     intersectWith:function(geom){
         if(geom instanceof soya2d.Circle && geom.r>0){
             if(soya2d.Math.len2Df(geom.x - this.x,geom.y - this.y) <= this.r+geom.r)return false;

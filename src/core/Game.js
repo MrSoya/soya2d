@@ -1,14 +1,16 @@
 /**
- * 游戏对象是构建soya2d应用的入口类，用于构建和启动一个soya2d应用。
+ * 游戏对象是构建soya2d应用的核心类，调度soya2d内的所有过程。
  * 一个页面可以同时运行多个游戏对象，并且拥有不同的FPS和场景
  * @class soya2d.Game
+ * @constructor
  * @param {Object} opts 构造参数对象，参数如下：
- * @param {string | HTMLElement} opts.container 游戏渲染的容器，可以是一个选择器字符串或者节点对象
- * @param {int} opts.rendererType 渲染器类型，目前只支持canvas
- * @param {int} opts.w 游戏的宽度
- * @param {int} opts.h 游戏的高度
- * @param {boolean} opts.autoClear 自动清除背景
- * @param {boolean} opts.smoothEnable 是否平滑处理
+ * @param {String | HTMLElement} opts.container 游戏渲染的容器，可以是一个选择器字符串或者节点对象
+ * @param {Number} [opts.rendererType] 渲染器类型，目前只支持canvas
+ * @param {Number} [opts.w] 游戏的宽度
+ * @param {Number} [opts.h] 游戏的高度
+ * @param {Boolean} opts.autoClear 自动清除背景
+ * @param {Boolean} opts.smoothEnable 是否平滑处理
+ * 
  */
 soya2d.Game = function(opts){
 	opts = opts || {};
@@ -35,76 +37,84 @@ soya2d.Game = function(opts){
 	//}
 
 	soya2d.ext(this,opts);
-	/********** 外部接口 ***********/
+	//////////////////////////////////外部接口 
 
     /**
      * 渲染器
+     * @property renderer
      */
     this.renderer = renderer;
     /**
      * 对象工厂，用来注册新的显示对象类型
+     * @property objects
      * @type {DisplayObjectFactory}
      */
     this.objects = new DisplayObjectFactory(this);
     /**
-     * 对象工厂，用来注册新的显示对象类型
+     * 对象代理工厂，用来添加新的显示对象到世界中
+     * @property add
      * @type {DisplayObjectFactoryProxy}
      */
     this.add = new DisplayObjectFactoryProxy(this);
     /**
      * 全局事件监听器，包括DOM事件和自定义事件
+     * @property events
      * @type {Signal}
      */
     this.events = new Signal();
     this.events.__signalHandler = new SignalHandler();
     /**
      * 场景管理器
+     * @property scene
      * @type {SceneManager}
      */
     this.scene = new SceneManager(this);
 	/**
 	 * 舞台
+     * @property stage
 	 * @type {soya2d.Stage}
 	 */
 	this.stage = new Stage({game:this,w:renderer.w,h:renderer.h});
     /**
      * 世界
+     * @property world
      * @type {soya2d.World}
      */
     this.world = new World({game:this,w:renderer.w,h:renderer.h});
     this.stage.add(this.world);
     /**
      * 每个game实例只存在唯一的一个摄像机，摄像机展示了世界中的内容
+     * @property camera
      * @type {Camera}
      */
     this.camera = new Camera(renderer.w,renderer.h,this);
 	/**
 	 * 资源管理器
+     * @property assets
 	 * @type {Assets}
 	 */
 	this.assets = new Assets();
 	/**
      * 加载器
+     * @property load
      * @type {Loader}
      */
 	this.load = new Loader(this);
     /**
      * 定时器
+     * @property timer
      * @type {Timer}
      */
     this.timer = new Timer();
     /**
      * 物理系统
+     * @property physics
      * @type {Physics}
      */
     this.physics = new Physics();
-    /**
-     * 瓦片地图管理器
-     * @type {TilemapManager}
-     */
-    this.tilemap = new TilemapManager(this);
 	/**
 	 * 当前游戏的宽度
+     * @property w
 	 * @type {int}
 	 * @default 960
 	 */
@@ -112,6 +122,7 @@ soya2d.Game = function(opts){
 
 	/**
 	 * 当前游戏的高度
+     * @property h
 	 * @type {int}
 	 * @default 480
 	 */
@@ -119,12 +130,15 @@ soya2d.Game = function(opts){
 
 	/**
 	 * 当前游戏是否正在运行
+     * @property running
 	 * @type {boolean}
 	 * @default false
 	 */
 	this.running = false;
 	/**
 	 * 启动当前游戏实例
+     * @method start
+     * @private
 	 * @param {soya2d.Scene} scene 启动场景
      * @return this
 	 */
@@ -249,7 +263,8 @@ soya2d.Game = function(opts){
     };
 
     /**
-     * 设置该游戏实例的FPS
+     * 设置该game实例的FPS。一个页面上可以同时存在多个不同FPS的game实例
+     * @method setFPS
      * @param {Number} fps 最大60
      * @return this
      */
@@ -262,6 +277,7 @@ soya2d.Game = function(opts){
     };
 	/**
 	 * 停止当前游戏实例
+     * @method stop
      * @return this
 	 */
 	this.stop = function() {
@@ -300,6 +316,7 @@ soya2d.Game = function(opts){
 };
 /**
  * 游戏实例列表，保存当前域所有的game实例
+ * @property games
  * @type {Array}
  */
 soya2d.games = [];
@@ -314,15 +331,18 @@ soya2d.console.info(t2);
 /**
  * 渲染器类型,自动选择。
  * 引擎会根据运行环境自动选择渲染器类型
+ * @property RENDERER_TYPE_AUTO
  */
 soya2d.RENDERER_TYPE_AUTO = 1;
 /**
  * 渲染器类型,canvas。
  * 引擎会使用canvas 2d方式进行渲染
+ * @property RENDERER_TYPE_CANVAS
  */
 soya2d.RENDERER_TYPE_CANVAS = 2;
 /**
  * 渲染器类型,webgl
  * 引擎会使用webgl方式进行渲染
+ * @property RENDERER_TYPE_WEBGL
  */
 soya2d.RENDERER_TYPE_WEBGL = 3;

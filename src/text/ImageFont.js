@@ -1,16 +1,23 @@
 ﻿/**
  * 使用图像集对象，构建一个图像字体类。
- * 图像字体类用于创建一个传递给文本精灵的字体对象，通过图片和映射文件创建。映射文件同精灵表。其实n为需要
+ * 图像字体类用于创建一个传递给文本精灵的字体对象，通过图片和映射文件创建。
+ * 映射文件同精灵表。其中n为需要
  * 替换的字符
- * @class
+ * @class soya2d.ImageFont
  * @param {soya2d.Atlas} data 用于字体映射的图像集对象
  * @param {Number} size 图像字体大小
+ * @module text
  */
 soya2d.ImageFont = function(data,size){
     
     this.__fontMap = data;
 
     var oriFontSize = data.texs[Object.keys(data.texs)[0]].height;
+    /**
+     * 字体大小
+     * @property fontSize
+     * @type {int}
+     */
     this.fontSize = oriFontSize;
     this.fontWidth = data.texs[Object.keys(data.texs)[0]].width;
     var scaleRate = 1;//缩放比率
@@ -50,15 +57,17 @@ soya2d.ImageFont = function(data,size){
                                             
     /**
      * 用当前参数复制一个新的字体对象。<br/>
-     * @returns {soya2d.Font} 新的字体对象
+     * @method clone
+     * @return {soya2d.Font} 新的字体对象
      */
     this.clone = function(){
         return new soya2d.ImageFont(this.__fontMap);
     };
     /**
      * 设置或者获取字体大小
+     * @method size
      * @param {int} size 字体大小
-     * @returns {this|int}
+     * @return {this|int}
      */
     this.size = function(size){
         if(arguments.length>0){
@@ -72,6 +81,7 @@ soya2d.ImageFont = function(data,size){
     };
     /**
      * 获取字体宽高
+     * @method getBounds
      * @param {String} str 测试字符串
      * @return {Object} 指定字符串在当前字体下的宽高。｛w:w,h:h｝
      */

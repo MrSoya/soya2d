@@ -2,9 +2,9 @@
 	onInit:function(game){
         /**
          * 补间管理器
+         * @property tween
          * @type {soya2d.TweenManager}
-         * @memberOf! soya2d.Game#
-         * @alias tween
+         * @for soya2d.Game
          * @requires tween
          */
         game.tween = soya2d.TweenManager;

@@ -1,7 +1,13 @@
 ﻿/**
- *  资源加载类<br/>
- *  除脚本支持不同加载方式外，其他资源都是并行加载。
- *  调用者应该注意，在并行请求过多时，可能导致请求失败，需要控制请求并发数
+ *  资源加载类加载所有相关资源，并放入{{#crossLink "Assets"}}{{/crossLink}}中。
+ *  该类不能被实例化，系统会自动创建实例给game。
+ *  每个game有且只有一个load属性，通过该属性可以加载资源。
+ *  ```
+ *      game.load.baseUrl = 'assets/xml/';
+ *      game.load.xml({
+ *          ui:'ui.xml'
+ *      });
+ * ```
  *  @class Loader
  */
 var Loader = soya2d.class("",{
@@ -20,7 +26,8 @@ var Loader = soya2d.class("",{
         Object.defineProperties(this,{
             /**
              * 是否显示默认的进度条
-             * @type {int}
+             * @property show
+             * @type {Boolean}
              */
             show : {
                 set:function(v){
@@ -30,6 +37,11 @@ var Loader = soya2d.class("",{
                     return show;
                 }
             },
+            /**
+             * 进度条文字样式
+             * @property fillStyle
+             * @type {String}
+             */
             fillStyle:{
                 set:function(v){
                     this.__tip.fillStyle = v;
@@ -111,6 +123,7 @@ var Loader = soya2d.class("",{
     },
     /**
      * 加载图像
+     * @method image
      * @param  {Object | Array} data 图像的key和url对象，如{btn:'button.png',bullet:'x01.png'}。
      * 或者图像url数组，key为不包含后缀的图像名，如果重复会覆盖
      */
@@ -129,6 +142,7 @@ var Loader = soya2d.class("",{
     },
     /**
      * 加载声音
+     * @method sound
      * @param  {Object} data 声音的key和url。url可以是数组或者字符串。当url是数组类型时，
      * 系统会自动判断当前环境支持的声音格式，并加载。{bird:'bird.ogg',boom:['b1.mp3','b1.ogg']}
      */
@@ -136,7 +150,8 @@ var Loader = soya2d.class("",{
         this.__addToAssets('sound',data);
     },
     /**
-     * 加载声音
+     * 加载字体
+     * @method font
      * @param  {Object} data 字体的key和url。key就是字体的family。{serif:'serif.woff'}
      */
     font:function(data){
@@ -144,6 +159,7 @@ var Loader = soya2d.class("",{
     },
     /**
      * 加载图像文字
+     * @method imageFont
      * @param  {Object} data 图像文字的key和url。url是一个包含了图像地址和精灵表地址的数组。
      * {title:['title.png','title_ss.json'|{{n:'xx',x:0,y:0,w:100,h:100}}]}
      */
@@ -152,13 +168,14 @@ var Loader = soya2d.class("",{
     },
     /**
      * 加载图像集
+     * @method atlas
      * @param  {Object} data 图像集的key和url。url是一个包含了图像地址和精灵表地址的数组。
      * {birds:['birds.png','birds_ss.json']}
      *
      * @param {String} key 图像集的key
      * @param {String} url 图像的url
-     * @param {int} width 单个图像的宽度
-     * @param {int} height 单个图像的高度
+     * @param {Number} width 单个图像的宽度
+     * @param {Number} height 单个图像的高度
      */
     atlas:function(data){
         var map = data;
@@ -174,13 +191,15 @@ var Loader = soya2d.class("",{
     },
     /**
      * 加载文本
-     * @param  {Object} data 文本的key和url
+     * @method text
+     * @param {Object} data 文本的key和url
      */
     text:function(data){
         this.__addToAssets('text',data);
     },
     /**
      * 加载XML
+     * @method xml
      * @param  {Object} data xml的key和url
      */
     xml:function(data){
@@ -188,6 +207,7 @@ var Loader = soya2d.class("",{
     },
     /**
      * 加载json
+     * @method json
      * @param  {Object} data json的key和url
      */
     json:function(data){
@@ -439,6 +459,7 @@ var Loader = soya2d.class("",{
     },
     /**
      * 启动加载器。在preload中，引擎会自动调用
+     * @method start 
      */
     start:function(){
         this.__index = 0;
@@ -502,36 +523,42 @@ function scanFont(startTime,timeout,originSpan,originWidth,originHeight,onTimeou
 /**
  * 媒体加载错误类型——MEDIA_ERR_UNCERTAIN<br/>
  * 未知错误
- * @constant
+ * @property MEDIA_ERR_UNCERTAIN
+ * @final
  */
 soya2d.MEDIA_ERR_UNCERTAIN = -1;
 /**
  * 媒体加载错误类型——MEDIA_ERR_ABORTED<br/>
  * 加载被中断
- * @constant
+ * @property MEDIA_ERR_ABORTED
+ * @final
  */
 soya2d.MEDIA_ERR_ABORTED = 1;
 /**
  * 媒体加载错误类型——MEDIA_ERR_NETWORK<br/>
  * 网络异常
- * @constant
+ * @property MEDIA_ERR_NETWORK
+ * @final
  */
 soya2d.MEDIA_ERR_NETWORK = 2;
 /**
  * 媒体加载错误类型——MEDIA_ERR_DECODE<br/>
  * 无法解码
- * @constant
+ * @property MEDIA_ERR_DECODE
+ * @final
  */
 soya2d.MEDIA_ERR_DECODE = 3;
 /**
  * 媒体加载错误类型——MEDIA_ERR_SRC_NOT_SUPPORTED<br/>
  * 类型不支持
- * @constant
+ * @property MEDIA_ERR_SRC_NOT_SUPPORTED
+ * @final
  */
 soya2d.MEDIA_ERR_SRC_NOT_SUPPORTED = 4;
 /**
  * 媒体加载错误类型——MEDIA_ERR_SRC_NOT_FORTHCOMING<br/>
  * 无法获取资源数据
- * @constant
+ * @property MEDIA_ERR_SRC_NOT_FORTHCOMING
+ * @final
  */
 soya2d.MEDIA_ERR_SRC_NOT_FORTHCOMING = 101;

@@ -3,9 +3,9 @@ soya2d.module.install('sound',{
     onInit:function(game){
         /**
          * 声音管理器
+         * @property sound
          * @type {soya2d.SoundManager}
-         * @memberOf! soya2d.Game#
-         * @alias sound
+         * @for soya2d.Game
          * @requires sound
          */
         game.sound = new soya2d.SoundManager(game);

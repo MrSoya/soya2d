@@ -5,9 +5,7 @@
  *     <li>motion</li>
  *     <li>hov</li>
  * </ul>
- * 所有事件的唯一回调参数为设备事件对象{@link soya2d.MobileEvent}
- * @class 
- * @extends soya2d.EventHandler
+ * @class soya2d.Mobile
  */
 soya2d.Mobile = function(){
 
@@ -150,10 +148,49 @@ soya2d.Mobile = function(){
 };
 /**
  * 移动设备事件对象
+ * @class soya2d.MobileEvent
+ * 
+ */
+/**
+ * 设备倾斜量，分为x/y/z三个轴
+ * @property tilt
  * @type {Object}
- * @typedef {Object} soya2d.MobileEvent
- * @property {Object} tilt - 设备倾斜量，分为x/y/z三个轴
- * @property {Object} motion - 设备加速移动量，分为x/y/z三个轴
- * @property {string} orientation - 设备横竖方向值portrait或者landscape
- * @property {Object} e - HTML事件对象
+ * @for soya2d.MobileEvent
+ */
+/**
+ * 设备加速移动量，分为x/y/z三个轴
+ * @property motion
+ * @type {Object}
+ * @for soya2d.MobileEvent
+ */
+/**
+ * 设备横竖方向值portrait或者landscape
+ * @property orientation
+ * @type {String}
+ * @for soya2d.MobileEvent
+ */
+/**
+ * DOM事件对象
+ * @property e
+ * @type {Object}
+ * @for soya2d.MobileEvent
+ */
+
+/**
+ * 设备倾斜时触发
+ * @event tilt
+ * @for soya2d.DisplayObject
+ * @param {soya2d.MobileEvent} ev 事件对象
+ */
+/**
+ * 设备运动时触发
+ * @event motion
+ * @for soya2d.DisplayObject
+ * @param {soya2d.MobileEvent} ev 事件对象
+ */
+/**
+ * 设备横竖切换时触发
+ * @event hov
+ * @for soya2d.DisplayObject
+ * @param {soya2d.MobileEvent} ev 事件对象
  */

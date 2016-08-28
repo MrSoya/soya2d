@@ -55,6 +55,9 @@ soya2d.class("soya2d.TileSprite",{
 	/**
      * 滚动tile中的纹理。
      * 滚动速度和方向依赖实例对应参数
+     * @method scroll
+     * @param {Number} x 横向偏移
+     * @param {Number} y 纵向偏移
      */
     scroll:function(x,y){
         if(x || y){
@@ -66,6 +69,12 @@ soya2d.class("soya2d.TileSprite",{
             this.__tileOffy += soya2d.Math.SINTABLE[angle]*this.speed;
         }
     },
+    /**
+     * 复制精灵
+     * @method clone
+     * @param  {Boolean} isRecur 是否递归复制
+     * @return {soya2d.TileSprite} 
+     */
     clone: function(isRecur) {
         var copy = new this.constructor({
             sprite: this.sprite

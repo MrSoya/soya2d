@@ -3,9 +3,8 @@
  *
  * @module core
  */
-
 /**
- * @namespace soya2d
+ * @class soya2d
  */
 global.soya2d = new function(){
 
@@ -13,26 +12,41 @@ global.soya2d = new function(){
     this.__roIndex=0;
     /**
      * 版本信息
+     * @property version
      * @type {Object}
-     * @property {Array} v 版本号
-     * @property {string} state
-     * @property {function} toString 返回版本
      */
 	this.version = {
+        /**
+         * 版本号
+         * @property version.v
+         * @type {Array}
+         */
         v:[2,0,0],
+        /**
+         * state
+         * @property version.state 
+         * @type {String}
+         */
         state:'beta1',
+        /**
+         * 返回版本信息
+         * @method version.toString
+         * @return {String} 版本信息
+         */
         toString:function(){
             return soya2d.version.v.join('.') + ' ' + soya2d.version.state;
         }
     };
     /**
      * 官网地址
+     * @property website
      * @type {String}
-     * @constant
+     * @final
      */
 	this.website = 'http://soya2d.com';
     /**
      * 扩展属性到对象
+     * @method ext
      * @param {Object} obj 对象
      * @param {Object} attrs 属性
      * @param {Object} [cover=false] 如果已有该属性，是否覆盖
@@ -55,6 +69,7 @@ global.soya2d = new function(){
 
     /**
      * define a class
+     * @method class
      * @param {String} namePath full class path with namespace
      * @param {Object} param    as below
      * @param {Object} param.extends    extends to
@@ -96,12 +111,12 @@ global.soya2d = new function(){
 
     /**
      * 模块管理
-     * @type {object}
      */
     this.module = new function(){
         var map = {};
         /**
          * 安装新模块
+         * @method module.install
          * @param  {string} key  模块标识
          * @param  {Object} opts 回调事件
          * @param  {function} opts.onInit 模块初始化时调用,回调参数[soya2d.Game]
@@ -113,8 +128,6 @@ global.soya2d = new function(){
          * @param  {function} opts.onStart 游戏实例启动时调用[soya2d.Game]
          * @param  {function} opts.onStop 游戏实例停止时调用[soya2d.Game]
          * @param  {function} opts.onSceneChange 游戏当前场景发生改变时调用[soya2d.Game，当前场景]
-         * @alias module.install
-         * @memberof! soya2d#
          */
         this.install = function(key,opts){
             map[key] = opts;
@@ -129,8 +142,12 @@ global.soya2d = new function(){
     }
 
     /**
-     * 渲染一个soya2D舞台
-     * @param {String | HTMLElement} container 游戏渲染的容器，可以是一个选择器字符串或者节点对象
+     * 渲染一个soya2D舞台。该方法是soya2d的入口方法，会自动创建一个使用指定场景启动的soya2d.Game实例
+     * ```
+     *     soya.render('#stage',1024,768,scene);
+     * ```
+     * @method render
+     * @param {String | HTMLElement} container 游戏渲染的容器，可以是一个选择器字符串或者DOM对象
      * @param {int} w 游戏的宽度
      * @param {int} h 游戏的高度
      * @param  {Scene} scene  渲染场景
@@ -168,7 +185,7 @@ self.console = self.console||new function(){
 
 /**
  * 控制台输出接口，使用CSS样式方式
- * @type {object}
+ * @class soya2d.console
  */
 soya2d.console = new function(){
     var level = 1;
@@ -177,6 +194,7 @@ soya2d.console = new function(){
      * 设置输出级别。按照优先级从高到底的顺序为 error > warn > info > debug | none，
      * 对应值为 4 > 3 > 2 > 1 > 0。设置为低级别时，高级别的信息也会输出。比如设置为warn时,
      * error也会输出，但是info/debug不会。当界别设置为0时，console不会有任何输出
+     * @method level
      * @param  {int} [l=1] 输出级别，默认全部 
      */
     this.level = function(l){
@@ -184,10 +202,9 @@ soya2d.console = new function(){
     }
     /**
      * 输出调试信息
+     * @method debug
      * @param  {string} txt  输出文本
      * @param  {string} [css] 字体css
-     * @alias console.debug
-     * @memberof! soya2d#
      */
     this.debug = function(txt,css){
         if(level!=1)return;
@@ -200,10 +217,9 @@ soya2d.console = new function(){
     }
     /**
      * 输出日志信息
+     * @method info
      * @param  {string} txt  输出文本
      * @param  {string} [css] 字体css
-     * @alias console.info
-     * @memberof! soya2d#
      */
     this.info = function(txt,css){
         if(level<1 || level>2)return;
@@ -216,10 +232,9 @@ soya2d.console = new function(){
     }
     /**
      * 输出警告信息
+     * @method warn
      * @param  {string} txt  输出文本
      * @param  {string} [css] 字体css
-     * @alias console.warn
-     * @memberof! soya2d#
      */
     this.warn = function(txt,css){
         if(level<1 || level>3)return;
@@ -232,10 +247,9 @@ soya2d.console = new function(){
     }
     /**
      * 输出错误信息
+     * @method error
      * @param  {string} txt  输出文本
      * @param  {string} [css] 字体css
-     * @alias console.error
-     * @memberof! soya2d#
      */
     this.error = function(txt,css){
         if(level<1)return;
@@ -272,115 +286,163 @@ self.requestAFrame = (function(w){
 
 /**
  * 混合类型——默认
- * @constant
+ * @property BLEND_NORMAL
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.BLEND_NORMAL = 'source-over';
 /**
  * 混合类型——高亮
- * @constant
+ * @property BLEND_LIGHTER
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.BLEND_LIGHTER = 'lighter';
 /**
  * 混合类型——遮罩
- * @constant
+ * @property BLEND_MASK
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.BLEND_MASK = 'destination-in';
 /**
  * 混合类型——清除
- * @constant
+ * @property BLEND_CLEAR
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.BLEND_CLEAR = 'destination-out';
 /**
  * 线条端点类型——BUTT
- * @constant
+ * @property LINECAP_BUTT
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.LINECAP_BUTT = 'butt';
 /**
  * 线条端点类型——ROUND
- * @constant
+ * @property LINECAP_ROUND
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.LINECAP_ROUND = 'round';
 /**
  * 线条端点类型——SQUARE
- * @constant
+ * @property LINECAP_SQUARE
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.LINECAP_SQUARE = 'square';
 /**
  * 线条交点类型——BEVEL
- * @constant
+ * @property LINEJOIN_BEVEL
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.LINEJOIN_BEVEL = 'bevel';
 /**
  * 线条交点类型——ROUND
- * @constant
+ * @property LINEJOIN_ROUND
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.LINEJOIN_ROUND = 'round';
 /**
  * 线条交点类型——MITER
- * @constant
+ * @property LINEJOIN_MITER
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.LINEJOIN_MITER = 'miter';
 
 /**
  * 文本水平对齐类型——TEXTALIGN_LEFT
- * @constant
+ * @property TEXTALIGN_LEFT
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.TEXTALIGN_LEFT = "left";
 /**
  * 文本水平对齐类型——TEXTALIGN_CENTER
- * @constant
+ * @property TEXTALIGN_CENTER
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.TEXTALIGN_CENTER = "center";
 /**
  * 文本水平对齐类型——TEXTALIGN_RIGHT
- * @constant
+ * @property TEXTALIGN_RIGHT
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.TEXTALIGN_RIGHT = "right";
 /**
  * 文本垂直对齐类型——TEXTVALIGN_TOP
- * @constant
+ * @property TEXTVALIGN_TOP
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.TEXTVALIGN_TOP = "hanging";
 /**
  * 文本垂直对齐类型——TEXTVALIGN_MIDDLE
- * @constant
+ * @property TEXTVALIGN_MIDDLE
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.TEXTVALIGN_MIDDLE = "middle";
 /**
  * 文本垂直对齐类型——TEXTVALIGN_BOTTOM
- * @constant
+ * @property TEXTVALIGN_BOTTOM
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.TEXTVALIGN_BOTTOM = "alphabetic";
 /**
  * 文本书写方向——从左到右
- * @constant
+ * @property TEXTDIR_LTR
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.TEXTDIR_LTR = "ltr";
 /**
  * 文本书写方向——从右到左
- * @constant
+ * @property TEXTDIR_RTL
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.TEXTDIR_RTL = "rtl";
 
 /**
  * 线性渐变类型
- * @constant
+ * @property GRADIENT_LINEAR
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.GRADIENT_LINEAR = 1;
 /**
  * 放射渐变类型
- * @constant
+ * @property GRADIENT_RADIAL
+ * @final
+ * @static
+ * @for soya2d
  */
 soya2d.GRADIENT_RADIAL = 2;
-
-/**
- * 点击测试类型——路径
- * @constant
- */
-soya2d.HITTEST_PATH = 1;
-/**
- * 点击测试类型——像素
- * @constant
- */
-soya2d.HITTEST_PIXEL = 2;
-
