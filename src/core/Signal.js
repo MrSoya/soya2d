@@ -14,7 +14,7 @@ Signal.prototype = {
      * @param {String} type 信号类型，多个类型使用空格分割
      * @param {Function} cbk 回调函数，回调参数[target,...]
      * @param {int} order 触发序号，越大的值越先触发
-     * @return this
+     * @chainable
      */
     on:function(type,cbk,order){
         if(this instanceof soya2d.DisplayObject){
@@ -39,7 +39,7 @@ Signal.prototype = {
      * @param {String} type 信号类型，多个类型使用空格分割
      * @param {Function} cbk 回调函数
      * @param {int} order 触发序号，越大的值越先触发
-     * @return this
+     * @chainable
      */
     once:function(type,cbk,order){
         this.__signalHandler.once(type,cbk,order,this);
@@ -50,15 +50,18 @@ Signal.prototype = {
      * @method off
      * @param {String} [type] 信号类型，多个类型使用空格分割。如果为空，删除所有信号监听
      * @param {Function} [cbk] 监听时的函数引用。如果为空，删除该类型下所有监听
+     * @chainable
      */
     off:function(type,cbk){
         this.__signalHandler.off(type,cbk,this);
+        return this
     },
     /**
      * 发射指定类型信号
      * @method emit
      * @param {String} type 信号类型
      * @param {...} params 不定类型和数量的参数
+     * @chainable
      */
     emit:function(){
         var params = [arguments[0],this];

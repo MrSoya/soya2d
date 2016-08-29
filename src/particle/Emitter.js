@@ -2,6 +2,18 @@
 	/**
 	 * 发射器用于在给定的坐标发射粒子。默认的粒子都是dead状态，不可见，
 	 * 引擎会激活粒子为活跃状态，并按照参数发射粒子，这时粒子为可见。
+	 * ```
+	 * var emitter = game.add.emitter({...});
+	 * //注意，这里是添加粒子补间，不是emitter的补间
+	 * emitter.tween.add()
+	 * .to({opacity:0},1);
+	 * 
+	 * emitter.tween.add()
+	 * .to({scaleX:2,scaleY:2},.5,{easing:soya2d.Tween.Elastic.Out})
+	 * .to({scaleX:1,scaleY:1},.3,{easing:soya2d.Tween.Back.InOut});
+	 * 
+	 * emitter.emit();
+	 * ```
 	 * @class soya2d.Emitter
 	 * @extends soya2d.DisplayObjectContainer
 	 * @constructor

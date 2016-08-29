@@ -4,11 +4,11 @@
  * ssheet格式为<br/>
  * ```
  * [
- 		{n:'hero_001.png',x:0,y:0,w:50,h:50,r:90},//ssheet unit，index 0
- 		{n:'hero_002.png',x:50,y:50,w:50,h:50,r:180},//index 1
- 		...
- 	]
- 	```
+ * {n:'hero_001.png',x:0,y:0,w:50,h:50,r:90},//ssheet unit，index 0
+ * {n:'hero_002.png',x:50,y:50,w:50,h:50,r:180},//index 1
+ * ...
+ * ]
+ * ```
  * r:将指定部分资源旋转指定角度后，形成新纹理
  * @class soya2d.Atlas
  * @constructor
