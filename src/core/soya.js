@@ -1,9 +1,10 @@
 ﻿/**
- * 核心包定义了soya2d的入口，基础组件以及循环体等
+ * 核心模块定义了soya2d的入口，基础组件以及循环体等
  *
  * @module core
  */
 /**
+ * soya2d命名空间，内含基础工具，包括创建类和模块等操作
  * @class soya2d
  */
 global.soya2d = new function(){
@@ -68,12 +69,22 @@ global.soya2d = new function(){
 	}
 
     /**
-     * define a class
+     * 定义一个类。并可以定义原型属性或实例属性。
+     * ```
+     * soya2d.class("mrsoya.shape",{
+extends:Signal,
+color:'#000',//原型属性
+constructor: function(data){
+    this.x = data.x;//实例属性
+},
+toString:function(){}//原型方法
+});
+     * ```
      * @method class
-     * @param {String} namePath full class path with namespace
-     * @param {Object} param    as below
-     * @param {Object} param.extends    extends to
-     * @param {Object} param.constructor   constructor of the class
+     * @param {String} namePath 带命名空间的全路径
+     * @param {Object} param    参数
+     * @param {Object} param.extends    集成自
+     * @param {Object} param.constructor   构造函数
      */
     this.class = function(namePath,param){
         var constr = param.constructor;        

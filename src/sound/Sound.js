@@ -1,7 +1,11 @@
 ﻿/**
+ * sound模块定义了soya2d中内置的生效系统，该系统会自动在webaudio和audio间切换，达到最好效果。
+ * <b>该模块是扩展模块，可以自行卸载</b>
+ * @module sound
+ */
+/**
  * 声音类用来对指定音频执行播放、暂停、静音等操作
  * @class soya2d.Sound
- * @module sound
  */
 soya2d.Sound = function(opts){
     opts = opts || {};

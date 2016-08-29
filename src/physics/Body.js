@@ -3,7 +3,6 @@
  *  如果更换物理系统，只需要修改底层实现，不影响应用层
  *  @class Body
  *  @extends Signal
- *  @module physics
  */
 var Body = soya2d.class("",{
     extends:Signal,

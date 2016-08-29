@@ -1,9 +1,20 @@
 ﻿/**
+ * 显示模块定义了soya2d中所有内置的显示对象，显示对象是实际控制图像渲染的实体。
+ * 同时，显示模块中也定义了soya2d的显示架构
+ * ```
+ *    stage
+ *      |
+ *    world
+ *     /|\
+ *    others   
+ * ```
+ * @module display
+ */
+/**
  * 显示对象是引擎中的所有可见对象的基类,该类中包含的属性用来控制一个可见对象的显示效果以及渲染方式。<br/>
- 该类不能被实例化
+ 该类不能被实例化 
  * @class soya2d.DisplayObject
  * @param {Object} data 定义参数,见类参数定义
- * @module display
  */
 soya2d.class("soya2d.DisplayObject",{
     extends:Signal,

@@ -1,4 +1,9 @@
 /**
+ * 几何模块定义了soya2d中内置的几何结构，这些结构可以用来进行碰撞检测，或进行计算
+ * @module geom
+ */
+
+/**
  * 几何结构，圆形。用于保存圆形结构数据，可以设置为{{#crossLink "soya2d.DisplayObject"}}的bounds，
  * 用于检测碰撞
  * @class soya2d.Circle
@@ -6,8 +11,6 @@
  * @param {Number} x
  * @param {Number} y
  * @param {Number} r
- *
- * @module geom
  */
 soya2d.Circle  = function(x,y,r){
 	this.x = x || 0;

@@ -1,7 +1,6 @@
 /**
  * 键码表<br/>
  * @class soya2d.KeyCode
- * @module event
  */
 soya2d.KeyCode = {
 	/**

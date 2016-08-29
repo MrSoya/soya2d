@@ -3,7 +3,6 @@
  * 包括静音、停止等。<br/>
  * 该类无需显式创建，引擎会自动绑定到game实例属性中。
  * @class soya2d.SoundManager
- * @module sound
  */
 soya2d.SoundManager = function(game){
     this.game = game;

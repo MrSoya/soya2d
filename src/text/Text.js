@@ -9,7 +9,6 @@
  * @param {Object} data 所有父类参数
  * @see soya2d.Font
  * @see soya2d.ImageFont
- * @module text
  */
 soya2d.class("soya2d.Text",{
     extends:soya2d.DisplayObjectContainer,

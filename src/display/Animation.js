@@ -2,7 +2,6 @@
  * 动画类。用于保存一个自定义精灵帧序列。并按照指定的间隔和循环标识进行播放。
  * 通常使用多组动画来表示一个精灵的不同状态
  * @class Animation
- * @module display
  */
 function Animation(frames,frameRate,loop) {
 	this.frames = frames;

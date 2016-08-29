@@ -6,7 +6,6 @@
  * @class soya2d.ImageFont
  * @param {soya2d.Atlas} data 用于字体映射的图像集对象
  * @param {Number} size 图像字体大小
- * @module text
  */
 soya2d.ImageFont = function(data,size){
     

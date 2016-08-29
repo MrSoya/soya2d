@@ -1,5 +1,10 @@
 ﻿!function(){
 	/**
+	 * 粒子模块定义了soya2d中内置的粒子系统，可以实现绚丽的效果。
+	 * <b>该模块是扩展模块，可以自行卸载</b>
+	 * @module particle
+	 */
+	/**
 	 * 发射器用于在给定的坐标发射粒子。默认的粒子都是dead状态，不可见，
 	 * 引擎会激活粒子为活跃状态，并按照参数发射粒子，这时粒子为可见。
 	 * ```
@@ -36,7 +41,6 @@
 	 * @param {Number} [opts.endSpin=0] 自转速度范围结束
 	 * @param {Number} [opts.endSpinVar=0] 自转速度范围结束，可变累加值
 	 *
-	 * @module particle
 	 */
 	soya2d.class("soya2d.Emitter",{
 	    extends:soya2d.DisplayObjectContainer,

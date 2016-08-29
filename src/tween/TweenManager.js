@@ -4,7 +4,6 @@
  * 用于管理该实例内的所有补间对象
  * 
  * @class soya2d.TweenManager
- * @module tween
  */
 soya2d.TweenManager = new function(){
 	this.list = [];

@@ -3,7 +3,6 @@
  * 每个显示对象都有一个该矩阵实例用来执行变换操作
  * @class soya2d.Matrix2x2
  * @constructor
- * @module geom
  */
 soya2d.Matrix2x2 = function(){
     /**

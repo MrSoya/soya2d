@@ -1,11 +1,16 @@
 ﻿!function(){
     /**
+     * tween模块定义了soya2d中内置的补间系统。支持路径补间和普通补间。
+     * 支持针对同一个target的补间链以及并行补间。
+     * <b>该模块是扩展模块，可以自行卸载</b>
+     * @module tween
+     */
+    /**
      * 路径补间对象，功能和{{#crossLink "soya2d.Tween"}}{{/crossLink}}相同，但路径补间只针对
      * 补间目标的x/y进行补间。
      * @class soya2d.PathTween
      * @constructor
      * @param {Object} target 补间目标
-     * @module tween
      */
     soya2d.class("soya2d.PathTween",{
         extends:Signal,

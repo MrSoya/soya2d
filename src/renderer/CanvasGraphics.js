@@ -1,4 +1,8 @@
 ﻿/**
+ * 渲染器模块定义了soya2d中内置的渲染器，目前仅实现了CanvasRenderer
+ * @module renderer
+ */
+/**
  * 图形类,提供了贴图和矢量绘制的接口。<br/>
  * 注意，该类不应被实例化。引擎会在onRender回调中注入该类的实例。<br/>
  * 该图形对象基于Canvas构建。
@@ -6,7 +10,6 @@
  * @class soya2d.CanvasGraphics
  * @constructor
  * @param ctx CanvasRenderingContext2D的实例
- * @module renderer
  */
 soya2d.CanvasGraphics = function(ctx){
     /**

@@ -1,8 +1,11 @@
 ﻿/**
+ * 字体模块定义了soya2d中内置的字体显示类，支持字体文件和图片字体
+ * @module text
+ */
+/**
  * 字体类。用于指定绘制字体的样式、大小等
  * @class soya2d.Font
  * @param {String} desc 字体描述字符串，可以为空。为空时创建默认样式字体:[normal 400 13px/normal sans-serif]<br/>符合W3C[CSSFONTS]规范
- * @module text
  */
 soya2d.Font = function(desc){
     var fontElement = document.createElement('span');

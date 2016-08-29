@@ -1,8 +1,13 @@
 ﻿/**
+ * tilemap模块定义了一套通用的瓦片地图处理系统。无论地图数据从何而来，
+ * 只要符合格式的数据都会被正确的渲染。
+ * <b>该模块是扩展模块，可以自行卸载</b>
+ * @module tilemap
+ */
+/**
  * 瓦片地图。管理固定尺寸瓦片拼接的地图模型。这些地图通常由地图制作工具生成
  * @class Tilemap
  * @extends Signal
- * @module tilemap
  */
 var Tilemap = soya2d.class("",{
     extends:Signal,

@@ -1,4 +1,8 @@
 /**
+ * shapes模块定义了一些常用图元，方便开发者调用。<b>该模块是扩展模块，可以自行卸载</b>
+ * @module shapes
+ */
+/**
  * 可以进行圆弧形填充或线框绘制的显示对象
  * @class soya2d.Arc
  * @constructor
@@ -8,8 +12,6 @@
  * @param {String} data.strokeStyle 线框样式
  * @param {String} data.lineWidth 线条宽度
  * @param {String} data.startAngle 弧形的开始角度
- * @param {String} data.endAngle 弧形的结束角度
- * @module shapes
  */
 soya2d.class("soya2d.Arc",{
     extends:soya2d.DisplayObjectContainer,
