@@ -10,7 +10,7 @@ Soya2D is a web interactive animation(game) engine for modern web browsers
     var scene = {
         onPreload:function(game){
             //set scale mode
-            game.view.scaleMode = soya2d.SCALEMODE_NOSCALE;
+            game.stage.scaleMode = soya2d.SCALEMODE_NOSCALE;
             //set align mode
             game.stage.alignMode = soya2d.ALIGNMODE_CENTER;
 
