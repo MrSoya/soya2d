@@ -156,7 +156,7 @@ soya2d.Keyboard = function(){
 
 	/**
 	 * 启动监听
-	 * @return this
+	 * @chainable
 	 */
 	this.startListen = function(){
 		self.addEventListener('keydown',keydown,false);
@@ -168,7 +168,7 @@ soya2d.Keyboard = function(){
 
 	/**
 	 * 停止监听
-	 * @return this
+	 * @chainable
 	 */
 	this.stopListen = function(){
 		self.removeEventListener('keydown',keydown,false);

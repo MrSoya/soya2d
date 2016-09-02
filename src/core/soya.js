@@ -28,7 +28,7 @@ global.soya2d = new function(){
          * @property version.state 
          * @type {String}
          */
-        state:'beta1',
+        state:'beta2',
         /**
          * 返回版本信息
          * @method version.toString

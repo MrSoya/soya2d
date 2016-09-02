@@ -28,6 +28,7 @@ soya2d.Point.prototype = {
      * 设置值
      * @param {Number} x 
      * @param {Number} y 
+     * @chainable
      */
     set:function(x,y){
         this.x = x;

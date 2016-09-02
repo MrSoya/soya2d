@@ -473,6 +473,7 @@ soya2d.class("soya2d.DisplayObject",{
      * 设置显示对象的布局
      * @method setLayout
      * @param {Object} layout 布局对象
+     * @chainable
      */
     setLayout:function(layout){
         if(!layout)return this;
@@ -560,21 +561,6 @@ soya2d.class("soya2d.DisplayObject",{
             wt.mul(pt);
         }
 
-
-
-        // if(this.__fixedToCamera){
-        //     var camera = this.game.camera;
-        //     x = camera.x + this.cameraOffset.x;
-        //     y = camera.y + this.cameraOffset.y;
-
-        //     this.__fixedDO = true;
-        // }else if(this.parent && this.parent.__fixedDO){
-        //     this.__fixedDO = true;
-
-        //     x += this.parent.anchorPosition.x;
-        //     y += this.parent.anchorPosition.y;
-        // }
-
         //physics
         if(this.body.rigid){
             x -= ap.x;
@@ -649,7 +635,7 @@ soya2d.class("soya2d.DisplayObject",{
      * @method moveBy
 	 * @param {Number} ox x轴偏移
 	 * @param {Number} oy y轴偏移
-     * @return {soya2d.DisplayObject} this
+     * @chainable
 	 */
 	moveBy:function(ox,oy){
         var a1 = arguments[0] || 0;
@@ -664,7 +650,7 @@ soya2d.class("soya2d.DisplayObject",{
      * @method moveTo
 	 * @param {Number} x x坐标
 	 * @param {Number} y y坐标
-     * @return {soya2d.DisplayObject} this
+     * @chainable
 	 */
 	moveTo:function(x,y){
         var a1 = arguments[0] || 0;
@@ -678,7 +664,7 @@ soya2d.class("soya2d.DisplayObject",{
 	 * 设置透明度
      * @method opacifyTo
 	 * @param {Number} o 透明度值
-     * @return {soya2d.DisplayObject} this
+     * @chainable
 	 */
 	opacifyTo:function(o){
 		this.opacity = o>1?1:o<0?0:o;
@@ -688,7 +674,7 @@ soya2d.class("soya2d.DisplayObject",{
 	 * 设置透明度偏移
      * @method opacifyBy
 	 * @param {Number} o 透明度差值
-     * @return {soya2d.DisplayObject} this
+     * @chainable
 	 */
 	opacifyBy:function(o){
 		this.opacity += o;
@@ -701,7 +687,7 @@ soya2d.class("soya2d.DisplayObject",{
      * @method resizeTo
      * @param {Number} w 宽
      * @param {Number} h 高
-     * @return {soya2d.DisplayObject} this
+     * @chainable
      */
 	resizeTo:function(w,h){
         var a1 = arguments[0] || 0;
@@ -716,7 +702,7 @@ soya2d.class("soya2d.DisplayObject",{
      * @method scaleBy
      * @param {Number} sx x轴缩放比
      * @param {Number} sy y轴缩放比
-     * @return this
+     * @chainable
      */
     scaleBy:function(sx,sy){
         var a1 = arguments[0] || 0;
@@ -731,7 +717,7 @@ soya2d.class("soya2d.DisplayObject",{
      * @method scaleTo
      * @param {Number} sx x轴缩放比
      * @param {Number} sy y轴缩放比
-     * @return this
+     * @chainable
      */
     scaleTo:function(sx,sy){
         var a1 = arguments[0] || 0;
@@ -746,7 +732,7 @@ soya2d.class("soya2d.DisplayObject",{
      * @method skewBy
      * @param {Number} rx x轴偏移角度
      * @param {Number} ry y轴偏移角度
-     * @return this
+     * @chainable
      */
     skewBy:function(rx,ry){
         var a1 = arguments[0] || 0;
@@ -761,7 +747,7 @@ soya2d.class("soya2d.DisplayObject",{
      * @method skewTo
      * @param {Number} rx x轴偏移角度
      * @param {Number} ry y轴偏移角度
-     * @return this
+     * @chainable
      */
     skewTo:function(rx,ry){
         var a1 = arguments[0] || 0;
@@ -775,7 +761,7 @@ soya2d.class("soya2d.DisplayObject",{
      * 增加精灵旋转角度
      * @method rotateBy
      * @param {Number} rn 旋转角度
-     * @return this
+     * @chainable
      */
     rotateBy:function(rn){
         this.angle += rn;
@@ -785,7 +771,7 @@ soya2d.class("soya2d.DisplayObject",{
      * 旋转精灵到指定角度
      * @method rotateTo
      * @param {Number} rn 角度
-     * @return this
+     * @chainable
      */
     rotateTo:function(rn){
         this.angle = rn;
@@ -796,7 +782,7 @@ soya2d.class("soya2d.DisplayObject",{
      * @method anchorBy
      * @param {String|Number} x 相对精灵左上角的x坐标偏移,可以设置百分比字符串或者数字
      * @param {String|Number} y 相对精灵左上角的y坐标偏移,可以设置百分比字符串或者数字
-     * @return this
+     * @chainable
      */
     anchorBy:function(x,y){
         var a1 = arguments[0] || 0;
@@ -811,7 +797,7 @@ soya2d.class("soya2d.DisplayObject",{
      * @method anchorTo
      * @param {String|Number} x 相对精灵左上角的x坐标偏移,可以设置百分比字符串或者数字
      * @param {String|Number} y 相对精灵左上角的y坐标偏移,可以设置百分比字符串或者数字
-     * @return this
+     * @chainable
      */
     anchorTo:function(x,y){
         var a1 = arguments[0] || 0;
@@ -1009,6 +995,7 @@ soya2d.class("soya2d.DisplayObject",{
         //redraw
         this.transform();
         this.__updateCache = true;
+        this.__renderable = true;
         var ctx = this.imageCache.getContext('2d');
         var g = new soya2d.CanvasGraphics(ctx);
         this.game.renderer.renderDO(this.game.camera.__view,ctx,this,g,true);
@@ -1019,7 +1006,7 @@ soya2d.class("soya2d.DisplayObject",{
      * @method destroy
      */
     destroy:function(){
-        game.physics.unbind(this);
+        this.game.physics.unbind(this);
         this.off();//remove all signals
         if(!this.__seq)return;
         if(this.children.length>0){

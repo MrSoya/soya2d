@@ -104,6 +104,7 @@
         * @param {Number} [opts.delay] 延迟时间(ms)
         * @param {Boolean} [opts.clear=true] 是否在执行完成后自动销毁释放内存
         * @see {soya2d.Tween.Linear}
+        * @chainable
          */
         to:function(attris,duration,opts){
             if(this.__infinite)return this;
@@ -148,7 +149,7 @@
          * 启动补间器。执行完后自动删除该补间实例
          * @method play
          * @param {Boolean} keepAlive 是否在补间执行完后继续保留实例
-         * @return this
+         * @chainable
          */
         play:function(keepAlive){
             this.__reversed = false;
@@ -161,7 +162,7 @@
         /**
          * 反向执行补间
          * @method reverse
-         * @return this
+         * @chainable
          */
         reverse:function(){
             if(this.__infinite)return;
@@ -173,7 +174,7 @@
         /**
          * 暂停补间器
          * @method pause
-         * @return this
+         * @chainable
          */
         pause:function(){
             this.__status = 'paused';
@@ -182,7 +183,7 @@
         },
         /**
          * 重置补间，播放头归0
-         * @return this
+         * @chainable
          */
         restart:function(){
             this.position = 0;

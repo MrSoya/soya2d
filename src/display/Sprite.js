@@ -47,7 +47,7 @@ soya2d.class("soya2d.Sprite",{
 	    		set:function(v){
 	    			if(!(v instanceof soya2d.Rectangle))return;
 	    			this.__scale9grid = v;
-	    			this.__anchorChange = true;
+	    			this.__cacheGrid = true;
 	    			this.__parseScale9();
 	    		},
 	    		get:function(){
@@ -70,10 +70,11 @@ soya2d.class("soya2d.Sprite",{
 		return soya2d.DisplayObject.prototype.clone.call(this,isRecur,copy);
 	},
 	_onUpdate:function(){
-		if(this.__anchorChange && 
-			this.__scale9grid instanceof soya2d.Rectangle && 
-			(this.__w != this.images[0].width || this.__h != this.images[0].height)){
+		if(this.__cacheGrid && this.__scale9grid instanceof soya2d.Rectangle && 
+			(this.__w != this.__cacheW || this.__h != this.__cacheH)){
 			this.cache();
+			this.__cacheW = this.__w;
+			this.__cacheH = this.__h;
 		}
 	},
 	__parseScale9:function(){
@@ -217,11 +218,12 @@ soya2d.class("soya2d.Sprite",{
     /**
 	 * 设置当前帧数+1
 	 * @method nextFrame
+	 * @param {Boolean} [loop=false] 是否循环 
 	 */
-	nextFrame:function(){
+	nextFrame:function(loop){
 		this.frameIndex++;
 		if(this.frameIndex >= this.images.length){
-			if(this.loop){
+			if(loop){
 				this.frameIndex = 0;
 			}else{
 				this.frameIndex = this.images.length-1;
@@ -231,12 +233,13 @@ soya2d.class("soya2d.Sprite",{
 	/**
 	 * 设置当前帧数-1
 	 * @method prevFrame
+	 * @param {Boolean} [loop=false] 是否循环 
 	 */
-	prevFrame:function(){
+	prevFrame:function(loop){
 		this.frameIndex--;
 		if(this.frameIndex < 0){
-			if(this.loop){
-				this.frameIndex = this.images.length-1;
+			if(loop){
+				frameIndex = this.images.length-1;
 			}else{
 				this.frameIndex = 0;
 			}
@@ -247,6 +250,7 @@ soya2d.class("soya2d.Sprite",{
 	 * @method setImages
 	 * @param {String | HTMLImageElement | Array<String> | Array<HTMLImageElement>} images 图像加载时的key/key数组/图形对象/图形对象数组
 	 * @param {Boolean} [changeSize] 同步修改精灵的w/h
+	 * @chainable
 	 */
 	setImages:function(images,changeSize){
 		if(typeof images === 'string'){

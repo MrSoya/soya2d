@@ -30,7 +30,7 @@ soya2d.Matrix2x2.prototype = {
      * @param m12
      * @param m21
      * @param m22
-     * @return {soya2d.Matrix2x2} this
+     * @chainable
      */
 	set:function(m11,m12,m21,m22){
 		var e = this.e;
@@ -49,7 +49,7 @@ soya2d.Matrix2x2.prototype = {
     /**
      * 重置矩阵为单位矩阵
      * @method identity
-     * @return {soya2d.Matrix2x2} this
+     * @chainable
      */
 	identity:function(){
 		this.set(
@@ -61,7 +61,7 @@ soya2d.Matrix2x2.prototype = {
      * 当前矩阵左乘m
      * @method mul
      * @param {soya2d.Matrix2x2} m
-     * @return {soya2d.Matrix2x2} this
+     * @chainable
      */
 	mul:function(m){
 		var m11=this.e[0],m12=this.e[1],
@@ -76,7 +76,7 @@ soya2d.Matrix2x2.prototype = {
      * @method scale
      * @param {Number} x
      * @param {Number} y
-     * @return {soya2d.Matrix2x2} this
+     * @chainable
      */
 	scale:function(x,y){
         this.e[0] *= x;this.e[1] *= y;
@@ -87,7 +87,7 @@ soya2d.Matrix2x2.prototype = {
      * 旋转当前矩阵
      * @method rotate
      * @param {Number} angle 旋转角度0-360
-     * @return {soya2d.Matrix2x2} this
+     * @chainable
      */
 	rotate:function(angle){
 		if(!angle)return this;
@@ -115,7 +115,7 @@ soya2d.Matrix2x2.prototype = {
      * @method skew
      * @param {Number} x 水平倾角
      * @param {Number} y 垂直倾角
-     * @return {soya2d.Matrix2x2} this
+     * @chainable
      */
 	skew:function(x,y){
 		var m11=this.e[0],m12=this.e[1],

@@ -32,18 +32,18 @@ Scene.prototype = {
 
 
 /**
- * 预加载事件，该事件中可以进行资源加载操作。资源加载完成后，会自动调用onInit回调
- * @event onPreload
+ * 预加载回调，该回调中可以进行资源加载操作。资源加载完成后，会自动调用onInit回调
+ * @method onPreload
  * @param {soya2d.Game} game 场景所属game
  */
 /**
- * 初始化事件，在onPreload后调用
- * @event onInit
+ * 初始化回调，在onPreload后调用
+ * @method onInit
  * @param {soya2d.Game} game 场景所属game
  */
 /**
- * 更新事件，每帧调用
- * @event onUpdate
+ * 更新回调，每帧调用
+ * @method onUpdate
  * @param {soya2d.Game} game 场景所属game
  * @param {Number} d 上一次调用的间隔
  */

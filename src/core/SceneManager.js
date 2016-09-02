@@ -14,6 +14,7 @@ SceneManager.prototype = {
      * @method start
      * @param  {String | Object} scene   场景对象，或者注册名称。
      * @param  {Boolean} clearWorld 是否清空world
+     * @chainable
      */
     start:function(scene,clearWorld){
         var that = this;

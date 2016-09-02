@@ -2,6 +2,7 @@
  * 动画类。用于保存一个自定义精灵帧序列。并按照指定的间隔和循环标识进行播放。
  * 通常使用多组动画来表示一个精灵的不同状态
  * @class Animation
+ * @module display
  */
 function Animation(frames,frameRate,loop) {
 	this.frames = frames;
@@ -69,7 +70,7 @@ var AnimationManager = soya2d.class("",{
      * @param {Array} frameQ   指定顺序的帧序列
      * @param {Number} [frameRate=10] 帧动画播放的速度，越小越快
      * @param {Boolean} [loop=true] 是否循环播放
-     * @return this
+     * @chainable
      */
     add:function(key,frameQ,frameRate,loop){
 		this.map[key] = new Animation(frameQ,frameRate,loop);
@@ -80,7 +81,7 @@ var AnimationManager = soya2d.class("",{
 	 * @method play
 	 * @param {String} [key] 动画在该Sprite实例内唯一的标识。如果该参数为空，
 	 * 会播放默认的帧序列
-	 * @return this
+	 * @chainable
 	 */
 	play:function(key){
 		if(this.playingK === key)return this;
@@ -93,7 +94,7 @@ var AnimationManager = soya2d.class("",{
 	/**
 	 * 停止动画
 	 * @method stop
-	 * @return this
+	 * @chainable
 	 */
 	stop:function(){
 		this.playingK = null;
@@ -104,3 +105,9 @@ var AnimationManager = soya2d.class("",{
 		return this;
 	}
 });
+
+/**
+ * 动画结束后触发
+ * @event stop
+ * @for AnimationManager
+ */

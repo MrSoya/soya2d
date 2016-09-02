@@ -45,13 +45,13 @@ soya2d.Game = function(opts){
      */
     this.renderer = renderer;
     /**
-     * 对象工厂，用来注册新的显示对象类型
+     * 对象注册工厂，用来注册新的显示对象类型
      * @property objects
      * @type {DisplayObjectFactory}
      */
     this.objects = new DisplayObjectFactory(this);
     /**
-     * 对象代理工厂，用来添加新的显示对象到世界中
+     * 对象添加工厂，用来添加新的显示对象到世界中
      * @property add
      * @type {DisplayObjectFactoryProxy}
      */
@@ -140,7 +140,7 @@ soya2d.Game = function(opts){
      * @method start
      * @private
 	 * @param {soya2d.Scene} scene 启动场景
-     * @return this
+     * @chainable
 	 */
 	this.start = function(){
 		if(this.running)return;
@@ -192,12 +192,12 @@ soya2d.Game = function(opts){
             
             thisGame.timer.__scan(d);
 
-            thisGame.stage.__updateMatrix();
-            thisGame.stage.__update(thisGame,d);
-            
-            
             if(thisGame.currentScene.onUpdate)
                 thisGame.currentScene.onUpdate(thisGame,d);
+
+            thisGame.stage.__update(thisGame,d);
+            thisGame.stage.__updateMatrix();
+            
             //after updates
             if(afterUpdates.length>0){
                 now = Date.now();
@@ -266,7 +266,7 @@ soya2d.Game = function(opts){
      * 设置该game实例的FPS。一个页面上可以同时存在多个不同FPS的game实例
      * @method setFPS
      * @param {Number} fps 最大60
-     * @return this
+     * @chainable
      */
     this.setFPS = function(fps){
         currFPS = parseInt(fps) || maxFPS;
@@ -278,7 +278,7 @@ soya2d.Game = function(opts){
 	/**
 	 * 停止当前游戏实例
      * @method stop
-     * @return this
+     * @chainable
 	 */
 	this.stop = function() {
 		cancelAFrame(RAFTag);
@@ -291,6 +291,25 @@ soya2d.Game = function(opts){
 
 		return this;
 	};
+    /**
+     * 销毁当前游戏实例，以及内部所有对象。
+     * 会调用模块的onDestroy回调
+     * @method destroy
+     */
+    this.destroy = function(){
+        if(this.running)this.stop();
+
+        var modules = soya2d.module._getAll();
+        for(var k in modules){
+            if(modules[k].onDestroy)modules[k].onDestroy(this);
+        }
+        this.renderer.destroy();
+        this.stage.destroy();
+        var i = soya2d.games.indexOf(this);
+        if(i>-1){
+            soya2d.games.splice(i,1);
+        }
+    }
 
 	//init modules
 	var modules = soya2d.module._getAll();

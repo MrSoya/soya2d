@@ -6,16 +6,17 @@
  * Released under the MIT license
  *
  * website: http://soya2d.com
- * last build: 2016-08-29
+ * last build: 2016-09-02
  */
 !function (global) {
 	'use strict';
 /**
- * 核心包定义了soya2d的入口，基础组件以及循环体等
+ * 核心模块定义了soya2d的入口，基础组件以及循环体等
  *
  * @module core
  */
 /**
+ * soya2d命名空间，内含基础工具，包括创建类和模块等操作
  * @class soya2d
  */
 global.soya2d = new function(){
@@ -39,7 +40,7 @@ global.soya2d = new function(){
          * @property version.state 
          * @type {String}
          */
-        state:'beta1',
+        state:'beta2',
         /**
          * 返回版本信息
          * @method version.toString
@@ -80,12 +81,22 @@ global.soya2d = new function(){
 	}
 
     /**
-     * define a class
+     * 定义一个类。并可以定义原型属性或实例属性。
+     * ```
+     * soya2d.class("mrsoya.shape",{
+extends:Signal,
+color:'#000',//原型属性
+constructor: function(data){
+    this.x = data.x;//实例属性
+},
+toString:function(){}//原型方法
+});
+     * ```
      * @method class
-     * @param {String} namePath full class path with namespace
-     * @param {Object} param    as below
-     * @param {Object} param.extends    extends to
-     * @param {Object} param.constructor   constructor of the class
+     * @param {String} namePath 带命名空间的全路径
+     * @param {Object} param    参数
+     * @param {Object} param.extends    集成自
+     * @param {Object} param.constructor   构造函数
      */
     this.class = function(namePath,param){
         var constr = param.constructor;        
@@ -981,11 +992,11 @@ Assets.prototype = {
  * ssheet格式为<br/>
  * ```
  * [
- 		{n:'hero_001.png',x:0,y:0,w:50,h:50,r:90},//ssheet unit，index 0
- 		{n:'hero_002.png',x:50,y:50,w:50,h:50,r:180},//index 1
- 		...
- 	]
- 	```
+ * {n:'hero_001.png',x:0,y:0,w:50,h:50,r:90},//ssheet unit，index 0
+ * {n:'hero_002.png',x:50,y:50,w:50,h:50,r:180},//index 1
+ * ...
+ * ]
+ * ```
  * r:将指定部分资源旋转指定角度后，形成新纹理
  * @class soya2d.Atlas
  * @constructor
@@ -1085,7 +1096,7 @@ Signal.prototype = {
      * @param {String} type 信号类型，多个类型使用空格分割
      * @param {Function} cbk 回调函数，回调参数[target,...]
      * @param {int} order 触发序号，越大的值越先触发
-     * @return this
+     * @chainable
      */
     on:function(type,cbk,order){
         if(this instanceof soya2d.DisplayObject){
@@ -1110,7 +1121,7 @@ Signal.prototype = {
      * @param {String} type 信号类型，多个类型使用空格分割
      * @param {Function} cbk 回调函数
      * @param {int} order 触发序号，越大的值越先触发
-     * @return this
+     * @chainable
      */
     once:function(type,cbk,order){
         this.__signalHandler.once(type,cbk,order,this);
@@ -1121,15 +1132,18 @@ Signal.prototype = {
      * @method off
      * @param {String} [type] 信号类型，多个类型使用空格分割。如果为空，删除所有信号监听
      * @param {Function} [cbk] 监听时的函数引用。如果为空，删除该类型下所有监听
+     * @chainable
      */
     off:function(type,cbk){
         this.__signalHandler.off(type,cbk,this);
+        return this
     },
     /**
      * 发射指定类型信号
      * @method emit
      * @param {String} type 信号类型
      * @param {...} params 不定类型和数量的参数
+     * @chainable
      */
     emit:function(){
         var params = [arguments[0],this];
@@ -1221,10 +1235,10 @@ SignalHandler.prototype = {
  *  该类不能被实例化，系统会自动创建实例给game。
  *  每个game有且只有一个load属性，通过该属性可以加载资源。
  *  ```
- *      game.load.baseUrl = 'assets/xml/';
- *      game.load.xml({
- *          ui:'ui.xml'
- *      });
+ * game.load.baseUrl = 'assets/xml/';
+ * game.load.xml({
+ *   ui:'ui.xml'
+ * });
  * ```
  *  @class Loader
  */
@@ -1780,6 +1794,32 @@ soya2d.MEDIA_ERR_SRC_NOT_SUPPORTED = 4;
  * @final
  */
 soya2d.MEDIA_ERR_SRC_NOT_FORTHCOMING = 101;
+
+/**
+ * 单个资源项加载完成后触发
+ * @event load
+ * @for Loader
+ * @param {...} rs 加载的资源
+ * @param {Number} index 当前索引
+ * @param {Number} total 资源总数
+ */
+/**
+ * 单个资源项加载错误后触发
+ * @event error
+ * @for Loader
+ * @param {String} url 资源路径
+ */
+/**
+ * 单个资源项加载超时后触发
+ * @event timeout
+ * @for Loader
+ * @param {String} url 资源路径
+ */
+/**
+ * 所有资源项加载完成后触发
+ * @event end
+ * @for Loader
+ */
 /**
  *  场景用来管理通过XML构建的UI
  *  @class Scene
@@ -1814,18 +1854,18 @@ Scene.prototype = {
 
 
 /**
- * 预加载事件，该事件中可以进行资源加载操作。资源加载完成后，会自动调用onInit回调
- * @event onPreload
+ * 预加载回调，该回调中可以进行资源加载操作。资源加载完成后，会自动调用onInit回调
+ * @method onPreload
  * @param {soya2d.Game} game 场景所属game
  */
 /**
- * 初始化事件，在onPreload后调用
- * @event onInit
+ * 初始化回调，在onPreload后调用
+ * @method onInit
  * @param {soya2d.Game} game 场景所属game
  */
 /**
- * 更新事件，每帧调用
- * @event onUpdate
+ * 更新回调，每帧调用
+ * @method onUpdate
  * @param {soya2d.Game} game 场景所属game
  * @param {Number} d 上一次调用的间隔
  */
@@ -1941,6 +1981,7 @@ SceneManager.prototype = {
      * @method start
      * @param  {String | Object} scene   场景对象，或者注册名称。
      * @param  {Boolean} clearWorld 是否清空world
+     * @chainable
      */
     start:function(scene,clearWorld){
         var that = this;
@@ -2326,6 +2367,11 @@ var Timer = soya2d.class('',{
 });
 
 /**
+ * 几何模块定义了soya2d中内置的几何结构，这些结构可以用来进行碰撞检测，或进行计算
+ * @module geom
+ */
+
+/**
  * 几何结构，圆形。用于保存圆形结构数据，可以设置为{{#crossLink "soya2d.DisplayObject"}}的bounds，
  * 用于检测碰撞
  * @class soya2d.Circle
@@ -2333,8 +2379,6 @@ var Timer = soya2d.class('',{
  * @param {Number} x
  * @param {Number} y
  * @param {Number} r
- *
- * @module geom
  */
 soya2d.Circle  = function(x,y,r){
 	this.x = x || 0;
@@ -2517,6 +2561,7 @@ soya2d.Point.prototype = {
      * 设置值
      * @param {Number} x 
      * @param {Number} y 
+     * @chainable
      */
     set:function(x,y){
         this.x = x;
@@ -2530,7 +2575,6 @@ soya2d.Point.prototype = {
  * 每个显示对象都有一个该矩阵实例用来执行变换操作
  * @class soya2d.Matrix2x2
  * @constructor
- * @module geom
  */
 soya2d.Matrix2x2 = function(){
     /**
@@ -2558,7 +2602,7 @@ soya2d.Matrix2x2.prototype = {
      * @param m12
      * @param m21
      * @param m22
-     * @return {soya2d.Matrix2x2} this
+     * @chainable
      */
 	set:function(m11,m12,m21,m22){
 		var e = this.e;
@@ -2577,7 +2621,7 @@ soya2d.Matrix2x2.prototype = {
     /**
      * 重置矩阵为单位矩阵
      * @method identity
-     * @return {soya2d.Matrix2x2} this
+     * @chainable
      */
 	identity:function(){
 		this.set(
@@ -2589,7 +2633,7 @@ soya2d.Matrix2x2.prototype = {
      * 当前矩阵左乘m
      * @method mul
      * @param {soya2d.Matrix2x2} m
-     * @return {soya2d.Matrix2x2} this
+     * @chainable
      */
 	mul:function(m){
 		var m11=this.e[0],m12=this.e[1],
@@ -2604,7 +2648,7 @@ soya2d.Matrix2x2.prototype = {
      * @method scale
      * @param {Number} x
      * @param {Number} y
-     * @return {soya2d.Matrix2x2} this
+     * @chainable
      */
 	scale:function(x,y){
         this.e[0] *= x;this.e[1] *= y;
@@ -2615,7 +2659,7 @@ soya2d.Matrix2x2.prototype = {
      * 旋转当前矩阵
      * @method rotate
      * @param {Number} angle 旋转角度0-360
-     * @return {soya2d.Matrix2x2} this
+     * @chainable
      */
 	rotate:function(angle){
 		if(!angle)return this;
@@ -2643,7 +2687,7 @@ soya2d.Matrix2x2.prototype = {
      * @method skew
      * @param {Number} x 水平倾角
      * @param {Number} y 垂直倾角
-     * @return {soya2d.Matrix2x2} this
+     * @chainable
      */
 	skew:function(x,y){
 		var m11=this.e[0],m12=this.e[1],
@@ -2715,7 +2759,7 @@ soya2d.Vector.prototype = {
 	 * @method set
 	 * @param {Number} x x轴分量值
 	 * @param {Number} y y轴分量值
-	 * @return {soya2d.Vector} this
+	 * @chainable
 	 */
 	set:function(x,y){
 		this.e[0] = x || 0;
@@ -2735,6 +2779,7 @@ soya2d.Vector.prototype = {
 	/**
 	 * 当前向量取反
 	 * @method negate
+	 * @chainable
 	 */
 	negate:function(){
 		this.e[0] *= -1;
@@ -2745,6 +2790,7 @@ soya2d.Vector.prototype = {
 	 * 和增加指定向量相加
 	 * @method add
 	 * @param {soya2d.Vector} v 指定向量
+	 * @chainable
 	 */
 	add:function(v){
 		 this.e[0] += v.e[0];
@@ -2755,6 +2801,7 @@ soya2d.Vector.prototype = {
 	 * 和增加指定向量相减
 	 * @method sub
 	 * @param {soya2d.Vector} v 指定向量
+	 * @chainable
 	 */
 	sub:function(v){
 		this.e[0] -= v.e[0];
@@ -2765,6 +2812,7 @@ soya2d.Vector.prototype = {
 	 * 当前向量乘以指定实数
 	 * @method mul
 	 * @param {Number} s 实数
+	 * @chainable
 	 */
 	mul:function(s){
 		this.e[0] *= s;
@@ -2775,6 +2823,7 @@ soya2d.Vector.prototype = {
 	 * 当前向量除以指定实数
 	 * @method div
 	 * @param {Number} s 实数
+	 * @chainable
 	 */
 	div:function(s){
 		if(s) {
@@ -2809,6 +2858,7 @@ soya2d.Vector.prototype = {
 	 * 旋转当前向量指定角度
 	 * @method rotate
 	 * @param {Number} angle 指定角度
+	 * @chainable
 	 */
 	rotate:function(angle){
         var m = soya2d.Math;
@@ -2877,7 +2927,7 @@ var Body = soya2d.class("",{
      * 设置是否为传感器。传感器刚体会触发碰撞事件，但不会显现碰撞效果
      * @method sensor
      * @param  {Boolean} tof 
-     * @return this
+     * @chainable
      */
     sensor:function(tof) {
         this.__cbk && this.__cbk.sensor(this.rigid,tof);
@@ -2888,7 +2938,7 @@ var Body = soya2d.class("",{
      * @method moveTo
      * @param  {Number} x 
      * @param  {Number} y 
-     * @return this
+     * @chainable
      */
     moveTo:function(x,y){
         this.__cbk && this.__cbk.moveTo(this.rigid,x,y);
@@ -2899,7 +2949,7 @@ var Body = soya2d.class("",{
      * @method moveBy
      * @param  {Number} offx 
      * @param  {Number} offy
-     * @return this
+     * @chainable
      */
     moveBy:function(offx,offy){
         this.__cbk && this.__cbk.moveBy(this.rigid,offx,offy);
@@ -2909,7 +2959,7 @@ var Body = soya2d.class("",{
      * 设置是否为静态刚体。静态刚体会呈现碰撞，但没有重力效果
      * @method static
      * @param  {Boolean} tof 
-     * @return this
+     * @chainable
      */
     static:function(tof){
         this.__cbk && this.__cbk.static(this.rigid,tof);
@@ -2919,7 +2969,7 @@ var Body = soya2d.class("",{
      * 设置刚体的质量
      * @method mass
      * @param  {Number} v 
-     * @return this
+     * @chainable
      */
     mass:function(v){
         this.__cbk && this.__cbk.mass(this.rigid,v);
@@ -2929,7 +2979,7 @@ var Body = soya2d.class("",{
      * 设置刚体旋转偏移
      * @method rotateBy
      * @param  {Number} v 
-     * @return this
+     * @chainable
      */
     rotateBy:function(v){
         this.__cbk && this.__cbk.rotateBy(this.rigid,v);
@@ -2939,7 +2989,7 @@ var Body = soya2d.class("",{
      * 设置刚体旋转角度
      * @method rotateTo
      * @param  {Number} v 
-     * @return this
+     * @chainable
      */
     rotateTo:function(v){
         this.__cbk && this.__cbk.rotateTo(this.rigid,v);
@@ -2949,7 +2999,7 @@ var Body = soya2d.class("",{
      * 设置刚体摩擦系数
      * @method friction
      * @param  {Number} v 
-     * @return this
+     * @chainable
      */
     friction:function(v){
         this.__cbk && this.__cbk.friction(this.rigid,v);
@@ -2959,7 +3009,7 @@ var Body = soya2d.class("",{
      * 设置刚体弹性系数
      * @method restitution
      * @param  {Number} v 
-     * @return this
+     * @chainable
      */
     restitution:function(v){
         this.__cbk && this.__cbk.restitution(this.rigid,v);
@@ -2970,7 +3020,7 @@ var Body = soya2d.class("",{
      * @method velocity
      * @param  {Number} x 
      * @param  {Number} y 
-     * @return this
+     * @chainable
      */
     velocity:function(x,y){
         this.__cbk && this.__cbk.velocity(this.rigid,x||0,y||0);
@@ -2980,7 +3030,7 @@ var Body = soya2d.class("",{
      * 设置刚体惯性
      * @method inertia
      * @param  {Number} v 
-     * @return this
+     * @chainable
      */
     inertia:function(v){
         this.__cbk && this.__cbk.inertia(this.rigid,v||0);
@@ -2988,6 +3038,12 @@ var Body = soya2d.class("",{
     }
 });
 
+/**
+ * 物理模块定义了soya2d中内置的物理系统，该模块实现了一套应用层API，
+ * 开发者可以自行切换物理库，而不必修改应用代码。
+ * <b>该模块是扩展模块，可以自行卸载</b>
+ * @module physics
+ */
 /**
  * 物理类是soya2d中应用物理系统的统一接口，该接口屏蔽了不同物理系统的实现，
  * 使用统一的调用接口实现物理关联
@@ -3178,8 +3234,10 @@ DisplayObjectFactory.prototype = {
 	 */
     register:function(alias,constructor){
         this.map[alias] = constructor;
-        this.game.add[alias] = function(data){
-            return this.__newInstance(alias,data);
+        if(constructor.prototype instanceof soya2d.DisplayObject){
+            this.game.add[alias] = function(data){
+                return this.__newInstanceAndAppend(alias,data);
+            }
         }
     }
 };
@@ -3191,7 +3249,7 @@ DisplayObjectFactory.prototype = {
 function DisplayObjectFactoryProxy(game){
     this.game = game;
 
-    this.__newInstance = function(type,data){
+    this.__newInstanceAndAppend = function(type,data){
     	data.game = this.game;
     	var instance = new this.game.objects.map[type](data);
     	// instance.game = this.game;
@@ -3200,11 +3258,22 @@ function DisplayObjectFactoryProxy(game){
     }
 }
 /**
+ * 显示模块定义了soya2d中所有内置的显示对象，显示对象是实际控制图像渲染的实体。
+ * 同时，显示模块中也定义了soya2d的显示架构
+ * ```
+ *    stage
+ *      |
+ *    world
+ *     /|\
+ *    others   
+ * ```
+ * @module display
+ */
+/**
  * 显示对象是引擎中的所有可见对象的基类,该类中包含的属性用来控制一个可见对象的显示效果以及渲染方式。<br/>
- 该类不能被实例化
+ 该类不能被实例化 
  * @class soya2d.DisplayObject
  * @param {Object} data 定义参数,见类参数定义
- * @module display
  */
 soya2d.class("soya2d.DisplayObject",{
     extends:Signal,
@@ -3663,6 +3732,7 @@ soya2d.class("soya2d.DisplayObject",{
      * 设置显示对象的布局
      * @method setLayout
      * @param {Object} layout 布局对象
+     * @chainable
      */
     setLayout:function(layout){
         if(!layout)return this;
@@ -3750,21 +3820,6 @@ soya2d.class("soya2d.DisplayObject",{
             wt.mul(pt);
         }
 
-
-
-        // if(this.__fixedToCamera){
-        //     var camera = this.game.camera;
-        //     x = camera.x + this.cameraOffset.x;
-        //     y = camera.y + this.cameraOffset.y;
-
-        //     this.__fixedDO = true;
-        // }else if(this.parent && this.parent.__fixedDO){
-        //     this.__fixedDO = true;
-
-        //     x += this.parent.anchorPosition.x;
-        //     y += this.parent.anchorPosition.y;
-        // }
-
         //physics
         if(this.body.rigid){
             x -= ap.x;
@@ -3839,7 +3894,7 @@ soya2d.class("soya2d.DisplayObject",{
      * @method moveBy
 	 * @param {Number} ox x轴偏移
 	 * @param {Number} oy y轴偏移
-     * @return {soya2d.DisplayObject} this
+     * @chainable
 	 */
 	moveBy:function(ox,oy){
         var a1 = arguments[0] || 0;
@@ -3854,7 +3909,7 @@ soya2d.class("soya2d.DisplayObject",{
      * @method moveTo
 	 * @param {Number} x x坐标
 	 * @param {Number} y y坐标
-     * @return {soya2d.DisplayObject} this
+     * @chainable
 	 */
 	moveTo:function(x,y){
         var a1 = arguments[0] || 0;
@@ -3868,7 +3923,7 @@ soya2d.class("soya2d.DisplayObject",{
 	 * 设置透明度
      * @method opacifyTo
 	 * @param {Number} o 透明度值
-     * @return {soya2d.DisplayObject} this
+     * @chainable
 	 */
 	opacifyTo:function(o){
 		this.opacity = o>1?1:o<0?0:o;
@@ -3878,7 +3933,7 @@ soya2d.class("soya2d.DisplayObject",{
 	 * 设置透明度偏移
      * @method opacifyBy
 	 * @param {Number} o 透明度差值
-     * @return {soya2d.DisplayObject} this
+     * @chainable
 	 */
 	opacifyBy:function(o){
 		this.opacity += o;
@@ -3891,7 +3946,7 @@ soya2d.class("soya2d.DisplayObject",{
      * @method resizeTo
      * @param {Number} w 宽
      * @param {Number} h 高
-     * @return {soya2d.DisplayObject} this
+     * @chainable
      */
 	resizeTo:function(w,h){
         var a1 = arguments[0] || 0;
@@ -3906,7 +3961,7 @@ soya2d.class("soya2d.DisplayObject",{
      * @method scaleBy
      * @param {Number} sx x轴缩放比
      * @param {Number} sy y轴缩放比
-     * @return this
+     * @chainable
      */
     scaleBy:function(sx,sy){
         var a1 = arguments[0] || 0;
@@ -3921,7 +3976,7 @@ soya2d.class("soya2d.DisplayObject",{
      * @method scaleTo
      * @param {Number} sx x轴缩放比
      * @param {Number} sy y轴缩放比
-     * @return this
+     * @chainable
      */
     scaleTo:function(sx,sy){
         var a1 = arguments[0] || 0;
@@ -3936,7 +3991,7 @@ soya2d.class("soya2d.DisplayObject",{
      * @method skewBy
      * @param {Number} rx x轴偏移角度
      * @param {Number} ry y轴偏移角度
-     * @return this
+     * @chainable
      */
     skewBy:function(rx,ry){
         var a1 = arguments[0] || 0;
@@ -3951,7 +4006,7 @@ soya2d.class("soya2d.DisplayObject",{
      * @method skewTo
      * @param {Number} rx x轴偏移角度
      * @param {Number} ry y轴偏移角度
-     * @return this
+     * @chainable
      */
     skewTo:function(rx,ry){
         var a1 = arguments[0] || 0;
@@ -3965,7 +4020,7 @@ soya2d.class("soya2d.DisplayObject",{
      * 增加精灵旋转角度
      * @method rotateBy
      * @param {Number} rn 旋转角度
-     * @return this
+     * @chainable
      */
     rotateBy:function(rn){
         this.angle += rn;
@@ -3975,7 +4030,7 @@ soya2d.class("soya2d.DisplayObject",{
      * 旋转精灵到指定角度
      * @method rotateTo
      * @param {Number} rn 角度
-     * @return this
+     * @chainable
      */
     rotateTo:function(rn){
         this.angle = rn;
@@ -3986,7 +4041,7 @@ soya2d.class("soya2d.DisplayObject",{
      * @method anchorBy
      * @param {String|Number} x 相对精灵左上角的x坐标偏移,可以设置百分比字符串或者数字
      * @param {String|Number} y 相对精灵左上角的y坐标偏移,可以设置百分比字符串或者数字
-     * @return this
+     * @chainable
      */
     anchorBy:function(x,y){
         var a1 = arguments[0] || 0;
@@ -4001,7 +4056,7 @@ soya2d.class("soya2d.DisplayObject",{
      * @method anchorTo
      * @param {String|Number} x 相对精灵左上角的x坐标偏移,可以设置百分比字符串或者数字
      * @param {String|Number} y 相对精灵左上角的y坐标偏移,可以设置百分比字符串或者数字
-     * @return this
+     * @chainable
      */
     anchorTo:function(x,y){
         var a1 = arguments[0] || 0;
@@ -4199,6 +4254,7 @@ soya2d.class("soya2d.DisplayObject",{
         //redraw
         this.transform();
         this.__updateCache = true;
+        this.__renderable = true;
         var ctx = this.imageCache.getContext('2d');
         var g = new soya2d.CanvasGraphics(ctx);
         this.game.renderer.renderDO(this.game.camera.__view,ctx,this,g,true);
@@ -4209,7 +4265,7 @@ soya2d.class("soya2d.DisplayObject",{
      * @method destroy
      */
     destroy:function(){
-        game.physics.unbind(this);
+        this.game.physics.unbind(this);
         this.off();//remove all signals
         if(!this.__seq)return;
         if(this.children.length>0){
@@ -4324,7 +4380,7 @@ soya2d.class("soya2d.DisplayObjectContainer",{
      * 增加子节点
      * @method add
      * @param {...soya2d.DisplayObject} children 一个或者多个可渲染对象，使用逗号分割
-     * @return this
+     * @chainable
      */
     add:function(){
         for(var i=0;i<arguments.length;i++){
@@ -4346,7 +4402,7 @@ soya2d.class("soya2d.DisplayObjectContainer",{
      * 删除子节点
      * @method remove
      * @param {...soya2d.DisplayObject} children 一个或者多个可渲染对象，使用逗号分割
-     * @return this
+     * @chainable
      */
     remove:function(){
         for(var i=0;i<arguments.length;i++){
@@ -4503,7 +4559,8 @@ var Stage = soya2d.class("",{
              * @default soya2d.SCALEMODE_SHOWALL
              */
             scaleMode : {
-                set:function(){
+                set:function(v){
+                    scaleMode = v;
                     this.__scan();
                 },
                 get:function(){
@@ -5003,7 +5060,7 @@ var AnimationManager = soya2d.class("",{
      * @param {Array} frameQ   指定顺序的帧序列
      * @param {Number} [frameRate=10] 帧动画播放的速度，越小越快
      * @param {Boolean} [loop=true] 是否循环播放
-     * @return this
+     * @chainable
      */
     add:function(key,frameQ,frameRate,loop){
 		this.map[key] = new Animation(frameQ,frameRate,loop);
@@ -5014,7 +5071,7 @@ var AnimationManager = soya2d.class("",{
 	 * @method play
 	 * @param {String} [key] 动画在该Sprite实例内唯一的标识。如果该参数为空，
 	 * 会播放默认的帧序列
-	 * @return this
+	 * @chainable
 	 */
 	play:function(key){
 		if(this.playingK === key)return this;
@@ -5027,7 +5084,7 @@ var AnimationManager = soya2d.class("",{
 	/**
 	 * 停止动画
 	 * @method stop
-	 * @return this
+	 * @chainable
 	 */
 	stop:function(){
 		this.playingK = null;
@@ -5038,6 +5095,12 @@ var AnimationManager = soya2d.class("",{
 		return this;
 	}
 });
+
+/**
+ * 动画结束后触发
+ * @event stop
+ * @for AnimationManager
+ */
 /**
  * 精灵类。用于显示.9贴图、静态贴图以及贴图动画，精灵中包含了多个图像帧，可以通过创建
  * 多个{{#crossLink "Animation"}}{{/crossLink}}来实现精灵不同动画效果的表现和改变
@@ -5087,7 +5150,7 @@ soya2d.class("soya2d.Sprite",{
 	    		set:function(v){
 	    			if(!(v instanceof soya2d.Rectangle))return;
 	    			this.__scale9grid = v;
-	    			this.__anchorChange = true;
+	    			this.__cacheGrid = true;
 	    			this.__parseScale9();
 	    		},
 	    		get:function(){
@@ -5110,10 +5173,11 @@ soya2d.class("soya2d.Sprite",{
 		return soya2d.DisplayObject.prototype.clone.call(this,isRecur,copy);
 	},
 	_onUpdate:function(){
-		if(this.__anchorChange && 
-			this.__scale9grid instanceof soya2d.Rectangle && 
-			(this.__w != this.images[0].width || this.__h != this.images[0].height)){
+		if(this.__cacheGrid && this.__scale9grid instanceof soya2d.Rectangle && 
+			(this.__w != this.__cacheW || this.__h != this.__cacheH)){
 			this.cache();
+			this.__cacheW = this.__w;
+			this.__cacheH = this.__h;
 		}
 	},
 	__parseScale9:function(){
@@ -5257,11 +5321,12 @@ soya2d.class("soya2d.Sprite",{
     /**
 	 * 设置当前帧数+1
 	 * @method nextFrame
+	 * @param {Boolean} [loop=false] 是否循环 
 	 */
-	nextFrame:function(){
+	nextFrame:function(loop){
 		this.frameIndex++;
 		if(this.frameIndex >= this.images.length){
-			if(this.loop){
+			if(loop){
 				this.frameIndex = 0;
 			}else{
 				this.frameIndex = this.images.length-1;
@@ -5271,12 +5336,13 @@ soya2d.class("soya2d.Sprite",{
 	/**
 	 * 设置当前帧数-1
 	 * @method prevFrame
+	 * @param {Boolean} [loop=false] 是否循环 
 	 */
-	prevFrame:function(){
+	prevFrame:function(loop){
 		this.frameIndex--;
 		if(this.frameIndex < 0){
-			if(this.loop){
-				this.frameIndex = this.images.length-1;
+			if(loop){
+				frameIndex = this.images.length-1;
 			}else{
 				this.frameIndex = 0;
 			}
@@ -5287,6 +5353,7 @@ soya2d.class("soya2d.Sprite",{
 	 * @method setImages
 	 * @param {String | HTMLImageElement | Array<String> | Array<HTMLImageElement>} images 图像加载时的key/key数组/图形对象/图形对象数组
 	 * @param {Boolean} [changeSize] 同步修改精灵的w/h
+	 * @chainable
 	 */
 	setImages:function(images,changeSize){
 		if(typeof images === 'string'){
@@ -5463,6 +5530,10 @@ soya2d.class("soya2d.TileSprite",{
     }
 });
 /**
+ * 渲染器模块定义了soya2d中内置的渲染器，目前仅实现了CanvasRenderer
+ * @module renderer
+ */
+/**
  * 图形类,提供了贴图和矢量绘制的接口。<br/>
  * 注意，该类不应被实例化。引擎会在onRender回调中注入该类的实例。<br/>
  * 该图形对象基于Canvas构建。
@@ -5470,7 +5541,6 @@ soya2d.class("soya2d.TileSprite",{
  * @class soya2d.CanvasGraphics
  * @constructor
  * @param ctx CanvasRenderingContext2D的实例
- * @module renderer
  */
 soya2d.CanvasGraphics = function(ctx){
     /**
@@ -5498,7 +5568,7 @@ soya2d.CanvasGraphics = function(ctx){
     /**
      * 闭合当前路径
      * @method closePath
-     * @return this
+     * @chainable
      */
     this.closePath = function(){
         this.ctx.closePath();
@@ -5509,7 +5579,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @method moveTo
      * @param {Number} x
      * @param {Number} y
-     * @return this
+     * @chainable
      */
     this.moveTo = function(x,y){
         this.ctx.moveTo(x,y);
@@ -5521,7 +5591,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @method lineTo
      * @param {Number} x
      * @param {Number} y
-     * @return this
+     * @chainable
      */
     this.lineTo = function(x,y){
         this.ctx.lineTo(x,y);
@@ -5535,7 +5605,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {Number} cpy 控制点
      * @param {Number} x
      * @param {Number} y
-     * @return this
+     * @chainable
      */
     this.quadraticCurveTo = function(cpx,cpy,x,y){
         this.ctx.quadraticCurveTo(cpx,cpy,x,y);
@@ -5551,7 +5621,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {Number} cp2y 控制点2
      * @param {Number} x
      * @param {Number} y
-     * @return this
+     * @chainable
      */
     this.bezierCurveTo = function(cp1x,cp1y,cp2x,cp2y,x,y){
         this.ctx.bezierCurveTo(cp1x,cp1y,cp2x,cp2y,x,y);
@@ -5565,7 +5635,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {Number} x2
      * @param {Number} y2
      * @param {Number} radius
-     * @return this
+     * @chainable
      */
     this.arcTo = function(x1,y1,x2,y2,radius){
         this.ctx.arcTo(x1,y1,x2,y2,radius);
@@ -5579,7 +5649,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {Number} r 半径
      * @param {Number} [sr=0] 起始弧度
      * @param {Number} [er=soya2d.Math.PIM2] 结束弧度
-     * @return this
+     * @chainable
      */
     this.arc = function(cx,cy,r,sr,er){
         this.ctx.arc(cx,cy,r,sr||0,er||soya2d.Math.PIM2);
@@ -5594,7 +5664,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {Number} b 短半径
      * @param {int} [sa=0] 起始角度
      * @param {int} [ea=360] 结束角度
-     * @return this
+     * @chainable
      */
     this.eArc = function(cx,cy,a,b,sa,ea){
         sa = (sa || 0)>>0;
@@ -5624,7 +5694,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {Number} y
      * @param {Number} w
      * @param {Number} h
-     * @return this
+     * @chainable
      */
     this.rect = function(x,y,w,h){
         this.ctx.rect(x,y,w,h);
@@ -5641,7 +5711,7 @@ soya2d.CanvasGraphics = function(ctx){
      * 5,y]
      * ```
      * 
-     * @return this
+     * @chainable
      */
     this.polygon = function(vtx){
         var c = this.ctx;
@@ -5660,7 +5730,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {Number} y
      * @param {Number} w
      * @param {Number} h
-     * @return this
+     * @chainable
      */
     this.ellipse = function(x,y,w,h){
         var kappa = 0.5522848;
@@ -5686,7 +5756,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {Number} w
      * @param {Number} h
      * @param {Number} r 圆角半径
-     * @return this
+     * @chainable
      */
     this.roundRect = function(x,y,w,h,r){
         var c = this.ctx;
@@ -5709,7 +5779,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {Number} ec 多边形的边数，不能小于3
      * @param {Number} r1 半径1
      * @param {Number} r2 半径2
-     * @return this
+     * @chainable
      */
     this.regularPolygon = function(cx,cy,ec,r1,r2){
         cx = cx||0;
@@ -5741,7 +5811,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {String} blendMode 混合方式
      * @default soya2d.BLEND_NORMAL
      * @see soya2d.BLEND_NORMAL
-     * @return this
+     * @chainable
      */
     this.blendMode = function(blendMode){
         if(blendMode){
@@ -5755,7 +5825,7 @@ soya2d.CanvasGraphics = function(ctx){
      * 设置或者获取当前绘图环境的线框样式
      * @method strokeStyle
      * @param {Object} style 可以是命名颜色、RGB、16进制等标准颜色。也可以是CanvasGradient或者CanvasPattern
-     * @return this
+     * @chainable
      */
     this.strokeStyle = function(style){
         if(style){
@@ -5769,7 +5839,7 @@ soya2d.CanvasGraphics = function(ctx){
      * 设置或者获取当前绘图环境的填充样式
      * @method fillStyle
      * @param {Object} style 可以是命名颜色、RGB、16进制等标准颜色。也可以是CanvasGradient或者CanvasPattern
-     * @return this
+     * @chainable
      */
     this.fillStyle = function(style){
         if(style){
@@ -5787,7 +5857,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {String} [color=rgba(0,0,0,0)] 颜色
      * @param {Number} [offx=0] x偏移
      * @param {Number} [offy=0] y偏移
-     * @return this
+     * @chainable
      */
     this.shadow = function(blur,color,offx,offy){
         this.ctx.shadowBlur = blur;
@@ -5804,7 +5874,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {String} cap 线条末端样式
      * @param {String} join 线条交点样式
      * @param {Number} miterLimit 交点延长限制。join为PeaJS.LINEJOIN_MITER时生效
-     * @return this
+     * @chainable
      * @see soya2d.LINEJOIN_MITER
      */
     this.lineStyle = function(width,cap,join,miterLimit){
@@ -5820,7 +5890,7 @@ soya2d.CanvasGraphics = function(ctx){
      * 设置当前绘图环境的字体样式
      * @method font
      * @param {soya2d.Font} font
-     * @return this
+     * @chainable
      */
     this.font = function(font){
         var c = this.ctx;
@@ -5831,7 +5901,7 @@ soya2d.CanvasGraphics = function(ctx){
     /**
      * 裁剪路径
      * @method clip
-     * @return this
+     * @chainable
      */
 	this.clip = function(){
         this.ctx.clip();
@@ -5840,7 +5910,7 @@ soya2d.CanvasGraphics = function(ctx){
     /**
      * 保存当前绘图状态
      * @method push
-     * @return this
+     * @chainable
      */
 	this.push = function(){
 		this.ctx.save();	
@@ -5849,7 +5919,7 @@ soya2d.CanvasGraphics = function(ctx){
     /**
      * 恢复最近一次push的绘图状态
      * @method pop
-     * @return this
+     * @chainable
      */
 	this.pop = function(){
 		this.ctx.restore();	
@@ -5858,7 +5928,7 @@ soya2d.CanvasGraphics = function(ctx){
     /**
      * 清空当前path中的所有subpath
      * @method beginPath
-     * @return this
+     * @chainable
      */
 	this.beginPath = function(){
 		this.ctx.beginPath();	
@@ -5867,7 +5937,7 @@ soya2d.CanvasGraphics = function(ctx){
     /**
      * 关闭当前path
      * @method closePath
-     * @return this
+     * @chainable
      */
     this.closePath = function(){
         this.ctx.closePath();
@@ -5877,7 +5947,7 @@ soya2d.CanvasGraphics = function(ctx){
     /**
      * 填充path
      * @method fill
-     * @return this
+     * @chainable
      */
     this.fill = function(){
         this.ctx.fill();
@@ -5886,7 +5956,7 @@ soya2d.CanvasGraphics = function(ctx){
     /**
      * 描绘path的轮廓
      * @method stroke
-     * @return this
+     * @chainable
      */
     this.stroke = function(){
         this.ctx.stroke();
@@ -5898,7 +5968,7 @@ soya2d.CanvasGraphics = function(ctx){
      * 
      * @param {soya2d.Path} path 路径结构
      * @method path
-     * @return this
+     * @chainable
      */
     this.path = function(path){
         path._insQ.forEach(function(ins){
@@ -5949,7 +6019,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {Number} y
      * @param {Number} w
      * @param {Number} h
-     * @return this
+     * @chainable
      */
 	this.fillRect = function(x,y,w,h){
 		this.ctx.fillRect(x,y,w,h);
@@ -5962,7 +6032,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {Number} y
      * @param {Number} w
      * @param {Number} h
-     * @return this
+     * @chainable
      */
 	this.strokeRect = function(x,y,w,h){
 		this.ctx.strokeRect(x,y,w,h);
@@ -5976,7 +6046,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {Number} y
      * @param {Number} w
      * @param {Number} h
-     * @return this
+     * @chainable
      */
     this.clearRect = function(x,y,w,h){
         this.ctx.clearRect(x,y,w,h);
@@ -5995,7 +6065,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param  {int} [dy]  纹理目标坐标y
      * @param  {int} [dw]  纹理目标尺寸w
      * @param  {int} [dh]  纹理目标尺寸h
-     * @return this
+     * @chainable
      */
 	this.map = function(img,dx,dy,dw,dh,sx,sy,sw,sh){
 		sx = sx || 0;
@@ -6019,7 +6089,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {int} [x=0] x坐标，相对于当前精灵的x
      * @param {int} [y=0] y坐标，相对于当前精灵的y
      * @param {int} [mw] 绘制文字最大宽度
-     * @return this
+     * @chainable
      */
     this.fillText = function(str,x,y,mw){
         if(mw)
@@ -6036,7 +6106,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {int} [x=0] x坐标，相对于当前精灵的x
      * @param {int} [y=0] y坐标，相对于当前精灵的y
      * @param {int} [mw] 绘制文字最大宽度
-     * @return this
+     * @chainable
      */
     this.strokeText = function(str,x,y,mw){
         if(mw)
@@ -6047,6 +6117,7 @@ soya2d.CanvasGraphics = function(ctx){
         return this;
     };
 };
+
 
 /**
  * 渲染器是引擎提供可视化内容展示的底层基础。
@@ -6301,6 +6372,17 @@ soya2d.CanvasRenderer = function(data){
      * @private
      */
     this.renderDO = render;
+
+    /**
+     * 销毁渲染器
+     * @method destroy
+     */
+    this.destroy = function(){
+        cvs.parentNode.removeChild(cvs);
+        ctxFnMap = 
+        g = 
+        this.ctx = null;
+    }
     
     /**
      * 缩放所渲染窗口
@@ -6654,15 +6736,22 @@ soya2d.Device = new function(){
     this.safari = type.Safari?true:false;
 };
 /**
+ * 字体模块定义了soya2d中内置的字体显示类，支持字体文件和图片字体
+ * @module text
+ */
+/**
  * 字体类。用于指定绘制字体的样式、大小等
  * @class soya2d.Font
  * @param {String} desc 字体描述字符串，可以为空。为空时创建默认样式字体:[normal 400 13px/normal sans-serif]<br/>符合W3C[CSSFONTS]规范
- * @module text
  */
 soya2d.Font = function(desc){
     var fontElement = document.createElement('span');
-    fontElement.style.cssText = "position:absolute;top:-9999px;left:-9999px;white-space:nowrap;font:"
-                                        +(desc||"normal 400 13px/normal sans-serif");                         
+    var style = ['padding:0 !important;','margin:0 !important;'
+                ,'top:-9999px !important;','left:-9999px !important;'
+                ,'white-space:nowrap !important;','position:absolute !important;'];
+    fontElement.style.cssText = style.join('')+"font:"
+                                        +(desc||"normal 400 13px/normal sans-serif");
+    document.body.appendChild(fontElement);
     /**
      * 字体描述字符串
      * @property fontString
@@ -6671,17 +6760,10 @@ soya2d.Font = function(desc){
     this.fontString = fontElement.style.font;
 
     /**
-     * 字体大小
-     * @property fontSize
-     * @type {int}
-     */
-    this.fontSize = parseInt(fontElement.style.fontSize) || 13;
-
-    /**
      * 该字体的渲染内容
      * @private
      */
-    this.__renderText = function(g){
+    this.__textRenderer = function(g){
         g.font(this.font);
         if(!this.__lines)return;
 
@@ -6760,7 +6842,6 @@ soya2d.Font = function(desc){
             //更新描述字符串
             this.fontString = fontElement.style.font;
 
-            this.fontSize = size;
             return this;
         }else{
             return fontElement.style.fontSize;
@@ -6791,10 +6872,10 @@ soya2d.Font = function(desc){
      * @return {Object} 指定字符串在当前字体下的宽高。｛w:w,h:h｝
      */
     this.getBounds = function(str){
-        var ctx = this.__game.renderer.ctx;
-        ctx.font = this.getDesc();
-        var w = ctx.measureText(str).width;
-        return {w:w,h:this.fontSize};
+        fontElement.innerText = str;
+        var h = fontElement.offsetHeight;
+        var w = fontElement.offsetWidth;
+        return {w:w,h:h};
     };
 };
 
@@ -6806,10 +6887,8 @@ soya2d.Font = function(desc){
  * @class soya2d.ImageFont
  * @param {soya2d.Atlas} data 用于字体映射的图像集对象
  * @param {Number} size 图像字体大小
- * @module text
  */
 soya2d.ImageFont = function(data,size){
-    
     this.__fontMap = data;
 
     var oriFontSize = data.texs[Object.keys(data.texs)[0]].height;
@@ -6818,7 +6897,7 @@ soya2d.ImageFont = function(data,size){
      * @property fontSize
      * @type {int}
      */
-    this.fontSize = oriFontSize;
+    this.fontSize = size || oriFontSize;
     this.fontWidth = data.texs[Object.keys(data.texs)[0]].width;
     var scaleRate = 1;//缩放比率
     var lineH = 1;
@@ -6828,7 +6907,7 @@ soya2d.ImageFont = function(data,size){
      * 该字体的渲染内容
      * @private
      */
-    this.__renderText = function(g){
+    this.__textRenderer = function(g){
         if(!this.__lines)return;
 
         var offy = 0;
@@ -6904,7 +6983,6 @@ soya2d.ImageFont = function(data,size){
  * @param {Object} data 所有父类参数
  * @see soya2d.Font
  * @see soya2d.ImageFont
- * @module text
  */
 soya2d.class("soya2d.Text",{
     extends:soya2d.DisplayObjectContainer,
@@ -6947,12 +7025,11 @@ soya2d.class("soya2d.Text",{
         }
         var font = this.font||new soya2d.Font();
         this.font = font;
-        this.font.__game = this.game;
 
         this.__changed = true;//默认需要修改
         this.__lines;//分行内容
 
-        this.__renderer = this.font.__renderText;//绑定渲染
+        this.__renderer = this.font.__textRenderer;//绑定渲染
 
         /**
          * 渲染样式
@@ -6961,8 +7038,9 @@ soya2d.class("soya2d.Text",{
          */
         this.fillStyle = data.fillStyle || '#000';
 
-        if(!this.w)this.w = this.font.getBounds(this.text).w;
-        if(!this.h)this.h = this.font.fontSize;
+        var bounds = this.font.getBounds(this.text);
+        if(!this.w)this.w = bounds.w;
+        if(!this.h)this.h = bounds.h;
     },
     onRender:function(g){
         this.__renderer(g);
@@ -6983,7 +7061,7 @@ soya2d.class("soya2d.Text",{
     setFont:function(font){
         if(!font)return;
         this.font = font;
-        this.__renderer = this.font.__renderText;//绑定渲染
+        this.__renderer = this.font.__textRenderer;//绑定渲染
     },
     /**
      * 设置文本内容，并刷新
@@ -7001,18 +7079,18 @@ soya2d.class("soya2d.Text",{
 	},
     _onUpdate:function(game){
         if(!this.__lh){//init basic size
-            var bounds_en = this.font.getBounds("s",game.renderer);
-            var bounds_zh = this.font.getBounds("豆",game.renderer);
+            var bounds_en = this.font.getBounds("s");
+            var bounds_zh = this.font.getBounds("豆");
             this.__lh = (bounds_en.h+bounds_zh.h)/2>>0;//行高
             this.__uw = (bounds_en.w+bounds_zh.w)/2>>0;//单字宽度
         }
         if(this.__changed){
-            this.__lines = this.__calc(game.renderer);
+            this.__lines = this.__calc();
             this.__changed = false;
         }
     },
     //计算每行内容
-    __calc:function(renderer){
+    __calc:function(){
         var ls = this.letterSpacing;
         var charNum = this.w / (this.__uw+ls) >>0;//理论单行个数
         if(charNum<1){
@@ -7033,11 +7111,11 @@ soya2d.class("soya2d.Text",{
             while(currCharPos<l){
                 var lineString = text.substr(currCharPos,charNum+1);
                 //计算宽度是否超过
-                var lineWidth = f.getBounds(lineString,renderer).w + lineString.length*ls;//增加字间距
+                var lineWidth = f.getBounds(lineString).w + lineString.length*ls;//增加字间距
                 if(lineWidth > this.w){//超宽了
                     for(var j=charNum+1;j--;){
                         lineString = lineString.substr(0,lineString.length-1);
-                        lineWidth = f.getBounds(lineString,renderer).w + lineString.length*ls;
+                        lineWidth = f.getBounds(lineString).w + lineString.length*ls;
                         if(lineWidth <= this.w){
                             if(lineWidth===0)return;//防止死循环
                             //该行处理完成
@@ -7050,7 +7128,7 @@ soya2d.class("soya2d.Text",{
                     var charPos = currCharPos;
                     for(var j=1;j<l-currCharPos;j++){
                         lineString = text.substr(currCharPos,charNum+1+j);
-                        lineWidth = f.getBounds(lineString,renderer).w + lineString.length*ls;
+                        lineWidth = f.getBounds(lineString).w + lineString.length*ls;
                         if(lineWidth > this.w){
                             //该行处理完成
                             lines.push(lineString.substr(0,lineString.length-1));
@@ -7123,13 +7201,13 @@ soya2d.Game = function(opts){
      */
     this.renderer = renderer;
     /**
-     * 对象工厂，用来注册新的显示对象类型
+     * 对象注册工厂，用来注册新的显示对象类型
      * @property objects
      * @type {DisplayObjectFactory}
      */
     this.objects = new DisplayObjectFactory(this);
     /**
-     * 对象代理工厂，用来添加新的显示对象到世界中
+     * 对象添加工厂，用来添加新的显示对象到世界中
      * @property add
      * @type {DisplayObjectFactoryProxy}
      */
@@ -7218,7 +7296,7 @@ soya2d.Game = function(opts){
      * @method start
      * @private
 	 * @param {soya2d.Scene} scene 启动场景
-     * @return this
+     * @chainable
 	 */
 	this.start = function(){
 		if(this.running)return;
@@ -7270,12 +7348,12 @@ soya2d.Game = function(opts){
             
             thisGame.timer.__scan(d);
 
-            thisGame.stage.__updateMatrix();
-            thisGame.stage.__update(thisGame,d);
-            
-            
             if(thisGame.currentScene.onUpdate)
                 thisGame.currentScene.onUpdate(thisGame,d);
+
+            thisGame.stage.__update(thisGame,d);
+            thisGame.stage.__updateMatrix();
+            
             //after updates
             if(afterUpdates.length>0){
                 now = Date.now();
@@ -7344,7 +7422,7 @@ soya2d.Game = function(opts){
      * 设置该game实例的FPS。一个页面上可以同时存在多个不同FPS的game实例
      * @method setFPS
      * @param {Number} fps 最大60
-     * @return this
+     * @chainable
      */
     this.setFPS = function(fps){
         currFPS = parseInt(fps) || maxFPS;
@@ -7356,7 +7434,7 @@ soya2d.Game = function(opts){
 	/**
 	 * 停止当前游戏实例
      * @method stop
-     * @return this
+     * @chainable
 	 */
 	this.stop = function() {
 		cancelAFrame(RAFTag);
@@ -7369,6 +7447,25 @@ soya2d.Game = function(opts){
 
 		return this;
 	};
+    /**
+     * 销毁当前游戏实例，以及内部所有对象。
+     * 会调用模块的onDestroy回调
+     * @method destroy
+     */
+    this.destroy = function(){
+        if(this.running)this.stop();
+
+        var modules = soya2d.module._getAll();
+        for(var k in modules){
+            if(modules[k].onDestroy)modules[k].onDestroy(this);
+        }
+        this.renderer.destroy();
+        this.stage.destroy();
+        var i = soya2d.games.indexOf(this);
+        if(i>-1){
+            soya2d.games.splice(i,1);
+        }
+    }
 
 	//init modules
 	var modules = soya2d.module._getAll();
@@ -7441,7 +7538,6 @@ soya2d.RENDERER_TYPE_WEBGL = 3;
      * @class soya2d.Tween
      * @constructor
      * @param {Object} target 补间目标
-     * @module tween
      */
     soya2d.class("soya2d.Tween",{
         extends:Signal,
@@ -7531,6 +7627,7 @@ soya2d.RENDERER_TYPE_WEBGL = 3;
         * @param {Number} [opts.delay] 延迟时间(ms)
         * @param {Boolean} [opts.clear=true] 是否在执行完成后自动销毁释放内存
         * @see {soya2d.Tween.Linear}
+        * @chainable
          */
         to:function(attris,duration,opts){
             if(this.__infinite)return this;
@@ -7575,7 +7672,7 @@ soya2d.RENDERER_TYPE_WEBGL = 3;
          * 启动补间器。执行完后自动删除该补间实例
          * @method play
          * @param {Boolean} keepAlive 是否在补间执行完后继续保留实例
-         * @return this
+         * @chainable
          */
         play:function(keepAlive){
             this.__reversed = false;
@@ -7588,7 +7685,7 @@ soya2d.RENDERER_TYPE_WEBGL = 3;
         /**
          * 反向执行补间
          * @method reverse
-         * @return this
+         * @chainable
          */
         reverse:function(){
             if(this.__infinite)return;
@@ -7600,7 +7697,7 @@ soya2d.RENDERER_TYPE_WEBGL = 3;
         /**
          * 暂停补间器
          * @method pause
-         * @return this
+         * @chainable
          */
         pause:function(){
             this.__status = 'paused';
@@ -7609,7 +7706,7 @@ soya2d.RENDERER_TYPE_WEBGL = 3;
         },
         /**
          * 重置补间，播放头归0
-         * @return this
+         * @chainable
          */
         restart:function(){
             this.position = 0;
@@ -7843,12 +7940,17 @@ soya2d.RENDERER_TYPE_WEBGL = 3;
  */
 !function(){
     /**
+     * tween模块定义了soya2d中内置的补间系统。支持路径补间和普通补间。
+     * 支持针对同一个target的补间链以及并行补间。
+     * <b>该模块是扩展模块，可以自行卸载</b>
+     * @module tween
+     */
+    /**
      * 路径补间对象，功能和{{#crossLink "soya2d.Tween"}}{{/crossLink}}相同，但路径补间只针对
      * 补间目标的x/y进行补间。
      * @class soya2d.PathTween
      * @constructor
      * @param {Object} target 补间目标
-     * @module tween
      */
     soya2d.class("soya2d.PathTween",{
         extends:Signal,
@@ -8059,7 +8161,7 @@ soya2d.RENDERER_TYPE_WEBGL = 3;
          * 启动补间器。执行完后自动删除该补间实例
          * @method play
          * @param {Boolean} keepAlive 是否在补间执行完后继续保留实例
-         * @return this
+         * @chainable
          */
         play:function(keepAlive){
             this.__reversed = false;
@@ -8072,7 +8174,7 @@ soya2d.RENDERER_TYPE_WEBGL = 3;
         /**
          * 反向执行补间
          * @method reverse
-         * @return this
+         * @chainable
          */
         reverse:function(){
             if(this.__infinite)return;
@@ -8084,7 +8186,7 @@ soya2d.RENDERER_TYPE_WEBGL = 3;
         /**
          * 暂停补间器
          * @method pause
-         * @return this
+         * @chainable
          */
         pause:function(){
             this.__status = 'paused';
@@ -8094,7 +8196,7 @@ soya2d.RENDERER_TYPE_WEBGL = 3;
         /**
          * 重置补间，播放头归0
          * @method restart
-         * @return this
+         * @chainable
          */
         restart:function(){
             this.position = 0;
@@ -8323,7 +8425,6 @@ soya2d.RENDERER_TYPE_WEBGL = 3;
  * 用于管理该实例内的所有补间对象
  * 
  * @class soya2d.TweenManager
- * @module tween
  */
 soya2d.TweenManager = new function(){
 	this.list = [];
@@ -8901,9 +9002,13 @@ soya2d.module.install('tween',{
     	soya2d.TweenManager.__update(now,d);
     },
     onStop:function(){
-    	soya2d.TweenManager.stop();
+    	soya2d.TweenManager.pauseAll();
     }
 });
+/**
+ * shapes模块定义了一些常用图元，方便开发者调用。<b>该模块是扩展模块，可以自行卸载</b>
+ * @module shapes
+ */
 /**
  * 可以进行圆弧形填充或线框绘制的显示对象
  * @class soya2d.Arc
@@ -8914,8 +9019,6 @@ soya2d.module.install('tween',{
  * @param {String} data.strokeStyle 线框样式
  * @param {String} data.lineWidth 线条宽度
  * @param {String} data.startAngle 弧形的开始角度
- * @param {String} data.endAngle 弧形的结束角度
- * @module shapes
  */
 soya2d.class("soya2d.Arc",{
     extends:soya2d.DisplayObjectContainer,
@@ -9151,6 +9254,11 @@ soya2d.module.install('shapes',{
     }
 });
 /**
+ * 事件模块定义了soya2d中内置的事件处理系统，包括键盘、鼠标、触摸、设备等。
+ * <b>该模块是扩展模块，可以自行卸载</b>
+ * @module event
+ */
+/**
  * 事件组用于管理一个soya2d.Game实例内的所有事件的启动，停止，和触法。<br/>
  * 该类由引擎自动管理，无需开发者控制
  * @class soya2d.Events
@@ -9179,7 +9287,7 @@ soya2d.Events = function(){
      * 启动所有事件监听
      * @method startListen
      * @param {soya2d.Game} game 游戏实例
-     * @return this
+     * @chainable
      */
     this.startListen = function(game){
         for(var i=evts.length;i--;){
@@ -9193,7 +9301,7 @@ soya2d.Events = function(){
      * 停止所有事件监听
      * @method stopListen
      * @param {soya2d.Game} game 游戏实例
-     * @return this
+     * @chainable
      */
     this.stopListen = function(game){
         for(var i=evts.length;i--;){
@@ -9423,7 +9531,7 @@ soya2d.Keyboard = function(){
 
 	/**
 	 * 启动监听
-	 * @return this
+	 * @chainable
 	 */
 	this.startListen = function(){
 		self.addEventListener('keydown',keydown,false);
@@ -9435,7 +9543,7 @@ soya2d.Keyboard = function(){
 
 	/**
 	 * 停止监听
-	 * @return this
+	 * @chainable
 	 */
 	this.stopListen = function(){
 		self.removeEventListener('keydown',keydown,false);
@@ -9533,7 +9641,6 @@ soya2d.Keyboard.stopKeys = [];
 /**
  * 键码表<br/>
  * @class soya2d.KeyCode
- * @module event
  */
 soya2d.KeyCode = {
 	/**
@@ -10859,9 +10966,13 @@ soya2d.EVENT_POINTUP = 'pointup';
 /*! Effects Plugin */
 !function(){"use strict";HowlerGlobal.prototype._pos=[0,0,0],HowlerGlobal.prototype._orientation=[0,0,-1,0,1,0],HowlerGlobal.prototype._velocity=[0,0,0],HowlerGlobal.prototype._listenerAttr={dopplerFactor:1,speedOfSound:343.3},HowlerGlobal.prototype.pos=function(e,n,t){var o=this;return o.ctx&&o.ctx.listener?(n="number"!=typeof n?o._pos[1]:n,t="number"!=typeof t?o._pos[2]:t,"number"!=typeof e?o._pos:(o._pos=[e,n,t],o.ctx.listener.setPosition(o._pos[0],o._pos[1],o._pos[2]),o)):o},HowlerGlobal.prototype.orientation=function(e,n,t,o,r,i){var a=this;if(!a.ctx||!a.ctx.listener)return a;var p=a._orientation;return n="number"!=typeof n?p[1]:n,t="number"!=typeof t?p[2]:t,o="number"!=typeof o?p[3]:o,r="number"!=typeof r?p[4]:r,i="number"!=typeof i?p[5]:i,"number"!=typeof e?p:(a._orientation=[e,n,t,o,r,i],a.ctx.listener.setOrientation(e,n,t,o,r,i),a)},HowlerGlobal.prototype.velocity=function(e,n,t){var o=this;return o.ctx&&o.ctx.listener?(n="number"!=typeof n?o._velocity[1]:n,t="number"!=typeof t?o._velocity[2]:t,"number"!=typeof e?o._velocity:(o._velocity=[e,n,t],o.ctx.listener.setVelocity(o._velocity[0],o._velocity[1],o._velocity[2]),o)):o},HowlerGlobal.prototype.listenerAttr=function(e){var n=this;if(!n.ctx||!n.ctx.listener)return n;var t=n._listenerAttr;return e?(n._listenerAttr={dopplerFactor:"undefined"!=typeof e.dopplerFactor?e.dopplerFactor:t.dopplerFactor,speedOfSound:"undefined"!=typeof e.speedOfSound?e.speedOfSound:t.speedOfSound},n.ctx.listener.dopplerFactor=t.dopplerFactor,n.ctx.listener.speedOfSound=t.speedOfSound,n):t},Howl.prototype.init=function(e){return function(n){var t=this;return t._orientation=n.orientation||[1,0,0],t._pos=n.pos||null,t._velocity=n.velocity||[0,0,0],t._pannerAttr={coneInnerAngle:"undefined"!=typeof n.coneInnerAngle?n.coneInnerAngle:360,coneOuterAngle:"undefined"!=typeof n.coneOuterAngle?n.coneOuterAngle:360,coneOuterGain:"undefined"!=typeof n.coneOuterGain?n.coneOuterGain:0,distanceModel:"undefined"!=typeof n.distanceModel?n.distanceModel:"inverse",maxDistance:"undefined"!=typeof n.maxDistance?n.maxDistance:1e4,panningModel:"undefined"!=typeof n.panningModel?n.panningModel:"HRTF",refDistance:"undefined"!=typeof n.refDistance?n.refDistance:1,rolloffFactor:"undefined"!=typeof n.rolloffFactor?n.rolloffFactor:1},t._onpos=n.onpos?[{fn:n.onpos}]:[],t._onorientation=n.onorientation?[{fn:n.onorientation}]:[],t._onvelocity=n.onvelocity?[{fn:n.onvelocity}]:[],e.call(this,n)}}(Howl.prototype.init),Howl.prototype.pos=function(n,t,o,r){var i=this;if(!i._webAudio)return i;if("loaded"!==i._state)return i._queue.push({event:"pos",action:function(){i.pos(n,t,o,r)}}),i;if(t="number"!=typeof t?0:t,o="number"!=typeof o?-.5:o,"undefined"==typeof r){if("number"!=typeof n)return i._pos;i._pos=[n,t,o]}for(var a=i._getSoundIds(r),p=0;p<a.length;p++){var l=i._soundById(a[p]);if(l){if("number"!=typeof n)return l._pos;l._pos=[n,t,o],l._node&&(l._panner||e(l),l._panner.setPosition(n,t,o)),i._emit("pos",l._id)}}return i},Howl.prototype.orientation=function(n,t,o,r){var i=this;if(!i._webAudio)return i;if("loaded"!==i._state)return i._queue.push({event:"orientation",action:function(){i.orientation(n,t,o,r)}}),i;if(t="number"!=typeof t?i._orientation[1]:t,o="number"!=typeof o?i._orientation[2]:o,"undefined"==typeof r){if("number"!=typeof n)return i._orientation;i._orientation=[n,t,o]}for(var a=i._getSoundIds(r),p=0;p<a.length;p++){var l=i._soundById(a[p]);if(l){if("number"!=typeof n)return l._orientation;l._orientation=[n,t,o],l._node&&(l._panner||(l._pos||(l._pos=i._pos||[0,0,-.5]),e(l)),l._panner.setOrientation(n,t,o)),i._emit("orientation",l._id)}}return i},Howl.prototype.velocity=function(n,t,o,r){var i=this;if(!i._webAudio)return i;if("loaded"!==i._state)return i._queue.push({event:"velocity",action:function(){i.velocity(n,t,o,r)}}),i;if(t="number"!=typeof t?i._velocity[1]:t,o="number"!=typeof o?i._velocity[2]:o,"undefined"==typeof r){if("number"!=typeof n)return i._velocity;i._velocity=[n,t,o]}for(var a=i._getSoundIds(r),p=0;p<a.length;p++){var l=i._soundById(a[p]);if(l){if("number"!=typeof n)return l._velocity;l._velocity=[n,t,o],l._node&&(l._pos||(l._pos=i._pos||[0,0,-.5]),l._panner||e(l),l._panner.setVelocity(n,t,o)),i._emit("velocity",l._id)}}return i},Howl.prototype.pannerAttr=function(){var n,t,o,r=this,i=arguments;if(!r._webAudio)return r;if(0===i.length)return r._pannerAttr;if(1===i.length){if("object"!=typeof i[0])return o=r._soundById(parseInt(i[0],10)),o?o._pannerAttr:r._pannerAttr;n=i[0],"undefined"==typeof t&&(r._pannerAttr={coneInnerAngle:"undefined"!=typeof n.coneInnerAngle?n.coneInnerAngle:r._coneInnerAngle,coneOuterAngle:"undefined"!=typeof n.coneOuterAngle?n.coneOuterAngle:r._coneOuterAngle,coneOuterGain:"undefined"!=typeof n.coneOuterGain?n.coneOuterGain:r._coneOuterGain,distanceModel:"undefined"!=typeof n.distanceModel?n.distanceModel:r._distanceModel,maxDistance:"undefined"!=typeof n.maxDistance?n.maxDistance:r._maxDistance,panningModel:"undefined"!=typeof n.panningModel?n.panningModel:r._panningModel,refDistance:"undefined"!=typeof n.refDistance?n.refDistance:r._refDistance,rolloffFactor:"undefined"!=typeof n.rolloffFactor?n.rolloffFactor:r._rolloffFactor})}else 2===i.length&&(n=i[0],t=parseInt(i[1],10));for(var a=r._getSoundIds(t),p=0;p<a.length;p++)if(o=r._soundById(a[p])){var l=o._pannerAttr;l={coneInnerAngle:"undefined"!=typeof n.coneInnerAngle?n.coneInnerAngle:l.coneInnerAngle,coneOuterAngle:"undefined"!=typeof n.coneOuterAngle?n.coneOuterAngle:l.coneOuterAngle,coneOuterGain:"undefined"!=typeof n.coneOuterGain?n.coneOuterGain:l.coneOuterGain,distanceModel:"undefined"!=typeof n.distanceModel?n.distanceModel:l.distanceModel,maxDistance:"undefined"!=typeof n.maxDistance?n.maxDistance:l.maxDistance,panningModel:"undefined"!=typeof n.panningModel?n.panningModel:l.panningModel,refDistance:"undefined"!=typeof n.refDistance?n.refDistance:l.refDistance,rolloffFactor:"undefined"!=typeof n.rolloffFactor?n.rolloffFactor:l.rolloffFactor};var c=o._panner;c?(c.coneInnerAngle=l.coneInnerAngle,c.coneOuterAngle=l.coneOuterAngle,c.coneOuterGain=l.coneOuterGain,c.distanceModel=l.distanceModel,c.maxDistance=l.maxDistance,c.panningModel=l.panningModel,c.refDistance=l.refDistance,c.rolloffFactor=l.rolloffFactor):(o._pos||(o._pos=r._pos||[0,0,-.5]),e(o))}return r},Sound.prototype.init=function(e){return function(){var n=this,t=n._parent;n._orientation=t._orientation,n._pos=t._pos,n._velocity=t._velocity,n._pannerAttr=t._pannerAttr,e.call(this),n._pos&&t.pos(n._pos[0],n._pos[1],n._pos[2],n._id)}}(Sound.prototype.init),Sound.prototype.reset=function(e){return function(){var n=this,t=n._parent;return n._orientation=t._orientation,n._pos=t._pos,n._velocity=t._velocity,n._pannerAttr=t._pannerAttr,e.call(this)}}(Sound.prototype.reset);var e=function(e){e._panner=Howler.ctx.createPanner(),e._panner.coneInnerAngle=e._pannerAttr.coneInnerAngle,e._panner.coneOuterAngle=e._pannerAttr.coneOuterAngle,e._panner.coneOuterGain=e._pannerAttr.coneOuterGain,e._panner.distanceModel=e._pannerAttr.distanceModel,e._panner.maxDistance=e._pannerAttr.maxDistance,e._panner.panningModel=e._pannerAttr.panningModel,e._panner.refDistance=e._pannerAttr.refDistance,e._panner.rolloffFactor=e._pannerAttr.rolloffFactor,e._panner.setPosition(e._pos[0],e._pos[1],e._pos[2]),e._panner.setOrientation(e._orientation[0],e._orientation[1],e._orientation[2]),e._panner.setVelocity(e._velocity[0],e._velocity[1],e._velocity[2]),e._panner.connect(e._node),e._paused||e._parent.pause(e._id,!0).play(e._id)}}();
 /**
+ * sound模块定义了soya2d中内置的生效系统，该系统会自动在webaudio和audio间切换，达到最好效果。
+ * <b>该模块是扩展模块，可以自行卸载</b>
+ * @module sound
+ */
+/**
  * 声音类用来对指定音频执行播放、暂停、静音等操作
  * @class soya2d.Sound
- * @module sound
  */
 soya2d.Sound = function(opts){
     opts = opts || {};
@@ -10878,7 +10989,7 @@ soya2d.Sound.prototype = {
     /**
      * 播放音频
      * @method play
-     * @return this
+     * @chainable
      */
     play:function(){
         this.__handler.play();
@@ -10887,7 +10998,7 @@ soya2d.Sound.prototype = {
     /**
      * 暂停音频播放
      * @method pause
-     * @return this
+     * @chainable
      */
     pause:function(){
         this.__handler.pause();
@@ -10896,7 +11007,7 @@ soya2d.Sound.prototype = {
     /**
      * 停止音频，播放头会跳到最开始
      * @method stop
-     * @return this
+     * @chainable
      */
 	stop:function(){
  		this.__handler.stop();
@@ -10977,7 +11088,7 @@ soya2d.Sound.prototype = {
      * @method on
      * @param  {String} event    事件名，包括load, loaderror, play, end, pause, faded
      * @param  {Function} fn 监听器
-     * @return this
+     * @chainable
      */
     on:function(event,fn){
         this.__handler.on(event, fn);
@@ -10988,7 +11099,7 @@ soya2d.Sound.prototype = {
      * @method once
      * @param  {String} event    事件名，包括load, loaderror, play, end, pause, faded
      * @param  {Function} fn 监听器
-     * @return this
+     * @chainable
      */
     once:function(event,fn){
         this.__handler.once(event, fn);
@@ -10999,7 +11110,7 @@ soya2d.Sound.prototype = {
      * @method off
      * @param  {String} event    事件名，包括load, loaderror, play, end, pause, faded
      * @param  {Function} [fn] 监听器。如果此参数为空，移除所有该类型监听
-     * @return this
+     * @chainable
      */
     off:function(event,fn){
         this.__handler.off(event, fn);
@@ -11041,7 +11152,6 @@ soya2d.Sound.prototype = {
  * 包括静音、停止等。<br/>
  * 该类无需显式创建，引擎会自动绑定到game实例属性中。
  * @class soya2d.SoundManager
- * @module sound
  */
 soya2d.SoundManager = function(game){
     this.game = game;
@@ -11083,31 +11193,43 @@ soya2d.module.install('sound',{
 });
 !function(){
 	/**
+	 * 粒子模块定义了soya2d中内置的粒子系统，可以实现绚丽的效果。
+	 * <b>该模块是扩展模块，可以自行卸载</b>
+	 * @module particle
+	 */
+	/**
 	 * 发射器用于在给定的坐标发射粒子。默认的粒子都是dead状态，不可见，
 	 * 引擎会激活粒子为活跃状态，并按照参数发射粒子，这时粒子为可见。
+	 * ```
+	 * var emitter = game.add.emitter({...});
+	 * //注意，这里是添加粒子补间，不是emitter的补间
+	 * emitter.tween.add()
+	 * .to({opacity:0},1);
+	 * 
+	 * emitter.tween.add()
+	 * .to({scaleX:2,scaleY:2},.5,{easing:soya2d.Tween.Elastic.Out})
+	 * .to({scaleX:1,scaleY:1},.3,{easing:soya2d.Tween.Back.InOut});
+	 * 
+	 * emitter.emit();
+	 * ```
 	 * @class soya2d.Emitter
 	 * @extends soya2d.DisplayObjectContainer
 	 * @constructor
 	 * @param {Object} opts 构造参数对象，参数如下：
 	 * @param {Number} [opts.frequency=0.1] 粒子发射间隔 s
-	 * @param {int} opts.max 总粒子数
+	 * @param {Number} opts.size 总粒子数
+	 * @param {Number} opts.quantity 每次发射最大粒子数
 	 * @param {String | HTMLImageElement | Array | soya2d.DisplayObject} opts.particles 粒子，可以是图片或者显示对象
 	 * @param {Number} [opts.lifeSpan=1] 粒子生命周期 s
-	 * @param {Number} [opts.lifeSpanVar=0] 粒子生命周期，可变累加值
-	 * @param {Number} [opts.speed=0] 粒子移动速度
-	 * @param {Number} [opts.speedVar=0] 粒子移动速度，可变累加值
-	 * @param {Number} [opts.radialAcc=0] 径向加速度
-	 * @param {Number} [opts.radialAccVar=0] 径向加速度，可变累加值
-	 * @param {Number} [opts.tanAcc=0] 切线加速度
-	 * @param {Number} [opts.tanAccVar=0] 切线加速度，可变累加值
-	 * @param {Number} [opts.angle=0] 发射角度
-	 * @param {Number} [opts.angleVar=0] 发射角度，可变累加值
-	 * @param {Number} [opts.startSpin=0] 自转速度范围起始
-	 * @param {Number} [opts.startSpinVar=0] 自转速度范围起始，可变累加值
-	 * @param {Number} [opts.endSpin=0] 自转速度范围结束
-	 * @param {Number} [opts.endSpinVar=0] 自转速度范围结束，可变累加值
+	 * @param {Number} [opts.minSpeed=0] 粒子移动速度
+	 * @param {Number} [opts.maxSpeed=0] 粒子移动速度
+	 * @param {Number} [opts.minRadAcc=0] 径向加速度
+	 * @param {Number} [opts.maxRadAcc=0] 径向加速度
+	 * @param {Number} [opts.minTanAcc=0] 切线加速度
+	 * @param {Number} [opts.maxTanAcc=0] 切线加速度
+	 * @param {Number} [opts.minAngle=0] 发射角度
+	 * @param {Number} [opts.maxAngle=0] 发射角度
 	 *
-	 * @module particle
 	 */
 	soya2d.class("soya2d.Emitter",{
 	    extends:soya2d.DisplayObjectContainer,
@@ -11119,7 +11241,7 @@ soya2d.module.install('sound',{
 			//1.初始化发生器变量
 			this.frequency = cfg.frequency*1000 || 100;
 			this.size = cfg.size;//粒子数
-			this.quantity = cfg.quantity || 1;//每次发射最大粒子数
+			this.quantity = cfg.quantity || 1;
 			
 			//2.初始化粒子属性
 			this.__template = getTemplate(cfg.particles);//粒子模版
@@ -11344,6 +11466,7 @@ soya2d.module.install('sound',{
 	/**
 	 * 粒子激活时回调
 	 * @method onActive
+	 * @param {soya2d.DisplayObject} particle 激活的粒子
 	 */
 	/**
 	 * 粒子运行时回调，每帧调用
@@ -11669,10 +11792,15 @@ var TilemapLayer = soya2d.class('',{
     }
 });
 /**
+ * tilemap模块定义了一套通用的瓦片地图处理系统。无论地图数据从何而来，
+ * 只要符合格式的数据都会被正确的渲染。
+ * <b>该模块是扩展模块，可以自行卸载</b>
+ * @module tilemap
+ */
+/**
  * 瓦片地图。管理固定尺寸瓦片拼接的地图模型。这些地图通常由地图制作工具生成
  * @class Tilemap
  * @extends Signal
- * @module tilemap
  */
 var Tilemap = soya2d.class("",{
     extends:Signal,

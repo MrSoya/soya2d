@@ -22,7 +22,7 @@ soya2d.Sound.prototype = {
     /**
      * 播放音频
      * @method play
-     * @return this
+     * @chainable
      */
     play:function(){
         this.__handler.play();
@@ -31,7 +31,7 @@ soya2d.Sound.prototype = {
     /**
      * 暂停音频播放
      * @method pause
-     * @return this
+     * @chainable
      */
     pause:function(){
         this.__handler.pause();
@@ -40,7 +40,7 @@ soya2d.Sound.prototype = {
     /**
      * 停止音频，播放头会跳到最开始
      * @method stop
-     * @return this
+     * @chainable
      */
 	stop:function(){
  		this.__handler.stop();
@@ -121,7 +121,7 @@ soya2d.Sound.prototype = {
      * @method on
      * @param  {String} event    事件名，包括load, loaderror, play, end, pause, faded
      * @param  {Function} fn 监听器
-     * @return this
+     * @chainable
      */
     on:function(event,fn){
         this.__handler.on(event, fn);
@@ -132,7 +132,7 @@ soya2d.Sound.prototype = {
      * @method once
      * @param  {String} event    事件名，包括load, loaderror, play, end, pause, faded
      * @param  {Function} fn 监听器
-     * @return this
+     * @chainable
      */
     once:function(event,fn){
         this.__handler.once(event, fn);
@@ -143,7 +143,7 @@ soya2d.Sound.prototype = {
      * @method off
      * @param  {String} event    事件名，包括load, loaderror, play, end, pause, faded
      * @param  {Function} [fn] 监听器。如果此参数为空，移除所有该类型监听
-     * @return this
+     * @chainable
      */
     off:function(event,fn){
         this.__handler.off(event, fn);

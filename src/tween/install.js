@@ -13,6 +13,6 @@
     	soya2d.TweenManager.__update(now,d);
     },
     onStop:function(){
-    	soya2d.TweenManager.stop();
+    	soya2d.TweenManager.pauseAll();
     }
 });

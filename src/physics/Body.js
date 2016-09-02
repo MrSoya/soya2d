@@ -3,6 +3,7 @@
  *  如果更换物理系统，只需要修改底层实现，不影响应用层
  *  @class Body
  *  @extends Signal
+ *  @module physics
  */
 var Body = soya2d.class("",{
     extends:Signal,
@@ -22,7 +23,7 @@ var Body = soya2d.class("",{
      * 设置是否为传感器。传感器刚体会触发碰撞事件，但不会显现碰撞效果
      * @method sensor
      * @param  {Boolean} tof 
-     * @return this
+     * @chainable
      */
     sensor:function(tof) {
         this.__cbk && this.__cbk.sensor(this.rigid,tof);
@@ -33,7 +34,7 @@ var Body = soya2d.class("",{
      * @method moveTo
      * @param  {Number} x 
      * @param  {Number} y 
-     * @return this
+     * @chainable
      */
     moveTo:function(x,y){
         this.__cbk && this.__cbk.moveTo(this.rigid,x,y);
@@ -44,7 +45,7 @@ var Body = soya2d.class("",{
      * @method moveBy
      * @param  {Number} offx 
      * @param  {Number} offy
-     * @return this
+     * @chainable
      */
     moveBy:function(offx,offy){
         this.__cbk && this.__cbk.moveBy(this.rigid,offx,offy);
@@ -54,7 +55,7 @@ var Body = soya2d.class("",{
      * 设置是否为静态刚体。静态刚体会呈现碰撞，但没有重力效果
      * @method static
      * @param  {Boolean} tof 
-     * @return this
+     * @chainable
      */
     static:function(tof){
         this.__cbk && this.__cbk.static(this.rigid,tof);
@@ -64,7 +65,7 @@ var Body = soya2d.class("",{
      * 设置刚体的质量
      * @method mass
      * @param  {Number} v 
-     * @return this
+     * @chainable
      */
     mass:function(v){
         this.__cbk && this.__cbk.mass(this.rigid,v);
@@ -74,7 +75,7 @@ var Body = soya2d.class("",{
      * 设置刚体旋转偏移
      * @method rotateBy
      * @param  {Number} v 
-     * @return this
+     * @chainable
      */
     rotateBy:function(v){
         this.__cbk && this.__cbk.rotateBy(this.rigid,v);
@@ -84,7 +85,7 @@ var Body = soya2d.class("",{
      * 设置刚体旋转角度
      * @method rotateTo
      * @param  {Number} v 
-     * @return this
+     * @chainable
      */
     rotateTo:function(v){
         this.__cbk && this.__cbk.rotateTo(this.rigid,v);
@@ -94,7 +95,7 @@ var Body = soya2d.class("",{
      * 设置刚体摩擦系数
      * @method friction
      * @param  {Number} v 
-     * @return this
+     * @chainable
      */
     friction:function(v){
         this.__cbk && this.__cbk.friction(this.rigid,v);
@@ -104,7 +105,7 @@ var Body = soya2d.class("",{
      * 设置刚体弹性系数
      * @method restitution
      * @param  {Number} v 
-     * @return this
+     * @chainable
      */
     restitution:function(v){
         this.__cbk && this.__cbk.restitution(this.rigid,v);
@@ -115,7 +116,7 @@ var Body = soya2d.class("",{
      * @method velocity
      * @param  {Number} x 
      * @param  {Number} y 
-     * @return this
+     * @chainable
      */
     velocity:function(x,y){
         this.__cbk && this.__cbk.velocity(this.rigid,x||0,y||0);
@@ -125,7 +126,7 @@ var Body = soya2d.class("",{
      * 设置刚体惯性
      * @method inertia
      * @param  {Number} v 
-     * @return this
+     * @chainable
      */
     inertia:function(v){
         this.__cbk && this.__cbk.inertia(this.rigid,v||0);

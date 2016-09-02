@@ -3,10 +3,10 @@
  *  该类不能被实例化，系统会自动创建实例给game。
  *  每个game有且只有一个load属性，通过该属性可以加载资源。
  *  ```
- *      game.load.baseUrl = 'assets/xml/';
- *      game.load.xml({
- *          ui:'ui.xml'
- *      });
+ * game.load.baseUrl = 'assets/xml/';
+ * game.load.xml({
+ *   ui:'ui.xml'
+ * });
  * ```
  *  @class Loader
  */
@@ -562,3 +562,29 @@ soya2d.MEDIA_ERR_SRC_NOT_SUPPORTED = 4;
  * @final
  */
 soya2d.MEDIA_ERR_SRC_NOT_FORTHCOMING = 101;
+
+/**
+ * 单个资源项加载完成后触发
+ * @event load
+ * @for Loader
+ * @param {...} rs 加载的资源
+ * @param {Number} index 当前索引
+ * @param {Number} total 资源总数
+ */
+/**
+ * 单个资源项加载错误后触发
+ * @event error
+ * @for Loader
+ * @param {String} url 资源路径
+ */
+/**
+ * 单个资源项加载超时后触发
+ * @event timeout
+ * @for Loader
+ * @param {String} url 资源路径
+ */
+/**
+ * 所有资源项加载完成后触发
+ * @event end
+ * @for Loader
+ */

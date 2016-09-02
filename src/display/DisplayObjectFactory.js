@@ -28,8 +28,10 @@ DisplayObjectFactory.prototype = {
 	 */
     register:function(alias,constructor){
         this.map[alias] = constructor;
-        this.game.add[alias] = function(data){
-            return this.__newInstance(alias,data);
+        if(constructor.prototype instanceof soya2d.DisplayObject){
+            this.game.add[alias] = function(data){
+                return this.__newInstanceAndAppend(alias,data);
+            }
         }
     }
 };

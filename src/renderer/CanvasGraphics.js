@@ -37,7 +37,7 @@ soya2d.CanvasGraphics = function(ctx){
     /**
      * 闭合当前路径
      * @method closePath
-     * @return this
+     * @chainable
      */
     this.closePath = function(){
         this.ctx.closePath();
@@ -48,7 +48,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @method moveTo
      * @param {Number} x
      * @param {Number} y
-     * @return this
+     * @chainable
      */
     this.moveTo = function(x,y){
         this.ctx.moveTo(x,y);
@@ -60,7 +60,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @method lineTo
      * @param {Number} x
      * @param {Number} y
-     * @return this
+     * @chainable
      */
     this.lineTo = function(x,y){
         this.ctx.lineTo(x,y);
@@ -74,7 +74,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {Number} cpy 控制点
      * @param {Number} x
      * @param {Number} y
-     * @return this
+     * @chainable
      */
     this.quadraticCurveTo = function(cpx,cpy,x,y){
         this.ctx.quadraticCurveTo(cpx,cpy,x,y);
@@ -90,7 +90,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {Number} cp2y 控制点2
      * @param {Number} x
      * @param {Number} y
-     * @return this
+     * @chainable
      */
     this.bezierCurveTo = function(cp1x,cp1y,cp2x,cp2y,x,y){
         this.ctx.bezierCurveTo(cp1x,cp1y,cp2x,cp2y,x,y);
@@ -104,7 +104,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {Number} x2
      * @param {Number} y2
      * @param {Number} radius
-     * @return this
+     * @chainable
      */
     this.arcTo = function(x1,y1,x2,y2,radius){
         this.ctx.arcTo(x1,y1,x2,y2,radius);
@@ -118,7 +118,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {Number} r 半径
      * @param {Number} [sr=0] 起始弧度
      * @param {Number} [er=soya2d.Math.PIM2] 结束弧度
-     * @return this
+     * @chainable
      */
     this.arc = function(cx,cy,r,sr,er){
         this.ctx.arc(cx,cy,r,sr||0,er||soya2d.Math.PIM2);
@@ -133,7 +133,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {Number} b 短半径
      * @param {int} [sa=0] 起始角度
      * @param {int} [ea=360] 结束角度
-     * @return this
+     * @chainable
      */
     this.eArc = function(cx,cy,a,b,sa,ea){
         sa = (sa || 0)>>0;
@@ -163,7 +163,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {Number} y
      * @param {Number} w
      * @param {Number} h
-     * @return this
+     * @chainable
      */
     this.rect = function(x,y,w,h){
         this.ctx.rect(x,y,w,h);
@@ -180,7 +180,7 @@ soya2d.CanvasGraphics = function(ctx){
      * 5,y]
      * ```
      * 
-     * @return this
+     * @chainable
      */
     this.polygon = function(vtx){
         var c = this.ctx;
@@ -199,7 +199,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {Number} y
      * @param {Number} w
      * @param {Number} h
-     * @return this
+     * @chainable
      */
     this.ellipse = function(x,y,w,h){
         var kappa = 0.5522848;
@@ -225,7 +225,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {Number} w
      * @param {Number} h
      * @param {Number} r 圆角半径
-     * @return this
+     * @chainable
      */
     this.roundRect = function(x,y,w,h,r){
         var c = this.ctx;
@@ -248,7 +248,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {Number} ec 多边形的边数，不能小于3
      * @param {Number} r1 半径1
      * @param {Number} r2 半径2
-     * @return this
+     * @chainable
      */
     this.regularPolygon = function(cx,cy,ec,r1,r2){
         cx = cx||0;
@@ -280,7 +280,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {String} blendMode 混合方式
      * @default soya2d.BLEND_NORMAL
      * @see soya2d.BLEND_NORMAL
-     * @return this
+     * @chainable
      */
     this.blendMode = function(blendMode){
         if(blendMode){
@@ -294,7 +294,7 @@ soya2d.CanvasGraphics = function(ctx){
      * 设置或者获取当前绘图环境的线框样式
      * @method strokeStyle
      * @param {Object} style 可以是命名颜色、RGB、16进制等标准颜色。也可以是CanvasGradient或者CanvasPattern
-     * @return this
+     * @chainable
      */
     this.strokeStyle = function(style){
         if(style){
@@ -308,7 +308,7 @@ soya2d.CanvasGraphics = function(ctx){
      * 设置或者获取当前绘图环境的填充样式
      * @method fillStyle
      * @param {Object} style 可以是命名颜色、RGB、16进制等标准颜色。也可以是CanvasGradient或者CanvasPattern
-     * @return this
+     * @chainable
      */
     this.fillStyle = function(style){
         if(style){
@@ -326,7 +326,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {String} [color=rgba(0,0,0,0)] 颜色
      * @param {Number} [offx=0] x偏移
      * @param {Number} [offy=0] y偏移
-     * @return this
+     * @chainable
      */
     this.shadow = function(blur,color,offx,offy){
         this.ctx.shadowBlur = blur;
@@ -343,7 +343,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {String} cap 线条末端样式
      * @param {String} join 线条交点样式
      * @param {Number} miterLimit 交点延长限制。join为PeaJS.LINEJOIN_MITER时生效
-     * @return this
+     * @chainable
      * @see soya2d.LINEJOIN_MITER
      */
     this.lineStyle = function(width,cap,join,miterLimit){
@@ -359,7 +359,7 @@ soya2d.CanvasGraphics = function(ctx){
      * 设置当前绘图环境的字体样式
      * @method font
      * @param {soya2d.Font} font
-     * @return this
+     * @chainable
      */
     this.font = function(font){
         var c = this.ctx;
@@ -370,7 +370,7 @@ soya2d.CanvasGraphics = function(ctx){
     /**
      * 裁剪路径
      * @method clip
-     * @return this
+     * @chainable
      */
 	this.clip = function(){
         this.ctx.clip();
@@ -379,7 +379,7 @@ soya2d.CanvasGraphics = function(ctx){
     /**
      * 保存当前绘图状态
      * @method push
-     * @return this
+     * @chainable
      */
 	this.push = function(){
 		this.ctx.save();	
@@ -388,7 +388,7 @@ soya2d.CanvasGraphics = function(ctx){
     /**
      * 恢复最近一次push的绘图状态
      * @method pop
-     * @return this
+     * @chainable
      */
 	this.pop = function(){
 		this.ctx.restore();	
@@ -397,7 +397,7 @@ soya2d.CanvasGraphics = function(ctx){
     /**
      * 清空当前path中的所有subpath
      * @method beginPath
-     * @return this
+     * @chainable
      */
 	this.beginPath = function(){
 		this.ctx.beginPath();	
@@ -406,7 +406,7 @@ soya2d.CanvasGraphics = function(ctx){
     /**
      * 关闭当前path
      * @method closePath
-     * @return this
+     * @chainable
      */
     this.closePath = function(){
         this.ctx.closePath();
@@ -416,7 +416,7 @@ soya2d.CanvasGraphics = function(ctx){
     /**
      * 填充path
      * @method fill
-     * @return this
+     * @chainable
      */
     this.fill = function(){
         this.ctx.fill();
@@ -425,7 +425,7 @@ soya2d.CanvasGraphics = function(ctx){
     /**
      * 描绘path的轮廓
      * @method stroke
-     * @return this
+     * @chainable
      */
     this.stroke = function(){
         this.ctx.stroke();
@@ -437,7 +437,7 @@ soya2d.CanvasGraphics = function(ctx){
      * 
      * @param {soya2d.Path} path 路径结构
      * @method path
-     * @return this
+     * @chainable
      */
     this.path = function(path){
         path._insQ.forEach(function(ins){
@@ -488,7 +488,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {Number} y
      * @param {Number} w
      * @param {Number} h
-     * @return this
+     * @chainable
      */
 	this.fillRect = function(x,y,w,h){
 		this.ctx.fillRect(x,y,w,h);
@@ -501,7 +501,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {Number} y
      * @param {Number} w
      * @param {Number} h
-     * @return this
+     * @chainable
      */
 	this.strokeRect = function(x,y,w,h){
 		this.ctx.strokeRect(x,y,w,h);
@@ -515,7 +515,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {Number} y
      * @param {Number} w
      * @param {Number} h
-     * @return this
+     * @chainable
      */
     this.clearRect = function(x,y,w,h){
         this.ctx.clearRect(x,y,w,h);
@@ -534,7 +534,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param  {int} [dy]  纹理目标坐标y
      * @param  {int} [dw]  纹理目标尺寸w
      * @param  {int} [dh]  纹理目标尺寸h
-     * @return this
+     * @chainable
      */
 	this.map = function(img,dx,dy,dw,dh,sx,sy,sw,sh){
 		sx = sx || 0;
@@ -558,7 +558,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {int} [x=0] x坐标，相对于当前精灵的x
      * @param {int} [y=0] y坐标，相对于当前精灵的y
      * @param {int} [mw] 绘制文字最大宽度
-     * @return this
+     * @chainable
      */
     this.fillText = function(str,x,y,mw){
         if(mw)
@@ -575,7 +575,7 @@ soya2d.CanvasGraphics = function(ctx){
      * @param {int} [x=0] x坐标，相对于当前精灵的x
      * @param {int} [y=0] y坐标，相对于当前精灵的y
      * @param {int} [mw] 绘制文字最大宽度
-     * @return this
+     * @chainable
      */
     this.strokeText = function(str,x,y,mw){
         if(mw)

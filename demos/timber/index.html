@@ -3,7 +3,7 @@
   	<head>
 			<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 			<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-			<script src="../../build/soya2d.all.min.js" type="text/javascript" language='javascript'></script>
+			<script src="../../build/soya2d.all.js" type="text/javascript" language='javascript'></script>
 			<style>
 				html,body{
 					margin:0;
@@ -78,18 +78,6 @@
 				   		vt323:'timber.ttf'
 				   	});
 
-				   	game.load.baseUrl = 'assets/sound/';
-				   	game.load.sound({
-				   		music:['music.m4a','music.ogg','music.mp3'],
-				   		hit:['hit.m4a','hit.ogg'],
-				   		score:['score.m4a','score.ogg'],
-				   		miss:['miss.m4a','miss.ogg'],
-				   		spawn1:['spawn1.m4a','spawn1.ogg'],
-						spawn2:['spawn2.m4a','spawn2.ogg'],
-						spawn3:['spawn3.m4a','spawn3.ogg'],
-						spawn4:['spawn4.m4a','spawn4.ogg'],
-						spawn5:['spawn5.m4a','spawn5.ogg']
-				   	});
 				},
 				onInit:function(game){
 					game.info = {
@@ -221,7 +209,7 @@
 					var hero = this.findView('hero');
 					hero.setImages(heroAtlas.getAll(),true);
 					hero.animations.add('normal',[0,1]);
-					hero.animations.add('cut',[2,3]);
+					hero.animations.add('cut',[2,3],5,false);
 					hero.animations.play('normal');
 
 					//dying cartoon
@@ -239,7 +227,7 @@
 						visible:false
 					});
 					bg.add(dying);
-					dying.animations.add('dying',[1,2,3,4,5]);
+					dying.animations.add('dying',[1,2,3,4,5],5,false);
 					this.dying = dying;
 
 
@@ -325,14 +313,10 @@
 
 					var hero = thisScene.findView('hero');
 					hero.side = side;
-					hero.loop = false;
-					hero.frameRate = 5;
 					hero.animations.stop();
 					hero.animations.play('cut');
 					hero.animations.on('stop',function(t,name){
 						if(name === 'cut'){
-							hero.frameRate = 10;
-							hero.loop = true;
 							hero.animations.play('normal');
 						}
 					});
@@ -406,9 +390,11 @@
 						this.game.info.bestScore = this.game.info.score;
 					}
 					var score = this.findView('score');
-					score.setText(this.game.info.score);
+					score.setText(this.game.info.score,true);
+					score.setLayout(score.layout);//刷新布局
 					var bestScore = this.findView('bestScore');
-					bestScore.setText(this.game.info.bestScore);
+					bestScore.setText(this.game.info.bestScore,true);
+					bestScore.setLayout(bestScore.layout);
 					localStorage.setItem('bestScore',this.game.info.bestScore);
 
 					var timeLayer = this.findView('timeLayer');

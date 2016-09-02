@@ -252,6 +252,17 @@ soya2d.CanvasRenderer = function(data){
      * @private
      */
     this.renderDO = render;
+
+    /**
+     * 销毁渲染器
+     * @method destroy
+     */
+    this.destroy = function(){
+        cvs.parentNode.removeChild(cvs);
+        ctxFnMap = 
+        g = 
+        this.ctx = null;
+    }
     
     /**
      * 缩放所渲染窗口

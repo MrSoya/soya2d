@@ -115,8 +115,8 @@
 							top:'80%'
 						}
 					},function(){
-						this.nextFrame();
-						if(this.frameIndex == 1){
+						this.nextFrame(true);
+						if(this.frameIndex == 0){
 							game.sound.muteAll(true);
 						}else{
 							game.sound.muteAll(false);
@@ -169,7 +169,7 @@
 							top:'80%'
 						}
 					},function(){
-						this.nextFrame();
+						this.nextFrame(true);
 						if(this.frameIndex == 1){
 							game.sound.muteAll(true);
 						}else{

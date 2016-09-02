@@ -32,7 +32,7 @@ soya2d.Events = function(){
      * 启动所有事件监听
      * @method startListen
      * @param {soya2d.Game} game 游戏实例
-     * @return this
+     * @chainable
      */
     this.startListen = function(game){
         for(var i=evts.length;i--;){
@@ -46,7 +46,7 @@ soya2d.Events = function(){
      * 停止所有事件监听
      * @method stopListen
      * @param {soya2d.Game} game 游戏实例
-     * @return this
+     * @chainable
      */
     this.stopListen = function(game){
         for(var i=evts.length;i--;){

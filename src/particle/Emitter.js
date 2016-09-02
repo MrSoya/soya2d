@@ -24,22 +24,18 @@
 	 * @constructor
 	 * @param {Object} opts 构造参数对象，参数如下：
 	 * @param {Number} [opts.frequency=0.1] 粒子发射间隔 s
-	 * @param {int} opts.max 总粒子数
+	 * @param {Number} opts.size 总粒子数
+	 * @param {Number} opts.quantity 每次发射最大粒子数
 	 * @param {String | HTMLImageElement | Array | soya2d.DisplayObject} opts.particles 粒子，可以是图片或者显示对象
 	 * @param {Number} [opts.lifeSpan=1] 粒子生命周期 s
-	 * @param {Number} [opts.lifeSpanVar=0] 粒子生命周期，可变累加值
-	 * @param {Number} [opts.speed=0] 粒子移动速度
-	 * @param {Number} [opts.speedVar=0] 粒子移动速度，可变累加值
-	 * @param {Number} [opts.radialAcc=0] 径向加速度
-	 * @param {Number} [opts.radialAccVar=0] 径向加速度，可变累加值
-	 * @param {Number} [opts.tanAcc=0] 切线加速度
-	 * @param {Number} [opts.tanAccVar=0] 切线加速度，可变累加值
-	 * @param {Number} [opts.angle=0] 发射角度
-	 * @param {Number} [opts.angleVar=0] 发射角度，可变累加值
-	 * @param {Number} [opts.startSpin=0] 自转速度范围起始
-	 * @param {Number} [opts.startSpinVar=0] 自转速度范围起始，可变累加值
-	 * @param {Number} [opts.endSpin=0] 自转速度范围结束
-	 * @param {Number} [opts.endSpinVar=0] 自转速度范围结束，可变累加值
+	 * @param {Number} [opts.minSpeed=0] 粒子移动速度
+	 * @param {Number} [opts.maxSpeed=0] 粒子移动速度
+	 * @param {Number} [opts.minRadAcc=0] 径向加速度
+	 * @param {Number} [opts.maxRadAcc=0] 径向加速度
+	 * @param {Number} [opts.minTanAcc=0] 切线加速度
+	 * @param {Number} [opts.maxTanAcc=0] 切线加速度
+	 * @param {Number} [opts.minAngle=0] 发射角度
+	 * @param {Number} [opts.maxAngle=0] 发射角度
 	 *
 	 */
 	soya2d.class("soya2d.Emitter",{
@@ -52,7 +48,7 @@
 			//1.初始化发生器变量
 			this.frequency = cfg.frequency*1000 || 100;
 			this.size = cfg.size;//粒子数
-			this.quantity = cfg.quantity || 1;//每次发射最大粒子数
+			this.quantity = cfg.quantity || 1;
 			
 			//2.初始化粒子属性
 			this.__template = getTemplate(cfg.particles);//粒子模版
@@ -277,6 +273,7 @@
 	/**
 	 * 粒子激活时回调
 	 * @method onActive
+	 * @param {soya2d.DisplayObject} particle 激活的粒子
 	 */
 	/**
 	 * 粒子运行时回调，每帧调用

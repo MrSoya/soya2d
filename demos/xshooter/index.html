@@ -3,7 +3,7 @@
   	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 		<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-		<script src="../../build/soya2d.all.min.js" type="text/javascript" language='javascript'></script>
+		<script src="../../build/soya2d.all.js" type="text/javascript" language='javascript'></script>
 		<script src="model/Player.js" type="text/javascript" language='javascript'></script>
 		<script src="model/Enemy.js" type="text/javascript" language='javascript'></script>
 		<script src="model/Observer.js" type="text/javascript" language='javascript'></script>
@@ -270,6 +270,7 @@
 	};
 	var gameOverScene = {
 		onInit:function(game){
+			game.world.setBounds(game.w,game.h);
 			//自动应用UI
 			this.setView(game.assets.xml('over'));
 

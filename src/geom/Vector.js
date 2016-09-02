@@ -38,7 +38,7 @@ soya2d.Vector.prototype = {
 	 * @method set
 	 * @param {Number} x x轴分量值
 	 * @param {Number} y y轴分量值
-	 * @return {soya2d.Vector} this
+	 * @chainable
 	 */
 	set:function(x,y){
 		this.e[0] = x || 0;
@@ -58,6 +58,7 @@ soya2d.Vector.prototype = {
 	/**
 	 * 当前向量取反
 	 * @method negate
+	 * @chainable
 	 */
 	negate:function(){
 		this.e[0] *= -1;
@@ -68,6 +69,7 @@ soya2d.Vector.prototype = {
 	 * 和增加指定向量相加
 	 * @method add
 	 * @param {soya2d.Vector} v 指定向量
+	 * @chainable
 	 */
 	add:function(v){
 		 this.e[0] += v.e[0];
@@ -78,6 +80,7 @@ soya2d.Vector.prototype = {
 	 * 和增加指定向量相减
 	 * @method sub
 	 * @param {soya2d.Vector} v 指定向量
+	 * @chainable
 	 */
 	sub:function(v){
 		this.e[0] -= v.e[0];
@@ -88,6 +91,7 @@ soya2d.Vector.prototype = {
 	 * 当前向量乘以指定实数
 	 * @method mul
 	 * @param {Number} s 实数
+	 * @chainable
 	 */
 	mul:function(s){
 		this.e[0] *= s;
@@ -98,6 +102,7 @@ soya2d.Vector.prototype = {
 	 * 当前向量除以指定实数
 	 * @method div
 	 * @param {Number} s 实数
+	 * @chainable
 	 */
 	div:function(s){
 		if(s) {
@@ -132,6 +137,7 @@ soya2d.Vector.prototype = {
 	 * 旋转当前向量指定角度
 	 * @method rotate
 	 * @param {Number} angle 指定角度
+	 * @chainable
 	 */
 	rotate:function(angle){
         var m = soya2d.Math;

@@ -8,7 +8,6 @@
  * @param {Number} size 图像字体大小
  */
 soya2d.ImageFont = function(data,size){
-    
     this.__fontMap = data;
 
     var oriFontSize = data.texs[Object.keys(data.texs)[0]].height;
@@ -17,7 +16,7 @@ soya2d.ImageFont = function(data,size){
      * @property fontSize
      * @type {int}
      */
-    this.fontSize = oriFontSize;
+    this.fontSize = size || oriFontSize;
     this.fontWidth = data.texs[Object.keys(data.texs)[0]].width;
     var scaleRate = 1;//缩放比率
     var lineH = 1;
@@ -27,7 +26,7 @@ soya2d.ImageFont = function(data,size){
      * 该字体的渲染内容
      * @private
      */
-    this.__renderText = function(g){
+    this.__textRenderer = function(g){
         if(!this.__lines)return;
 
         var offy = 0;

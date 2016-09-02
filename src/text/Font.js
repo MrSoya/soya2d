@@ -9,8 +9,12 @@
  */
 soya2d.Font = function(desc){
     var fontElement = document.createElement('span');
-    fontElement.style.cssText = "position:absolute;top:-9999px;left:-9999px;white-space:nowrap;font:"
-                                        +(desc||"normal 400 13px/normal sans-serif");                         
+    var style = ['padding:0 !important;','margin:0 !important;'
+                ,'top:-9999px !important;','left:-9999px !important;'
+                ,'white-space:nowrap !important;','position:absolute !important;'];
+    fontElement.style.cssText = style.join('')+"font:"
+                                        +(desc||"normal 400 13px/normal sans-serif");
+    document.body.appendChild(fontElement);
     /**
      * 字体描述字符串
      * @property fontString
@@ -19,17 +23,10 @@ soya2d.Font = function(desc){
     this.fontString = fontElement.style.font;
 
     /**
-     * 字体大小
-     * @property fontSize
-     * @type {int}
-     */
-    this.fontSize = parseInt(fontElement.style.fontSize) || 13;
-
-    /**
      * 该字体的渲染内容
      * @private
      */
-    this.__renderText = function(g){
+    this.__textRenderer = function(g){
         g.font(this.font);
         if(!this.__lines)return;
 
@@ -108,7 +105,6 @@ soya2d.Font = function(desc){
             //更新描述字符串
             this.fontString = fontElement.style.font;
 
-            this.fontSize = size;
             return this;
         }else{
             return fontElement.style.fontSize;
@@ -139,9 +135,9 @@ soya2d.Font = function(desc){
      * @return {Object} 指定字符串在当前字体下的宽高。｛w:w,h:h｝
      */
     this.getBounds = function(str){
-        var ctx = this.__game.renderer.ctx;
-        ctx.font = this.getDesc();
-        var w = ctx.measureText(str).width;
-        return {w:w,h:this.fontSize};
+        fontElement.innerText = str;
+        var h = fontElement.offsetHeight;
+        var w = fontElement.offsetWidth;
+        return {w:w,h:h};
     };
 };

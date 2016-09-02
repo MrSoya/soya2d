@@ -28,7 +28,7 @@ soya2d.class("soya2d.DisplayObjectContainer",{
      * 增加子节点
      * @method add
      * @param {...soya2d.DisplayObject} children 一个或者多个可渲染对象，使用逗号分割
-     * @return this
+     * @chainable
      */
     add:function(){
         for(var i=0;i<arguments.length;i++){
@@ -50,7 +50,7 @@ soya2d.class("soya2d.DisplayObjectContainer",{
      * 删除子节点
      * @method remove
      * @param {...soya2d.DisplayObject} children 一个或者多个可渲染对象，使用逗号分割
-     * @return this
+     * @chainable
      */
     remove:function(){
         for(var i=0;i<arguments.length;i++){

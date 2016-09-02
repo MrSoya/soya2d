@@ -91,7 +91,8 @@ var Stage = soya2d.class("",{
              * @default soya2d.SCALEMODE_SHOWALL
              */
             scaleMode : {
-                set:function(){
+                set:function(v){
+                    scaleMode = v;
                     this.__scan();
                 },
                 get:function(){

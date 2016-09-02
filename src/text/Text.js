@@ -51,12 +51,11 @@ soya2d.class("soya2d.Text",{
         }
         var font = this.font||new soya2d.Font();
         this.font = font;
-        this.font.__game = this.game;
 
         this.__changed = true;//默认需要修改
         this.__lines;//分行内容
 
-        this.__renderer = this.font.__renderText;//绑定渲染
+        this.__renderer = this.font.__textRenderer;//绑定渲染
 
         /**
          * 渲染样式
@@ -65,8 +64,9 @@ soya2d.class("soya2d.Text",{
          */
         this.fillStyle = data.fillStyle || '#000';
 
-        if(!this.w)this.w = this.font.getBounds(this.text).w;
-        if(!this.h)this.h = this.font.fontSize;
+        var bounds = this.font.getBounds(this.text);
+        if(!this.w)this.w = bounds.w;
+        if(!this.h)this.h = bounds.h;
     },
     onRender:function(g){
         this.__renderer(g);
@@ -87,7 +87,7 @@ soya2d.class("soya2d.Text",{
     setFont:function(font){
         if(!font)return;
         this.font = font;
-        this.__renderer = this.font.__renderText;//绑定渲染
+        this.__renderer = this.font.__textRenderer;//绑定渲染
     },
     /**
      * 设置文本内容，并刷新
@@ -105,18 +105,18 @@ soya2d.class("soya2d.Text",{
 	},
     _onUpdate:function(game){
         if(!this.__lh){//init basic size
-            var bounds_en = this.font.getBounds("s",game.renderer);
-            var bounds_zh = this.font.getBounds("豆",game.renderer);
+            var bounds_en = this.font.getBounds("s");
+            var bounds_zh = this.font.getBounds("豆");
             this.__lh = (bounds_en.h+bounds_zh.h)/2>>0;//行高
             this.__uw = (bounds_en.w+bounds_zh.w)/2>>0;//单字宽度
         }
         if(this.__changed){
-            this.__lines = this.__calc(game.renderer);
+            this.__lines = this.__calc();
             this.__changed = false;
         }
     },
     //计算每行内容
-    __calc:function(renderer){
+    __calc:function(){
         var ls = this.letterSpacing;
         var charNum = this.w / (this.__uw+ls) >>0;//理论单行个数
         if(charNum<1){
@@ -137,11 +137,11 @@ soya2d.class("soya2d.Text",{
             while(currCharPos<l){
                 var lineString = text.substr(currCharPos,charNum+1);
                 //计算宽度是否超过
-                var lineWidth = f.getBounds(lineString,renderer).w + lineString.length*ls;//增加字间距
+                var lineWidth = f.getBounds(lineString).w + lineString.length*ls;//增加字间距
                 if(lineWidth > this.w){//超宽了
                     for(var j=charNum+1;j--;){
                         lineString = lineString.substr(0,lineString.length-1);
-                        lineWidth = f.getBounds(lineString,renderer).w + lineString.length*ls;
+                        lineWidth = f.getBounds(lineString).w + lineString.length*ls;
                         if(lineWidth <= this.w){
                             if(lineWidth===0)return;//防止死循环
                             //该行处理完成
@@ -154,7 +154,7 @@ soya2d.class("soya2d.Text",{
                     var charPos = currCharPos;
                     for(var j=1;j<l-currCharPos;j++){
                         lineString = text.substr(currCharPos,charNum+1+j);
-                        lineWidth = f.getBounds(lineString,renderer).w + lineString.length*ls;
+                        lineWidth = f.getBounds(lineString).w + lineString.length*ls;
                         if(lineWidth > this.w){
                             //该行处理完成
                             lines.push(lineString.substr(0,lineString.length-1));

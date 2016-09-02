@@ -6,7 +6,7 @@
 function DisplayObjectFactoryProxy(game){
     this.game = game;
 
-    this.__newInstance = function(type,data){
+    this.__newInstanceAndAppend = function(type,data){
     	data.game = this.game;
     	var instance = new this.game.objects.map[type](data);
     	// instance.game = this.game;
