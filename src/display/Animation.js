@@ -49,6 +49,10 @@ var AnimationManager = soya2d.class("",{
     	for(var i=0;i<size;i++){
     		frames.push(i);
     	}
+    	/**
+    	 * @property {Animation} defaultAnimation 每个精灵被创建时，会自动生成一个默认动画组
+    	 * @type {Animation}
+    	 */
 		this.defaultAnimation = new Animation(frames);
 		this.animation = null;
 		this.playingK = null;

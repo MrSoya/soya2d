@@ -195,8 +195,9 @@ soya2d.Game = function(opts){
             if(thisGame.currentScene.onUpdate)
                 thisGame.currentScene.onUpdate(thisGame,d);
 
-            thisGame.stage.__update(thisGame,d);
+            thisGame.stage.__preUpdate(thisGame,d);
             thisGame.stage.__updateMatrix();
+            thisGame.stage.__postUpdate(thisGame,d);
             
             //after updates
             if(afterUpdates.length>0){

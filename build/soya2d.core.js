@@ -1867,7 +1867,7 @@ Scene.prototype = {
  * 更新回调，每帧调用
  * @method onUpdate
  * @param {soya2d.Game} game 场景所属game
- * @param {Number} d 上一次调用的间隔
+ * @param {Number} delta 上一次调用的间隔
  */
 
 function build(scene,node,parent,game){
@@ -4341,9 +4341,16 @@ function getH(parent,rate){
  * @param {soya2d.CanvasGraphics} g 绘图对象，根据渲染器类型不同而不同
  */
 /**
- * 更新回调，每帧调用。在该回调中可以编写更新逻辑
+ * 引擎更新前回调，每帧调用。在该回调中可以编写更新逻辑
  * @method onUpdate
  * @param {soya2d.Game} game 当前精灵所在的游戏实例
+ * @param {Number} delta 上一次调用的间隔
+ */
+/**
+ * 引擎更新后回调，每帧调用。在该回调中可以编写更新逻辑
+ * @method onPostUpdate
+ * @param {soya2d.Game} game 当前精灵所在的游戏实例
+ * @param {Number} delta 上一次调用的间隔
  */
 /**
  * 添加到渲染树回调
@@ -4627,9 +4634,13 @@ var Stage = soya2d.class("",{
      * 更新整个场景
      * @private
      */
-    __update : function(game,d){
+    __preUpdate : function(game,d){
         if(this.children)
             update(this.children,game,d);
+    },
+    __postUpdate:function(game,d){
+        if(this.children)
+            postUpdate(this.children,game,d);
     },
     onRender:function(g){
         if(this.__bg){
@@ -4719,6 +4730,21 @@ function update(list,game,delta){
         }
         if(c.children && c.children.length>0){
             update(c.children,game,delta);
+        }
+    }
+}
+
+function postUpdate(list,game,delta){
+    for(var i=list.length;i--;){
+        var c = list[i];
+        if(c._onPostUpdate){
+            c._onPostUpdate(game,delta);
+        }
+        if(c.onPostUpdate){
+            c.onPostUpdate(game,delta);
+        }
+        if(c.children && c.children.length>0){
+            postUpdate(c.children,game,delta);
         }
     }
 }
@@ -5039,6 +5065,10 @@ var AnimationManager = soya2d.class("",{
     	for(var i=0;i<size;i++){
     		frames.push(i);
     	}
+    	/**
+    	 * @property {Animation} defaultAnimation 每个精灵被创建时，会自动生成一个默认动画组
+    	 * @type {Animation}
+    	 */
 		this.defaultAnimation = new Animation(frames);
 		this.animation = null;
 		this.playingK = null;
@@ -7351,8 +7381,9 @@ soya2d.Game = function(opts){
             if(thisGame.currentScene.onUpdate)
                 thisGame.currentScene.onUpdate(thisGame,d);
 
-            thisGame.stage.__update(thisGame,d);
+            thisGame.stage.__preUpdate(thisGame,d);
             thisGame.stage.__updateMatrix();
+            thisGame.stage.__postUpdate(thisGame,d);
             
             //after updates
             if(afterUpdates.length>0){

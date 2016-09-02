@@ -1082,9 +1082,16 @@ function getH(parent,rate){
  * @param {soya2d.CanvasGraphics} g 绘图对象，根据渲染器类型不同而不同
  */
 /**
- * 更新回调，每帧调用。在该回调中可以编写更新逻辑
+ * 引擎更新前回调，每帧调用。在该回调中可以编写更新逻辑
  * @method onUpdate
  * @param {soya2d.Game} game 当前精灵所在的游戏实例
+ * @param {Number} delta 上一次调用的间隔
+ */
+/**
+ * 引擎更新后回调，每帧调用。在该回调中可以编写更新逻辑
+ * @method onPostUpdate
+ * @param {soya2d.Game} game 当前精灵所在的游戏实例
+ * @param {Number} delta 上一次调用的间隔
  */
 /**
  * 添加到渲染树回调

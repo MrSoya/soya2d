@@ -43,6 +43,8 @@ soya2d.Sound.prototype = {
      * @chainable
      */
 	stop:function(){
+        this.pause();
+        this.loop(false);
  		this.__handler.stop();
         return this;
 	},

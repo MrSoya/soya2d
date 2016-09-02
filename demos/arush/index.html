@@ -50,7 +50,7 @@
 				   	game.load.atlas('pms','plane_medium_shadow.png',128,80);
 				   	game.load.atlas('ps','plane_small.png',56,40);
 				   	game.load.atlas('pss','plane_small_shadow.png',56,40);
-				   	game.load.atlas('bomb','bomb.png',140,170);
+				   	game.load.atlas('boom','boom.png',140,170);
 
 				   	game.load.baseUrl = 'assets/sound/';
 				   	game.load.sound({
@@ -128,8 +128,8 @@
 			var mainScene = {
 				onInit:function(game){
 
-					this.bomb = game.add.sprite({
-						images:game.assets.atlas('bomb').getAll(),
+					this.boom = game.add.sprite({
+						images:game.assets.atlas('boom').getAll(),
 						opacity:0,
 						loop:false,
 						z:99
@@ -268,9 +268,10 @@
 							if(op.midair || p===op)return;
 
 							if(p.intersectWith(op)){
-								that.bomb.moveTo(p.x,p.y);
-								that.bomb.opacity = 1;
-								that.bomb.autoplay = true;
+								that.boom.moveTo(p.x,p.y);
+								that.boom.opacity = 1;
+								that.boom.animations.defaultAnimation.frameRate = 5;
+								that.boom.animations.play();
 								
 								that.overScore.setText('Score: '+Tower.score);
 

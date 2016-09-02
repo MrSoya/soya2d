@@ -45,7 +45,7 @@ Scene.prototype = {
  * 更新回调，每帧调用
  * @method onUpdate
  * @param {soya2d.Game} game 场景所属game
- * @param {Number} d 上一次调用的间隔
+ * @param {Number} delta 上一次调用的间隔
  */
 
 function build(scene,node,parent,game){

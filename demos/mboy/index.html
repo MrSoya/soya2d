@@ -3,7 +3,7 @@
   	<head>
 			<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 			<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-			<script src="../../build/soya2d.all.min.js" type="text/javascript" language='javascript'></script>
+			<script src="../../build/soya2d.all.js" type="text/javascript" language='javascript'></script>
 			<script src="model.js" type="text/javascript" language='javascript'></script>
 			<script src="util.js" type="text/javascript" language='javascript'></script>
 			<style>
@@ -142,7 +142,7 @@
 							images:game.assets.atlas('coin').getAll(),
 							x:tile.x,
 							y:tile.y,
-							onUpdate:function(){
+							onPostUpdate:function(){
 								if(this.disappear)return;
 
 								if(this.intersectWith(scene.hero)){
@@ -168,7 +168,7 @@
 						images:game.assets.atlas('portal').getAll(),
 						x:portalTile.x,
 						y:portalTile.y,
-						onUpdate:function(){
+						onPostUpdate:function(){
 							if(this.active)return;
 
 							if(this.intersectWith(scene.hero)){
@@ -186,7 +186,7 @@
 						images:game.assets.atlas('kuoyu').getAll(),
 						x:tile.x,
 						y:tile.y,
-						onUpdate:function(){
+						onPostUpdate:function(){
 
 							if(this.intersectWith(scene.hero)){
 								scene.hero.hurt(scene);

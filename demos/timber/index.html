@@ -78,6 +78,11 @@
 				   		vt323:'timber.ttf'
 				   	});
 
+				   	game.load.baseUrl = 'assets/sound/';
+				   	game.load.sound({
+				   		menu:'menu.ogg',
+				   		game:'game.ogg'
+				   	});
 				},
 				onInit:function(game){
 					game.info = {
@@ -108,6 +113,8 @@
 					game.tween.add(hla).to({x:'+20'},.5,{repeat:-1,yoyo:true}).play();
 					var hra = this.findView('hra');
 					game.tween.add(hra).to({x:'-20'},.5,{repeat:-1,yoyo:true}).play();
+
+					game.assets.sound('menu').loop(true).play();
 				},
 				selectUser:function(){
 					var thisScene = this.game.currentScene;
@@ -143,8 +150,10 @@
 				toggleSound:function(){
 					if(this.game.info.sound){
 						this.game.info.sound = false;
+						this.game.sound.muteAll(true);
 						this.children[0].setText('SOUND OFF',true);
 					}else{
+						this.game.sound.muteAll(false);
 						this.game.info.sound = true;
 						this.children[0].setText('SOUND ON');
 					}
@@ -157,12 +166,14 @@
 					thisScene.findView('userUI').visible = false;
 				},
 				play:function(){
+					game.sound.stopAll();
 					game.scene.start(mainScene,true);
 				}
 			}
 
 			var mainScene = {
 				onInit:function(game){
+					game.assets.sound('game').loop(true).play();
 
 					//生成数据 bottom->top
 					var treeQ = [];
@@ -368,6 +379,7 @@
 					thisScene.addScore();
 				},
 				back2Menu:function(){
+					game.sound.stopAll();
 					this.game.scene.start(menuScene,true);
 				},
 				gameover:function(){

@@ -159,9 +159,13 @@ var Stage = soya2d.class("",{
      * 更新整个场景
      * @private
      */
-    __update : function(game,d){
+    __preUpdate : function(game,d){
         if(this.children)
             update(this.children,game,d);
+    },
+    __postUpdate:function(game,d){
+        if(this.children)
+            postUpdate(this.children,game,d);
     },
     onRender:function(g){
         if(this.__bg){
@@ -251,6 +255,21 @@ function update(list,game,delta){
         }
         if(c.children && c.children.length>0){
             update(c.children,game,delta);
+        }
+    }
+}
+
+function postUpdate(list,game,delta){
+    for(var i=list.length;i--;){
+        var c = list[i];
+        if(c._onPostUpdate){
+            c._onPostUpdate(game,delta);
+        }
+        if(c.onPostUpdate){
+            c.onPostUpdate(game,delta);
+        }
+        if(c.children && c.children.length>0){
+            postUpdate(c.children,game,delta);
         }
     }
 }

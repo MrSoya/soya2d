@@ -62,6 +62,7 @@
 			game.objects.register('Sun',Sun);
 		},
 		start:function(){
+			game.sound.stopAll();
 			//跳转场景
 			this.game.scene.start(mainScene,true);
 		}
@@ -131,6 +132,7 @@
 
 			game.events.on('gameover',function(){
 				Observer.over();
+				game.sound.stopAll();
 				game.scene.start(gameOverScene,true);
 			});
 
@@ -278,6 +280,7 @@
 			scoreTxt.setText(game.status.score);
 		},
 		home:function(){
+			game.sound.stopAll();
 			game.scene.start(loaderScene,true);
 		}
 	};

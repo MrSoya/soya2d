@@ -50,7 +50,7 @@ soya2d.class('Player',{
 		this.add(this.bomber);
 
 	    this.scope = data.scope;
-	    var speed = 7;
+	    this.speed = 7;
 
 	    this.on('keydown',function(e){
 			if(e.keyCode == soya2d.KeyCode.SPACE){
@@ -64,18 +64,18 @@ soya2d.class('Player',{
 			var x=0,y=0;
 			var tileSpd = 2;
 			if(e.contains(soya2d.KeyCode.A)){
-				playerx = -speed;
+				playerx = -this.speed;
 				x = tileSpd;
 			}else if(e.contains(soya2d.KeyCode.D)){
-				playerx = speed;
+				playerx = this.speed;
 				x = -tileSpd;
 			}
 
 			if(e.contains(soya2d.KeyCode.W)){
-				playery = -speed;
+				playery = -this.speed;
 				y = tileSpd;
 			}else if(e.contains(soya2d.KeyCode.S)){
-				playery = speed;
+				playery = this.speed;
 				y = -tileSpd;
 			}
 			this.move(playerx,playery);
