@@ -53,24 +53,16 @@ function build(scene,node,parent,game){
         var n = node.children[i];
         var type = n.tagName;
         var id = n.attributes['id'] ? n.attributes['id'].value : null;
-        var data = parseData(n.attributes,parent);
-        var atlas = data['atlas'];
-        if(type === 'sprite' && atlas){
-            var prefix = data['atlas-prefix'];
-            data.images = game.assets.atlas(atlas).getAll(prefix);
+        var data = {};
+        var ks = Object.keys(n.attributes);
+        for(var j=ks.length;j--;){
+            var k = ks[j];
+            var kName = n.attributes[k].name;
+            data[kName] = n.attributes[k].value;
         }
-        if(type === 'text'){
-            var atlas = data['atlas'];
-            var txt = '';
-            for(var k=0;k<n.childNodes.length;k++){
-                if(n.childNodes[k].nodeType === 3){
-                    txt += n.childNodes[k].nodeValue;
-                }
-            }
-            data.text = txt.replace(/(^\s+)|(\s+$)/mg,'');
-            if(atlas)
-            data.font = game.assets.atlas(atlas);
-            data.size = parseInt(data['size']);
+        //filter data
+        if(game.objects.map[type].prototype.onBuild){
+            game.objects.map[type].prototype.onBuild(data,n);
         }
         var ins = newInstance(type,data,game);
 
@@ -86,22 +78,6 @@ function build(scene,node,parent,game){
     }
 }
 
-function parseData(attrs,parent){
-    var rs = {};
-    var ks = Object.keys(attrs);
-    for(var i=ks.length;i--;){
-        var k = ks[i];
-        var kName = attrs[k].name;
-        if(kName.indexOf('layout-')===0){
-            if(!rs['layout'])rs['layout'] = {};
-            
-            rs['layout'][kName.split('-')[1]] = filter(kName,attrs[k].value,parent);
-        }else{
-            rs[kName] = filter(kName,attrs[k].value,parent);
-        }
-    }
-    return rs;
-}
 
 function bindEvent(attrs,ins,scene){
     var ks = Object.keys(attrs);
@@ -117,24 +93,6 @@ function bindEvent(attrs,ins,scene){
         }else{
             soya2d.console.warn('invalid callback "'+val+'" of '+kName);
         }
-    }
-}
-
-function filter(type,val,parent){
-    switch(type){
-        case 'x':case 'w':
-        case 'y':case 'h':
-        case 'z':case 'angle':case 'scaleX':
-        case 'scaleY':case 'skewX':case 'skewY':
-        case 'scrollAngle':case 'speed':case 'frameRate':
-        case 'frameIndex':
-        case 'letterSpacing':case 'lineSpacing':
-            return parseFloat(val);
-        case 'visible':case 'autoScroll':
-        case 'loop':case 'autoplay':case 'fixedToCamera':
-            return new Function('return '+val)();
-        default:
-            return val;
     }
 }
 

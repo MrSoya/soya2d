@@ -19,7 +19,8 @@
 		</sprite>
 
 		<group id="timeLayer" z="9">
-			<sprite id="scorePane" images="pane" w="300" h="100" y="50"
+			<sprite id="scorePane" images="pane" scale9grid="15,15,100,100"
+				w="300" h="100" y="50"
 				layout-left="50%" layout-offsetLeft="-50%" >
 				<text font="normal 30px/normal vt323" x="10" y="20">
 					BEST SCORE 
@@ -61,7 +62,7 @@
 			GAME OVER
 		</text>
 
-		<sprite images="userbox" id="scoreBox"
+		<sprite images="userbox" id="scoreBox" scale9grid="25,25,100,100"
 			layout-left="50%" layout-offsetLeft="-50%" layout-top="25%" w="360" h="240">
 				<text layout-left="50%" layout-offsetLeft="-50%" y="60" 
 				fillStyle="#7a4d0b" font="normal 30px/normal vt323">BEST</text>
@@ -74,7 +75,7 @@
 				fillStyle="#fff" font="normal 40px/normal vt323">0</text>
 		</sprite>
 
-		<sprite id="restartBtn" images="tlacidlo" visible="false"
+		<sprite id="restartBtn" images="tlacidlo" visible="false" scale9grid="15,15,90,10"
 				layout-left="50%" layout-offsetLeft="-50%" w="300" layout-top="60%"
 				on-pointdown="restart">
 			<text layout-left="50%" layout-offsetLeft="-50%" y="10" 

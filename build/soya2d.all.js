@@ -6,7 +6,7 @@
  * Released under the MIT license
  *
  * website: http://soya2d.com
- * last build: 2016-09-02
+ * last build: 2016-09-04
  */
 !function (global) {
 	'use strict';
@@ -1875,24 +1875,16 @@ function build(scene,node,parent,game){
         var n = node.children[i];
         var type = n.tagName;
         var id = n.attributes['id'] ? n.attributes['id'].value : null;
-        var data = parseData(n.attributes,parent);
-        var atlas = data['atlas'];
-        if(type === 'sprite' && atlas){
-            var prefix = data['atlas-prefix'];
-            data.images = game.assets.atlas(atlas).getAll(prefix);
+        var data = {};
+        var ks = Object.keys(n.attributes);
+        for(var j=ks.length;j--;){
+            var k = ks[j];
+            var kName = n.attributes[k].name;
+            data[kName] = n.attributes[k].value;
         }
-        if(type === 'text'){
-            var atlas = data['atlas'];
-            var txt = '';
-            for(var k=0;k<n.childNodes.length;k++){
-                if(n.childNodes[k].nodeType === 3){
-                    txt += n.childNodes[k].nodeValue;
-                }
-            }
-            data.text = txt.replace(/(^\s+)|(\s+$)/mg,'');
-            if(atlas)
-            data.font = game.assets.atlas(atlas);
-            data.size = parseInt(data['size']);
+        //filter data
+        if(game.objects.map[type].prototype.onBuild){
+            game.objects.map[type].prototype.onBuild(data,n);
         }
         var ins = newInstance(type,data,game);
 
@@ -1908,22 +1900,6 @@ function build(scene,node,parent,game){
     }
 }
 
-function parseData(attrs,parent){
-    var rs = {};
-    var ks = Object.keys(attrs);
-    for(var i=ks.length;i--;){
-        var k = ks[i];
-        var kName = attrs[k].name;
-        if(kName.indexOf('layout-')===0){
-            if(!rs['layout'])rs['layout'] = {};
-            
-            rs['layout'][kName.split('-')[1]] = filter(kName,attrs[k].value,parent);
-        }else{
-            rs[kName] = filter(kName,attrs[k].value,parent);
-        }
-    }
-    return rs;
-}
 
 function bindEvent(attrs,ins,scene){
     var ks = Object.keys(attrs);
@@ -1939,24 +1915,6 @@ function bindEvent(attrs,ins,scene){
         }else{
             soya2d.console.warn('invalid callback "'+val+'" of '+kName);
         }
-    }
-}
-
-function filter(type,val,parent){
-    switch(type){
-        case 'x':case 'w':
-        case 'y':case 'h':
-        case 'z':case 'angle':case 'scaleX':
-        case 'scaleY':case 'skewX':case 'skewY':
-        case 'scrollAngle':case 'speed':case 'frameRate':
-        case 'frameIndex':
-        case 'letterSpacing':case 'lineSpacing':
-            return parseFloat(val);
-        case 'visible':case 'autoScroll':
-        case 'loop':case 'autoplay':case 'fixedToCamera':
-            return new Function('return '+val)();
-        default:
-            return val;
     }
 }
 
@@ -3716,7 +3674,31 @@ soya2d.class("soya2d.DisplayObject",{
 
         this.fixedToCamera = this.__fixedToCamera;
     },
-    __onAdded:function(){
+    onBuild:function(data,node){
+        for(var k in data){
+            var name = k;
+            var v = data[k];
+            switch(name){
+                case 'x':case 'w':
+                case 'y':case 'h':
+                case 'z':case 'angle':case 'scaleX':
+                case 'scaleY':case 'skewX':case 'skewY':
+                    v = parseFloat(v);
+                    break;
+                case 'fixedToCamera':case 'visible':
+                    v = new Function('return '+v)();
+            }
+            if(name.indexOf('layout-')===0){
+                if(!data['layout'])data['layout'] = {};
+                
+                data['layout'][name.split('-')[1]] = v;
+            }else{
+                data[name] = v;
+            }
+        }
+        return data;
+    },
+    _onAdded:function(){
         this.centerX = this.w/2;
         this.centerY = this.h/2;
         this.setLayout(this.layout);
@@ -4356,7 +4338,12 @@ function getH(parent,rate){
  * 添加到渲染树回调
  * @method onAdded
  */
-
+/**
+ * 当该对象在XML中被解析时调用，该回调中需要处理对应的参数，比如转换类型等
+ * @method onBuild
+ * @param {Object} data XML节点上的所有属性
+ * @param {Node} node XML节点对象
+ */
 /**
  * 显示对象容器继承自显示对象，是所有显示容器的基类。该类提供了用于管理包含子节点的容器相关的方法。<br/>
  该类不能被实例化
@@ -4400,7 +4387,7 @@ soya2d.class("soya2d.DisplayObjectContainer",{
             child.parent = this;
 
             //触发onAdded事件
-            child.__onAdded();
+            child._onAdded();
         }
 
         return this;
@@ -5161,21 +5148,32 @@ soya2d.class("soya2d.Sprite",{
 	    this.w = data.w || this.images[0].width;
 	    this.h = data.h || this.images[0].height;
 
-	    /**
-	     * 当前帧序号
-	     * @type {Number}
-	     * @default 0
-	     */
-	    this.frameIndex = data.frameIndex || 0;//当前帧号
-	    /**
-	     * 对图片进行九宫格缩放
-	     * @type {soya2d.Rectangle}
-	     */
+	    
+	    this.__frameIndex = data.frameIndex || 0;//当前帧号
 	    this.__scale9grid = data.scale9grid;
-	    if(this.__scale9grid && (this.__w != this.images[0].width || this.__h != this.images[0].height)){
-	    	this.__parseScale9();
-	    }
+	    
 	    Object.defineProperties(this,{
+	    	/**
+		     * 当前帧序号
+		     * @property frameIndex
+		     * @type {Number}
+		     * @default 0
+		     */
+	    	frameIndex:{
+	    		set:function(v){
+	    			this.__frameIndex = v;
+	    			this.__cacheGrid = true;
+	    		},
+	    		get:function(){
+                    return this.__frameIndex;
+                },
+                enumerable:true
+	    	},
+	    	/**
+		     * 对图片进行九宫格缩放
+		     * @property scale9grid
+		     * @type {soya2d.Rectangle}
+		     */
 	    	scale9grid:{
 	    		set:function(v){
 	    			if(!(v instanceof soya2d.Rectangle))return;
@@ -5202,12 +5200,49 @@ soya2d.class("soya2d.Sprite",{
 		});
 		return soya2d.DisplayObject.prototype.clone.call(this,isRecur,copy);
 	},
+	onBuild:function(data,node){
+		this._super.onBuild(data);
+
+        for(var k in data){
+            var name = k;
+            var v = data[k];
+            switch(name){
+            	case 'images':
+            		data[name] = v.split(',');
+            		break;
+                case 'frameIndex':
+                    data[name] = parseFloat(v);
+                    break;
+                case 'atlas':
+                	var prefix = data['atlas-prefix'];
+            		data.images = game.assets.atlas(v).getAll(prefix);
+            		break;
+            	case 'scale9grid':
+            		var params = v.split(',');
+                    data[name] = new soya2d.Rectangle(
+                    	parseFloat(params[0]),
+                    	parseFloat(params[1]),
+                    	parseFloat(params[2]),
+                    	parseFloat(params[3]));
+                    break;
+            }
+        }
+	},
+	_onAdded:function(){
+		this._super._onAdded.call(this);
+		if(this.__scale9grid && (this.__w != this.images[0].width || this.__h != this.images[0].height)){
+	    	this.__cacheGrid = true;
+	    	this.__parseScale9();
+	    }
+	},
 	_onUpdate:function(){
-		if(this.__cacheGrid && this.__scale9grid instanceof soya2d.Rectangle && 
-			(this.__w != this.__cacheW || this.__h != this.__cacheH)){
+		if(this.__cacheGrid && this.__scale9grid instanceof soya2d.Rectangle 
+			//&& (this.__w != this.__cacheW || this.__h != this.__cacheH)
+			){
 			this.cache();
 			this.__cacheW = this.__w;
 			this.__cacheH = this.__h;
+			this.__cacheGrid = false;
 		}
 	},
 	__parseScale9:function(){
@@ -5325,7 +5360,7 @@ soya2d.class("soya2d.Sprite",{
 	  	    var frame = ani.frames[ani.index];
 			g.map(this.images[frame],0,0,this.w,this.h);
     	}else if(this.__scale9grid && this.__updateCache){
-    		var img = this.images[0];
+    		var img = this.images[this.__frameIndex];
     		var sd = this.__scale9Data;
     		var t1 = sd.t1,t2 = sd.t2,t3 = sd.t3,
     			m1 = sd.m1,m2 = sd.m2,m3 = sd.m3,
@@ -7071,6 +7106,22 @@ soya2d.class("soya2d.Text",{
         var bounds = this.font.getBounds(this.text);
         if(!this.w)this.w = bounds.w;
         if(!this.h)this.h = bounds.h;
+    },
+    onBuild:function(data,n){
+        this._super.onBuild(data);
+        var txt = '';
+        for(var k=0;k<n.childNodes.length;k++){
+            if(n.childNodes[k].nodeType === 3){
+                txt += n.childNodes[k].nodeValue;
+            }
+        }
+        data.text = txt.replace(/(^\s+)|(\s+$)/mg,'');
+        
+        var atlas = data['atlas'];
+        if(atlas){
+            data.size = parseInt(data['size']);
+            data.font = game.assets.atlas(atlas);
+        }
     },
     onRender:function(g){
         this.__renderer(g);

@@ -97,18 +97,6 @@
 					//自动应用UI
 					this.setView(game.assets.xml('menu'));
 
-					var playBtn = this.findView('playBtn');
-					playBtn.scale9grid = new soya2d.Rectangle(15,15,90,10);
-
-					var soundBtn = this.findView('soundBtn');
-					soundBtn.scale9grid = new soya2d.Rectangle(15,15,90,10);
-
-					var userbox = this.findView('userbox');
-					userbox.scale9grid = new soya2d.Rectangle(25,25,100,100);
-
-					var playBtn2 = this.findView('playBtn2');
-					playBtn2.scale9grid = new soya2d.Rectangle(15,15,90,10);
-
 					var hla = this.findView('hla');
 					game.tween.add(hla).to({x:'+20'},.5,{repeat:-1,yoyo:true}).play();
 					var hra = this.findView('hra');
@@ -243,7 +231,6 @@
 
 
 					var scorePane = this.findView('scorePane');
-					scorePane.scale9grid = new soya2d.Rectangle(15,15,100,100);
 
 					var leftTip = this.findView('leftTip');
 					game.tween.add(leftTip).to({x:'+20'},.5,{repeat:-1,yoyo:true}).play();
@@ -266,13 +253,6 @@
 							return;
 						}
 					}
-
-
-					var scoreBox = this.findView('scoreBox');
-					scoreBox.scale9grid = new soya2d.Rectangle(25,25,100,100);
-
-					var restartBtn = this.findView('restartBtn');
-					restartBtn.scale9grid = new soya2d.Rectangle(15,15,90,10);
 				},
 				genWood:function () {
 					var w = this.treeQ.pop();

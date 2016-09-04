@@ -28,21 +28,32 @@ soya2d.class("soya2d.Sprite",{
 	    this.w = data.w || this.images[0].width;
 	    this.h = data.h || this.images[0].height;
 
-	    /**
-	     * 当前帧序号
-	     * @type {Number}
-	     * @default 0
-	     */
-	    this.frameIndex = data.frameIndex || 0;//当前帧号
-	    /**
-	     * 对图片进行九宫格缩放
-	     * @type {soya2d.Rectangle}
-	     */
+	    
+	    this.__frameIndex = data.frameIndex || 0;//当前帧号
 	    this.__scale9grid = data.scale9grid;
-	    if(this.__scale9grid && (this.__w != this.images[0].width || this.__h != this.images[0].height)){
-	    	this.__parseScale9();
-	    }
+	    
 	    Object.defineProperties(this,{
+	    	/**
+		     * 当前帧序号
+		     * @property frameIndex
+		     * @type {Number}
+		     * @default 0
+		     */
+	    	frameIndex:{
+	    		set:function(v){
+	    			this.__frameIndex = v;
+	    			this.__cacheGrid = true;
+	    		},
+	    		get:function(){
+                    return this.__frameIndex;
+                },
+                enumerable:true
+	    	},
+	    	/**
+		     * 对图片进行九宫格缩放
+		     * @property scale9grid
+		     * @type {soya2d.Rectangle}
+		     */
 	    	scale9grid:{
 	    		set:function(v){
 	    			if(!(v instanceof soya2d.Rectangle))return;
@@ -69,12 +80,49 @@ soya2d.class("soya2d.Sprite",{
 		});
 		return soya2d.DisplayObject.prototype.clone.call(this,isRecur,copy);
 	},
+	onBuild:function(data,node){
+		this._super.onBuild(data);
+
+        for(var k in data){
+            var name = k;
+            var v = data[k];
+            switch(name){
+            	case 'images':
+            		data[name] = v.split(',');
+            		break;
+                case 'frameIndex':
+                    data[name] = parseFloat(v);
+                    break;
+                case 'atlas':
+                	var prefix = data['atlas-prefix'];
+            		data.images = game.assets.atlas(v).getAll(prefix);
+            		break;
+            	case 'scale9grid':
+            		var params = v.split(',');
+                    data[name] = new soya2d.Rectangle(
+                    	parseFloat(params[0]),
+                    	parseFloat(params[1]),
+                    	parseFloat(params[2]),
+                    	parseFloat(params[3]));
+                    break;
+            }
+        }
+	},
+	_onAdded:function(){
+		this._super._onAdded.call(this);
+		if(this.__scale9grid && (this.__w != this.images[0].width || this.__h != this.images[0].height)){
+	    	this.__cacheGrid = true;
+	    	this.__parseScale9();
+	    }
+	},
 	_onUpdate:function(){
-		if(this.__cacheGrid && this.__scale9grid instanceof soya2d.Rectangle && 
-			(this.__w != this.__cacheW || this.__h != this.__cacheH)){
+		if(this.__cacheGrid && this.__scale9grid instanceof soya2d.Rectangle 
+			//&& (this.__w != this.__cacheW || this.__h != this.__cacheH)
+			){
 			this.cache();
 			this.__cacheW = this.__w;
 			this.__cacheH = this.__h;
+			this.__cacheGrid = false;
 		}
 	},
 	__parseScale9:function(){
@@ -192,7 +240,7 @@ soya2d.class("soya2d.Sprite",{
 	  	    var frame = ani.frames[ani.index];
 			g.map(this.images[frame],0,0,this.w,this.h);
     	}else if(this.__scale9grid && this.__updateCache){
-    		var img = this.images[0];
+    		var img = this.images[this.__frameIndex];
     		var sd = this.__scale9Data;
     		var t1 = sd.t1,t2 = sd.t2,t3 = sd.t3,
     			m1 = sd.m1,m2 = sd.m2,m3 = sd.m3,

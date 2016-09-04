@@ -457,7 +457,31 @@ soya2d.class("soya2d.DisplayObject",{
 
         this.fixedToCamera = this.__fixedToCamera;
     },
-    __onAdded:function(){
+    onBuild:function(data,node){
+        for(var k in data){
+            var name = k;
+            var v = data[k];
+            switch(name){
+                case 'x':case 'w':
+                case 'y':case 'h':
+                case 'z':case 'angle':case 'scaleX':
+                case 'scaleY':case 'skewX':case 'skewY':
+                    v = parseFloat(v);
+                    break;
+                case 'fixedToCamera':case 'visible':
+                    v = new Function('return '+v)();
+            }
+            if(name.indexOf('layout-')===0){
+                if(!data['layout'])data['layout'] = {};
+                
+                data['layout'][name.split('-')[1]] = v;
+            }else{
+                data[name] = v;
+            }
+        }
+        return data;
+    },
+    _onAdded:function(){
         this.centerX = this.w/2;
         this.centerY = this.h/2;
         this.setLayout(this.layout);
@@ -1096,4 +1120,10 @@ function getH(parent,rate){
 /**
  * 添加到渲染树回调
  * @method onAdded
+ */
+/**
+ * 当该对象在XML中被解析时调用，该回调中需要处理对应的参数，比如转换类型等
+ * @method onBuild
+ * @param {Object} data XML节点上的所有属性
+ * @param {Node} node XML节点对象
  */

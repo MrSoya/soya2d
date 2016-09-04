@@ -41,7 +41,7 @@ soya2d.class("soya2d.DisplayObjectContainer",{
             child.parent = this;
 
             //触发onAdded事件
-            child.__onAdded();
+            child._onAdded();
         }
 
         return this;

@@ -68,6 +68,22 @@ soya2d.class("soya2d.Text",{
         if(!this.w)this.w = bounds.w;
         if(!this.h)this.h = bounds.h;
     },
+    onBuild:function(data,n){
+        this._super.onBuild(data);
+        var txt = '';
+        for(var k=0;k<n.childNodes.length;k++){
+            if(n.childNodes[k].nodeType === 3){
+                txt += n.childNodes[k].nodeValue;
+            }
+        }
+        data.text = txt.replace(/(^\s+)|(\s+$)/mg,'');
+        
+        var atlas = data['atlas'];
+        if(atlas){
+            data.size = parseInt(data['size']);
+            data.font = game.assets.atlas(atlas);
+        }
+    },
     onRender:function(g){
         this.__renderer(g);
     },

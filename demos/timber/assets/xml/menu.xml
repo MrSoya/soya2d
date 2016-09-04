@@ -5,14 +5,15 @@
 			<sprite images="title" layout-left="50%" layout-offsetLeft="-50%" y="20">
 			</sprite>
 
-			<sprite id="playBtn" images="tlacidlo" layout-left="50%" layout-offsetLeft="-50%" w="300" y="300"
+			<sprite id="playBtn" images="tlacidlo" scale9grid="15,15,90,10"
+				 layout-left="50%" layout-offsetLeft="-50%" w="300" y="300"
 				on-pointdown="selectUser">
 				<text layout-left="50%" layout-offsetLeft="-50%" y="10" 
 				fillStyle="#fff" font="normal 30px/normal vt323">
 					PLAY
 				</text>
 			</sprite>
-			<sprite id="soundBtn" images="tlacidlo" 
+			<sprite id="soundBtn" images="tlacidlo" scale9grid="15,15,90,10"
 				layout-left="50%" layout-offsetLeft="-50%" w="300" y="400"
 				on-pointdown="toggleSound">
 				<text layout-left="50%" layout-offsetLeft="-50%" y="10" 
@@ -23,7 +24,7 @@
 		</group>
 
 		<group id="userUI" visible="false">
-			<sprite images="userbox" id="userbox"
+			<sprite images="userbox" id="userbox" scale9grid="25,25,100,100"
 			layout-left="50%" layout-offsetLeft="-50%" y="60" w="360" h="300" on-pointdown="changeUser">
 				<text id="name" layout-left="50%" layout-offsetLeft="-50%" y="60" 
 				fillStyle="#7a4d0b" font="normal 40px/normal vt323">LOGAN</text>
@@ -37,7 +38,7 @@
 				<sprite id="hra" atlas="hArrows" frameIndex="1" layout-left="85%" layout-top="50%" layout-offsetTop="-50%">
 				</sprite>
 			</sprite>
-			<sprite id="playBtn2" images="tlacidlo" 
+			<sprite id="playBtn2" images="tlacidlo" scale9grid="15,15,90,10"
 				layout-left="50%" layout-offsetLeft="-50%" w="300" y="400"
 				on-pointdown="play">
 				<text layout-left="50%" layout-offsetLeft="-50%" y="10" 
