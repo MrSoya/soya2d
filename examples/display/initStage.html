@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <meta name="description" content="">
+        <meta name="author" content="">
+        <meta name="baidu-site-verification" content="JKAn3i6Ooa" />
+        
+        <link rel="icon" href="../assets/image/favicon.ico">
+
+        <title>Soya2d | 一个交互动画引擎</title>
+
+        <link href="../assets/lib/bs/css/bootstrap.min.css" rel="stylesheet">
+        <link href="../assets/lib/fa/css/font-awesome.min.css" rel="stylesheet">
+
+        <!-- Custom styles for this template -->
+        <link href="../assets/css/global.css" rel="stylesheet">
+        <script type="text/javascript" src="../assets/js/jquery-3.1.0.min.js"></script>
+        <link href="../assets/css/doc.css" rel="stylesheet">
+        <link rel="stylesheet" href="../assets/css/codemirror.css">
+        <link rel="stylesheet" href="../assets/css/night.css">
+    </head>
+    <body>
+        <section class="page-wrapper ">
+            <nav class="navbar bg-drak white navbar-fixed-top">
+                <a class="navbar-brand" href="">
+                    <i class="soya-white"></i>soya2d | Examples
+                </a>
+                <ul class="nav navbar-nav">
+                    <li class="nav-item">
+                    <a class="nav-link" href="../">Examples</a>
+                    </li>
+                    <li class="nav-item">
+                    <a class="nav-link" href="http://soya2d.com/learn/docs/api">API</a>
+                    </li>
+                    <li class="nav-item">
+                    <a class="nav-link disabled" href="#">教程</a>
+                    </li>
+                </ul>
+            </nav>
+            <div class="togglebar">
+                Version 2.0.0 beta
+                <i class="fa fa-bars toggler" onclick="toggleSide()"></i>
+
+                <a href="http://soya2d.com" class="pull-xs-right">
+                    soya2d.com <i class="fa fa-arrow-right"></i>
+                </a>
+            </div>
+            <div class="sidebar">
+                <div class="scrollpane">
+                    <ul class="nav" name="scrolllist">
+                        <li>
+        <a class='cate' >
+            <img src='../assets/image/examples/display.png'>
+            display
+        </a>
+        <ul class='nav'><li>
+            <a href='../display/initStage.html' class='doc-link' module='display' name='initStage'>
+                init stage
+            </a>
+        </li><li>
+            <a href='../display/rotateStage.html' class='doc-link' module='display' name='rotateStage'>
+                rotate stage
+            </a>
+        </li><li>
+            <a href='../display/text.html' class='doc-link' module='display' name='text'>
+                hello soya2d
+            </a>
+        </li><li>
+            <a href='../display/shapes.html' class='doc-link' module='display' name='shapes'>
+                shapes
+            </a>
+        </li><li>
+            <a href='../display/transform.html' class='doc-link' module='display' name='transform'>
+                transform
+            </a>
+        </li><li>
+            <a href='../display/zIndex.html' class='doc-link' module='display' name='zIndex'>
+                zIndex
+            </a>
+        </li><li>
+            <a href='../display/anchor.html' class='doc-link' module='display' name='anchor'>
+                anchor
+            </a>
+        </li><li>
+            <a href='../display/blend.html' class='doc-link' module='display' name='blend'>
+                blend
+            </a>
+        </li><li>
+            <a href='../display/mask.html' class='doc-link' module='display' name='mask'>
+                mask
+            </a>
+        </li><li>
+            <a href='../display/structure.html' class='doc-link' module='display' name='structure'>
+                structure
+            </a>
+        </li><li>
+            <a href='../display/boundingbox.html' class='doc-link' module='display' name='boundingbox'>
+                boundingbox
+            </a>
+        </li><li>
+            <a href='../display/custom.html' class='doc-link' module='display' name='custom'>
+                custom
+            </a>
+        </li><li>
+            <a href='../display/path.html' class='doc-link' module='display' name='path'>
+                path
+            </a>
+        </li><li>
+            <a href='../display/cache.html' class='doc-link' module='display' name='cache'>
+                cache
+            </a>
+        </li></ul></li><li>
+        <a class='cate' >
+            <img src='../assets/image/examples/loader.png'>
+            loader
+        </a>
+        <ul class='nav'><li>
+            <a href='../loader/style.html' class='doc-link' module='loader' name='style'>
+                style
+            </a>
+        </li><li>
+            <a href='../loader/custom.html' class='doc-link' module='loader' name='custom'>
+                custom
+            </a>
+        </li></ul></li><li>
+        <a class='cate' >
+            <img src='../assets/image/examples/sprite.png'>
+            sprite
+        </a>
+        <ul class='nav'><li>
+            <a href='../sprite/map.html' class='doc-link' module='sprite' name='map'>
+                map
+            </a>
+        </li><li>
+            <a href='../sprite/frameIndex.html' class='doc-link' module='sprite' name='frameIndex'>
+                frameIndex
+            </a>
+        </li><li>
+            <a href='../sprite/animation.html' class='doc-link' module='sprite' name='animation'>
+                animation
+            </a>
+        </li><li>
+            <a href='../sprite/switch.html' class='doc-link' module='sprite' name='switch'>
+                switch
+            </a>
+        </li></ul></li><li>
+        <a class='cate' >
+            <img src='../assets/image/examples/sprite.png'>
+            tileSprite
+        </a>
+        <ul class='nav'><li>
+            <a href='../tileSprite/autoscroll.html' class='doc-link' module='tileSprite' name='autoscroll'>
+                autoscroll
+            </a>
+        </li><li>
+            <a href='../tileSprite/manualscroll.html' class='doc-link' module='tileSprite' name='manualscroll'>
+                manualscroll
+            </a>
+        </li><li>
+            <a href='../tileSprite/scale.html' class='doc-link' module='tileSprite' name='scale'>
+                scale
+            </a>
+        </li><li>
+            <a href='../tileSprite/parallex.html' class='doc-link' module='tileSprite' name='parallex'>
+                parallex
+            </a>
+        </li></ul></li><li>
+        <a class='cate' >
+            <img src='../assets/image/examples/text.png'>
+            text
+        </a>
+        <ul class='nav'><li>
+            <a href='../text/style.html' class='doc-link' module='text' name='style'>
+                style
+            </a>
+        </li><li>
+            <a href='../text/font.html' class='doc-link' module='text' name='font'>
+                font
+            </a>
+        </li><li>
+            <a href='../text/imageFont.html' class='doc-link' module='text' name='imageFont'>
+                imageFont
+            </a>
+        </li><li>
+            <a href='../text/wrap.html' class='doc-link' module='text' name='wrap'>
+                wrap
+            </a>
+        </li><li>
+            <a href='../text/space.html' class='doc-link' module='text' name='space'>
+                space
+            </a>
+        </li></ul></li><li>
+        <a class='cate' >
+            <img src='../assets/image/examples/ui.png'>
+            ui
+        </a>
+        <ul class='nav'><li>
+            <a href='../ui/grid9.html' class='doc-link' module='ui' name='grid9'>
+                grid9
+            </a>
+        </li><li>
+            <a href='../ui/layout.html' class='doc-link' module='ui' name='layout'>
+                layout
+            </a>
+        </li><li>
+            <a href='../ui/xml.html' class='doc-link' module='ui' name='xml'>
+                xml
+            </a>
+        </li><li>
+            <a href='../ui/delegate.html' class='doc-link' module='ui' name='delegate'>
+                delegate
+            </a>
+        </li></ul></li><li>
+        <a class='cate' >
+            <img src='../assets/image/examples/camera.png'>
+            camera
+        </a>
+        <ul class='nav'><li>
+            <a href='../camera/move.html' class='doc-link' module='camera' name='move'>
+                move
+            </a>
+        </li><li>
+            <a href='../camera/follow.html' class='doc-link' module='camera' name='follow'>
+                follow
+            </a>
+        </li><li>
+            <a href='../camera/freezone.html' class='doc-link' module='camera' name='freezone'>
+                freezone
+            </a>
+        </li><li>
+            <a href='../camera/HUD.html' class='doc-link' module='camera' name='HUD'>
+                HUD
+            </a>
+        </li></ul></li><li>
+        <a class='cate' >
+            <img src='../assets/image/examples/tween.png'>
+            tween
+        </a>
+        <ul class='nav'><li>
+            <a href='../tween/button.html' class='doc-link' module='tween' name='button'>
+                button
+            </a>
+        </li><li>
+            <a href='../tween/text.html' class='doc-link' module='tween' name='text'>
+                text
+            </a>
+        </li><li>
+            <a href='../tween/shape.html' class='doc-link' module='tween' name='shape'>
+                shape
+            </a>
+        </li><li>
+            <a href='../tween/loop.html' class='doc-link' module='tween' name='loop'>
+                loop
+            </a>
+        </li></ul></li><li>
+        <a class='cate' >
+            <img src='../assets/image/examples/physics.png'>
+            physics
+        </a>
+        <ul class='nav'><li>
+            <a href='../physics/init.html' class='doc-link' module='physics' name='init'>
+                init
+            </a>
+        </li><li>
+            <a href='../physics/params.html' class='doc-link' module='physics' name='params'>
+                params
+            </a>
+        </li><li>
+            <a href='../physics/sensor.html' class='doc-link' module='physics' name='sensor'>
+                sensor
+            </a>
+        </li><li>
+            <a href='../physics/run.html' class='doc-link' module='physics' name='run'>
+                run
+            </a>
+        </li></ul></li><li>
+        <a class='cate' >
+            <img src='../assets/image/examples/particle.png'>
+            particle
+        </a>
+        <ul class='nav'><li>
+            <a href='../particle/rain.html' class='doc-link' module='particle' name='rain'>
+                rain
+            </a>
+        </li><li>
+            <a href='../particle/snow.html' class='doc-link' module='particle' name='snow'>
+                snow
+            </a>
+        </li><li>
+            <a href='../particle/fire.html' class='doc-link' module='particle' name='fire'>
+                fire
+            </a>
+        </li><li>
+            <a href='../particle/smoke.html' class='doc-link' module='particle' name='smoke'>
+                smoke
+            </a>
+        </li><li>
+            <a href='../particle/tween.html' class='doc-link' module='particle' name='tween'>
+                tween
+            </a>
+        </li></ul></li><li>
+        <a class='cate' >
+            <img src='../assets/image/examples/timer.png'>
+            timer
+        </a>
+        <ul class='nav'><li>
+            <a href='../timer/countdown.html' class='doc-link' module='timer' name='countdown'>
+                countdown
+            </a>
+        </li><li>
+            <a href='../timer/once.html' class='doc-link' module='timer' name='once'>
+                once
+            </a>
+        </li><li>
+            <a href='../timer/complex.html' class='doc-link' module='timer' name='complex'>
+                complex
+            </a>
+        </li></ul></li><li>
+        <a class='cate' >
+            <img src='../assets/image/examples/system.png'>
+            system
+        </a>
+        <ul class='nav'><li>
+            <a href='../system/windows.html' class='doc-link' module='system' name='windows'>
+                windows
+            </a>
+        </li></ul></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="page-main">
+                <div id="stage">
+                	
+                </div>
+                <div class="consolebar">
+                    <i class="fa fa-play" onclick="runjs()"></i>
+                    <i class="fa fa-cloud-download"></i>
+                    <i class="fa fa-arrows-alt" onclick="openWindow()"></i>
+                </div>
+                <textarea id="code">var scene = {
+    onPreload:function(game){
+        game.load.image(['script/display/bg.png']);
+    },
+    onInit:function(game){
+    	//set scale mode
+        game.stage.scaleMode = soya2d.SCALEMODE_SHOWALL;
+        //set align mode
+        game.stage.alignMode = soya2d.ALIGNMODE_CENTER;
+        //set background
+        // game.stage.background('#45678a');
+		// game.stage.background(game.assets.image('bg'),soya2d.BG_REPEAT_X);
+		game.stage.background(soya2d.GRADIENT_LINEAR,[0,1],['#014c8c','#31cd33'],game.stage.w/2,{x:game.stage.w/2,y:game.stage.h/2});
+        // game.stage.background(soya2d.GRADIENT_RADIAL,[0,1],['#014c8c','#31cd33'],game.stage.w/2,{x:game.stage.w/2,y:game.stage.h/2});
+    }
+}
+
+soya.render('#stage',800,600,scene);</textarea>
+
+                <!-- UY BEGIN -->
+                <div id="uyan_frame" style="margin-top:2rem;"></div>
+                <script type="text/javascript" src="http://v2.uyan.cc/code/uyan.js?uid=2113036"></script>
+                <!-- UY END -->
+            </div> <!-- /container -->
+        </section>
+        <script type="text/javascript" src="../assets/js/soya2d.all.js"></script>
+        <script type="text/javascript" src="../assets/js/FPSMeter.js"></script>
+        <script src="../assets/js/codemirror-compressed.js"></script>
+        <script type="text/javascript">
+                var scene = {
+    onPreload:function(game){
+        game.load.image(['script/display/bg.png']);
+    },
+    onInit:function(game){
+    	//set scale mode
+        game.stage.scaleMode = soya2d.SCALEMODE_SHOWALL;
+        //set align mode
+        game.stage.alignMode = soya2d.ALIGNMODE_CENTER;
+        //set background
+        // game.stage.background('#45678a');
+		// game.stage.background(game.assets.image('bg'),soya2d.BG_REPEAT_X);
+		game.stage.background(soya2d.GRADIENT_LINEAR,[0,1],['#014c8c','#31cd33'],game.stage.w/2,{x:game.stage.w/2,y:game.stage.h/2});
+        // game.stage.background(soya2d.GRADIENT_RADIAL,[0,1],['#014c8c','#31cd33'],game.stage.w/2,{x:game.stage.w/2,y:game.stage.h/2});
+    }
+}
+
+soya.render('#stage',800,600,scene);
+        </script>
+        <script type="text/javascript">
+            CodeMirror.fromTextArea(document.getElementById("code"), {
+                lineNumbers: true,
+                lineWrapping:true,
+                mode: "javascript",
+                theme:'night',
+                viewportMargin:Infinity
+            });
+
+            var module = 'display';
+            var name = 'initStage';
+        </script>
+		<script type="text/javascript" src="../assets/js/jquery.slimscroll.min.js"></script>
+		<script type="text/javascript" src="../assets/js/doc.js"></script>
+    </body>
+</html>

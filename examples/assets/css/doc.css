@@ -1,0 +1,115 @@
+body{
+  background: #fafafa;
+}
+.page-wrapper{
+  height: 100%;
+  position: relative;
+}
+.page-main{
+  margin-left: 20rem;
+  padding: 7.5rem 1rem 2rem 1rem;
+
+  transition: all .3s;
+}
+.page-main.hidden{
+  margin-left: 0;
+}
+.togglebar{
+  position: fixed;
+  top: 4rem;
+  width: 100%;
+  padding: .5rem 1.5rem;
+  background-color: #ddd;
+  z-index: 9;
+}
+.togglebar .toggler{
+  padding: .5rem;
+  margin-top: -.25rem;
+  cursor: pointer;
+}
+.sidebar{
+  white-space:nowrap;  
+  width: 20rem;
+  position: fixed;
+  background:#eee;
+  border-right: 1px solid #ddd;
+  padding-top: 7rem;
+  float: left;
+  overflow: hidden;
+  transition: all .3s;
+}
+.sidebar.hidden{
+  width: 0;
+  padding: 0;
+}
+.sidebar .scrollpane{
+  width: 100%;
+  height: 100%;
+  padding: .5rem;
+  overflow: hidden;
+  position: relative;
+}
+.cate{
+  outline: none;
+  width:100%;
+  padding: .5rem 2rem .5rem 1rem;
+  position: relative;
+  display: inline-block;
+  margin: .5rem 0;
+  overflow: hidden;
+  background: #718a90;
+  color: #fff !important;
+}
+.doc-link{
+  color: #666 !important;
+  padding: .2rem 1rem;
+  display: block;
+}
+.doc-link:hover{
+  background: #fafafa;
+}
+.doc-link.active{
+  background: #d2d7dc;
+  color: #fff !important;;
+}
+.cate:before{
+  width: 30%;
+  height: 180%;
+  background: rgba(255,255,255,.3);
+  z-index: 0;
+  left: -40px;
+  top: -50%;
+  transform: rotate(20deg);
+  content: '';
+  position: absolute;
+}
+.cate>img{
+  margin-right: 1rem;
+}
+
+#stage{
+  height: 600px;
+  overflow: auto;
+  position: relative;
+}
+
+.consolebar{
+  text-align: center;
+  padding: 2rem 1rem;
+}
+.consolebar .fa{
+  border:1px solid #666;
+  font-size: 2rem;
+  color: #666;
+  padding: 1rem 1.5rem;
+  margin-right: 1rem;
+}
+.consolebar .fa:hover{
+  border-color: #000;
+  color: #000;
+  cursor: pointer;
+}
+
+.card{
+  border-radius: 0;
+}

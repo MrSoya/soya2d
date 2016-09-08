@@ -344,7 +344,7 @@ soya2d.class("soya2d.DisplayObject",{
          * @type {soya2d.Point}
          * @private
          */
-        this.__screenPosition = new soya2d.Point();
+        this.__screenPosition = new soya2d.Point(Infinity,Infinity);
         /**
          * 混合方式
          * @property blendMode
@@ -524,6 +524,15 @@ soya2d.class("soya2d.DisplayObject",{
         if(t || ot)
         this.__y = getYH(t,this.parent) + offT;
 
+        return this;
+    },
+    /**
+     * 刷新已有布局
+     * @method refreshLayout
+     * @chainable
+     */
+    refreshLayout:function(){
+        this.setLayout(this.layout);
         return this;
     },
     /**
@@ -1126,4 +1135,5 @@ function getH(parent,rate){
  * @method onBuild
  * @param {Object} data XML节点上的所有属性
  * @param {Node} node XML节点对象
+ * @param {soya2d.Game} game 当前game实例
  */

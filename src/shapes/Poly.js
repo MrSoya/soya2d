@@ -19,8 +19,8 @@ soya2d.class("soya2d.Poly",{
         g.beginPath();
         g.fillStyle(this.fillStyle);
         g.polygon(this.vtx);
-        g.closePath();
         g.fill();
+        g.closePath();
         if(this.lineWidth>0){
             g.lineStyle(this.lineWidth);
             g.strokeStyle(this.strokeStyle);

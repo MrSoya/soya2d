@@ -1,0 +1,279 @@
+/*
+ * Globals
+ */
+
+.block{
+  width: 100%;
+  padding: 3rem 1rem;
+}
+
+.icon{
+  display: block;
+  background-size: contain;
+}
+
+.gh-ico {
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-right: 4px;
+    background-image: url(../image/gh.png);
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    display: inline-block;
+    vertical-align: bottom;
+    color: #fff;
+    margin: .5rem 0;
+    margin-right: 1rem;
+}
+
+/* Custom default button */
+.btn-blue{
+  background-color: #3998D6;
+  color: #fff;
+}
+.btn-blue:hover{
+  text-decoration: none;
+  color: #fff;
+  background-color: #2280bd;
+}
+
+
+
+
+
+/**
+ * 顶部样式
+ */
+.header-bg{
+  background: url(../image/bg.png) repeat-x;
+  width: 100%;
+  height: 35rem;
+  margin: 0;
+  padding: 0;
+  position: absolute;
+  background-size: contain;
+  z-index: -1;
+}
+.header-bg-bottom{
+  background: url(../image/bottom.png) repeat-x;
+  width: 100%;
+  margin: 0;
+  height: 70px;
+  bottom: 0;
+  position: absolute;
+}
+
+.soya{
+  background: url(../image/brand.png) no-repeat;
+  background-size: contain;
+  float: left;
+  display: block;
+  width:2rem;
+  height: 2.5rem;
+}
+
+
+.icon.ground{
+  margin-top: -4rem;
+  top: 0;
+}
+
+.icon.bush{
+  width: 4rem;
+  height: 4rem;
+  margin-left: 30%;
+  background-image: url(../image/bush.png);
+}
+
+.icon.cactus{
+  width: 4rem;
+  height: 4rem;
+  margin-left: 60%;
+  background-image: url(../image/cactus.png);
+}
+
+.header-logo{
+  width: 30rem;
+  height: 15rem;
+  position: absolute;
+  right: 8rem;
+  top: 10rem;
+
+  background-image: url("../image/logo.png");
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+
+
+.block-intro{
+  margin: 3rem 0;
+  width: 100%;
+}
+
+.block-intro .txt{
+  background-color:#31cd33;
+  line-height:1.8;
+  display: inline;
+  padding: 3px 0; 
+  word-spacing: .2em;
+  color: #fff;
+}
+
+
+.block-features .icon{
+  width: 3rem;
+  height: 3rem;
+  margin: 1rem auto;
+  margin-top:2rem; 
+}
+
+.block-features .icon.grid9{
+  background-image: url(../image/grid9.png);
+}
+.block-features .icon.ui{
+  background-image: url(../image/ui.png);
+}
+.block-features .icon.timer{
+  background-image: url(../image/timer.png);
+}
+.block-features .icon.particle{
+  background-image: url(../image/particle.png);
+}
+.block-features .icon.signal{
+  background-image: url(../image/signal.png);
+}
+.block-features .icon.assets{
+  background-image: url(../image/assets.png);
+}
+.block-features .icon.tilemap{
+  background-image: url(../image/tilemap.png);
+}
+
+.block-features .pane{
+  color: #000;
+  text-align: center;
+  border-right: #f0f0f0 1px solid;
+  border-bottom: #f0f0f0 1px solid;
+  min-height: 15rem;
+}
+.block-features .pane:nth-child(4n){
+  border-right:none;
+}
+
+
+
+
+.block-browser{
+  text-align: center;
+  color: #000;
+}
+.block-browser .brand{
+  padding: 1rem 0;
+  color: #acacac;
+}
+
+.block-browser .icon{
+  width:80px;
+  height: 80px;
+  margin: 0 auto;
+}
+.block-browser .chrome{
+  background-image: url(../image/chrome.png);
+}
+.block-browser .ff{
+  background-image: url(../image/ff.png);
+}
+.block-browser .ie{
+  background-image: url(../image/ie.png);
+}
+.block-browser .safari{
+  background-image: url(../image/safari.png);
+}
+.block-browser .opera{
+  background-image: url(../image/opera.png);
+}
+.block-browser .edge{
+  background-image: url(../image/edge.png);
+}
+
+
+.block-cross{
+  background-image: url(../image/cross.png);
+  height: 35rem;
+  background-size: cover;
+  background-repeat: no-repeat;
+  overflow: hidden;
+  position: relative;
+}
+
+.block-cross .layer{
+    width: 150%;
+    height: 200%;
+    background: rgba(0,0,0,0.7);
+    top: -50%;
+    position: absolute;
+    -webkit-transform: rotate(45deg);
+    -moz-transform: rotate(45deg);
+    transform: rotate(45deg);
+    -webkit-transform-origin: top center;
+    -moz-transform-origin: top center;
+    transform-origin: top center;
+}
+.block-cross .wrap{
+  position: absolute;
+  width: 80%;
+  height: 100%;
+  left: 20%;
+  top: 0;
+  padding-top: 10%;
+}
+.block-cross .cross{
+    width: 60%;
+    height: 80%;
+    position: absolute;
+    right: 5%;
+    top: 3rem;
+  background-image: url(../image/cross_device.png);
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+.block-cross .txt{
+  background-color:#fafafa;
+  line-height:2;
+  display: inline;
+  padding: 3px 0; 
+  word-spacing: .2em;
+  color: #666;
+}
+
+
+.block-gettingstart a,
+.block-gettingstart a:focus,
+.block-gettingstart a:hover {
+  text-decoration: none;
+  color: #000;
+  border: 1px solid #000;
+}
+.block-gettingstart .portal{
+  text-align: center;
+  border: #f0f0f0 1px solid;
+  min-height: 10rem;
+  padding: 1rem 0;
+  margin: 3rem 0;
+}
+.block-gettingstart .portal .fa{
+  font-size: 3rem;
+  margin: 1rem 0;
+}
+
+.block-gettingstart .portal .fa-book{
+  color: #3b87c9;
+}
+.block-gettingstart .portal .fa-group{
+  color: #e02364;
+}
+.block-gettingstart .portal .fa-gift{
+  color: #44ad1e;
+}
+
+

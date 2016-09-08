@@ -35,14 +35,12 @@ SceneManager.prototype = {
         }
         if(scene.onPreload){
             scene.onPreload(game);
-            
             game.load.once('end',function(){
                 //初始化场景
                 if(game.currentScene.onInit){
                     setTimeout(function(){
                         game.currentScene.onInit(game);
-                    },0)
-                    
+                    },0);
                 }
             });
             game.load.start();
@@ -54,7 +52,7 @@ SceneManager.prototype = {
 
         var modules = soya2d.module._getAll();
         for(var k in modules){
-            if(modules[k].onSceneChange)modules[k].onSceneChange(that,scene);
+            if(modules[k].onSceneChange)modules[k].onSceneChange(game,scene);
         }
 
         return this;

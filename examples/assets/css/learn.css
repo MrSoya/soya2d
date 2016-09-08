@@ -1,0 +1,18 @@
+.learn-item{
+  text-align: center;
+  border: #f0f0f0 1px solid;
+  min-height: 10rem;
+  padding: 1rem 0;
+  margin: 3rem 0;
+  color: #000;
+}
+.learn-item h3{
+  padding: 1.5rem 0;
+}
+
+.learn-item:focus,
+.learn-item:hover {
+  text-decoration: none;
+  color: #000;
+  border: 1px solid #000;
+}

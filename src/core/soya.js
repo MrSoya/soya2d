@@ -28,7 +28,7 @@ global.soya2d = new function(){
          * @property version.state 
          * @type {String}
          */
-        state:'beta2',
+        state:'beta3',
         /**
          * 返回版本信息
          * @method version.toString
@@ -132,10 +132,9 @@ toString:function(){}//原型方法
          * @param  {Object} opts 回调事件
          * @param  {function} opts.onInit 模块初始化时调用,回调参数[soya2d.Game]
          * @param  {function} opts.onBeforeUpdate 主循环逻辑更新前调用，[soya2d.Game,当前时间毫秒,循环间隔]
-         * @param  {function} opts.onUpdate 主循环逻辑更新时调用，[soya2d.Game,当前时间毫秒,循环间隔]
-         * @param  {function} opts.onAfterUpdate 主循环逻辑更新后调用，[soya2d.Game,当前时间毫秒,循环间隔]
+         * @param  {function} opts.onPostUpdate 主循环逻辑更新后调用，[soya2d.Game,当前时间毫秒,循环间隔]
          * @param  {function} opts.onBeforeRender 主循环绘图前调用，[soya2d.Game,当前时间毫秒,循环间隔]
-         * @param  {function} opts.onAfterRender 主循环绘图后调用，[soya2d.Game,当前时间毫秒,循环间隔]
+         * @param  {function} opts.onPostRender 主循环绘图后调用，[soya2d.Game,当前时间毫秒,循环间隔,渲染实体数]
          * @param  {function} opts.onStart 游戏实例启动时调用[soya2d.Game]
          * @param  {function} opts.onStop 游戏实例停止时调用[soya2d.Game]
          * @param  {function} opts.onSceneChange 游戏当前场景发生改变时调用[soya2d.Game，当前场景]

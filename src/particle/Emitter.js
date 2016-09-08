@@ -248,7 +248,6 @@
 		var diffAngle = opts.maxAngle?opts.maxAngle - opts.minAngle:0;
 		var angle = opts.minAngle + diffAngle * Math.random();
 		angle = m.floor(angle %= 360);
-		particle.angle = angle;
 
 		var diffSpd = opts.maxSpeed?opts.maxSpeed - opts.minSpeed:0;
 		var speed = opts.minSpeed + diffSpd * Math.random();

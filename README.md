@@ -47,5 +47,12 @@ Soya2D is a web interactive animation(game) engine for modern web browsers
 ## Website
 http://soya2d.com
 
+## Local Examples
+
+```
+1. npm install http-server -g
+2. http-server ./examples/ -p30760 -o
+```
+
 ## License
 base on [MIT](http://opensource.org/licenses/MIT)

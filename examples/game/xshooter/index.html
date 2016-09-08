@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html>
+  	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+		<script src="../../assets/js/soya2d.all.js" type="text/javascript" language='javascript'></script>
+		<script src="model/Player.js" type="text/javascript" language='javascript'></script>
+		<script src="model/Enemy.js" type="text/javascript" language='javascript'></script>
+		<script src="model/Observer.js" type="text/javascript" language='javascript'></script>
+		
+		<style>
+			html,body{
+				margin:0;
+				padding:0;
+				background: #000;
+			}
+			#stage{
+					position: absolute;
+					width: 100%;
+					height: 100%;
+				}
+		</style>
+	</head>
+	<body style="font-family: dodger">
+	  	<div id="stage">
+      		
+      	</div>
+	</body>
+</html>
+
+
+<script type="text/javascript">
+	var loaderScene = {
+		onPreload:function(game){
+			//舞台居中
+			game.stage.alignMode = soya2d.ALIGNMODE_CENTER;
+			game.load.fillStyle = '#fff';
+
+		   	game.load.baseUrl = 'assets/image/';
+			game.load.image(['player.png']);
+			//加载字体
+			game.load.atlas({'imgFont':['font.png','font.ssheet']});
+
+		   	game.load.baseUrl = 'assets/xml/';
+		   	game.load.xml({
+		   		menu:'menu.xml',
+		   		over:'over.xml'
+		   	});
+		},
+		onInit:function(game){
+			//舞台背景色
+			game.stage.background('#000');
+			
+
+			//自动应用UI
+			this.setView(game.assets.xml('menu'));
+
+			//注册别名
+			game.objects.register('Enemy',Enemy);
+			game.objects.register('Arrow',Arrow);
+			game.objects.register('Arrow2',Arrow2);
+			game.objects.register('Sun',Sun);
+		},
+		start:function(){
+			game.sound.stopAll();
+			//跳转场景
+			this.game.scene.start(mainScene,true);
+		}
+	};
+	var mainScene = {
+		onPreload:function(game){
+			game.load.baseUrl = 'assets/image/';
+			game.load.image(['bg.jpg'
+	        ,'p1.png'
+	        ,'fog.png'
+	        ,'p2.png'
+	        ,'bullet1.png'
+	        ,'enemy1.png'
+	        ,'enemy2.png'
+	        ,'enemy4.png'
+	        ,'enemy44.png'
+	        ,'pstar.png'
+	        ,'bean1.png'
+	        ,'bean2.png'
+	        ,'bean3.png'
+	        ,'bean4.png'
+	        ,'bomb.png']);
+		   	
+
+		   	game.load.baseUrl = 'assets/xml/';
+		   	game.load.xml({
+		   		main:'main.xml'		   		
+		   	});
+
+		   	game.load.baseUrl = 'assets/sound/';
+		   	game.load.sound({
+		   		bgm:'bgm.mp3',
+		   		bean1:'bean1.mp3',
+		   		bean2:'bean2.mp3',
+		   		bean3:'bean3.mp3',
+		   		bean4:'bean4.mp3',
+		   		appear1:'appear1.mp3',
+		   		expo:'expo.mp3',
+		   		fire:'fire.mp3',
+		   		hurt:'hurt.mp3',
+		   		gameover:'gameover.mp3',
+		   	});
+		},
+		onInit:function(game){
+			game.status = {
+				score:0
+			}
+
+			this.duration = 0;
+			this.enemyUpdateTimes = 0;
+
+			//bgm
+			var music = game.assets.sound('bgm');
+			if(music)music.loop(true).play().fade(0,.5,4000);
+
+			//舞台背景色
+			game.stage.background('#000');
+			//舞台居中
+			game.stage.alignMode = soya2d.ALIGNMODE_CENTER;
+
+			//自动应用UI
+			this.setView(game.assets.xml('main'));
+
+			this.initPlayer(game);
+
+			Observer.start(game,this.player,this);
+
+			game.events.on('gameover',function(){
+				Observer.over();
+				game.sound.stopAll();
+				game.scene.start(gameOverScene,true);
+			});
+
+			this.parallex(game);
+		},
+		parallex:function(game){
+			var p1 = this.findView('p1');
+			var p2 = this.findView('p2');
+			var fog = this.findView('fog');
+			p1.originCoordi = {x:p1.x,y:p1.y};
+			p2.originCoordi = {x:p2.x,y:p2.y};
+
+			p1.onUpdate = function(){
+				p1.x = p1.originCoordi.x - game.camera.x * 1.1;
+				p1.y = p1.originCoordi.y - game.camera.y * 1.1;
+			}
+			p2.onUpdate = function(){
+				p2.x = p2.originCoordi.x - game.camera.x * 0.6;
+				p2.y = p2.originCoordi.y - game.camera.y * 0.6;
+			}
+		},
+		initPlayer:function(game){
+			//player
+			var bullet = new Bullet({
+				images:'bullet1'
+			});
+			var scope = new soya2d.Rectangle(0,0,game.w*1.2,game.h*1.2);
+			this.player = new Player({
+				images:'player',
+				bulletType:bullet,
+				x:scope.w/2,
+				y:scope.h/2,
+				rotation:0,
+				scope:scope
+			});
+
+			var scene = this;
+			game.world.on('mousemove',function(e){
+				var x = e.x;
+				var y = e.y;
+
+				var wp = scene.player.worldPosition;
+	            var radian = Math.atan2(wp.y-y-game.camera.y,wp.x-x-game.camera.x);
+	            radian = soya2d.Math.toAngle(radian);
+	            scene.player.spin(radian+180);
+			});
+			game.world.on('mousedown',function(e){
+				scene.player.fire();
+			});
+			game.world.on('mouseup',function(e){
+				scene.player.holdfire();
+			});
+
+			game.world.add(this.player);
+
+			//镜头范围
+			game.world.setBounds(scope.w,scope.h);
+
+			//镜头跟踪
+			game.camera.follow(this.player);
+
+			//debug
+			// var freezone = new soya2d.Rectangle(100,100,game.w-200,game.h-200);
+			// game.camera.setFreezone(freezone);
+
+			
+			// game.add.rect({
+			// 	x:freezone.x,
+   //              y:freezone.y,
+   //              w:freezone.w,
+   //              h:freezone.h,
+   //              fillStyle:'rgba(255,0,0,.5)',
+   //              fixedToCamera:true
+			// })
+		},
+		onUpdate:function(game,d){
+			this.enemyUpdateTimes++;
+			if(this.enemyUpdateTimes % 5 != 0)return;
+
+			this.duration += d;
+			this.updateEnemy(this.duration,this.player);
+		},
+		updateEnemy:function(ms,player){
+
+			if(Observer.rushQueue.length===0)return;
+
+			var rcx = player.x,
+		        rcy = player.y;
+	        var r = 300;
+        	var rad = soya2d.Math.toRadian(soya2d.Math.randomi(0,360));
+        	var rx = Math.cos(rad)*r + rcx,
+        		ry = Math.sin(rad)*r + rcy;
+
+			Observer.rushQueue.forEach(function(rush){
+				if(!rush.conditions || 
+					(rush.conditions && rush.conditions(Observer,ms))){
+
+		            var enemy = rush.enemies.shift();
+		        	if(!enemy)return;
+	            	var sp;
+	            	switch(enemy){
+	            		case ENEMY_ARROW:
+	            			sp = game.add.Arrow({
+								player:player,
+								images:game.assets.image('enemy1')
+							});
+							break;
+						case ENEMY_ARROW2:
+	     //        			sp = game.add.Arrow({
+						// 		player:player,
+						// 		images:game.assets.image('enemy3')
+						// 	});
+						// 	break;
+						case ENEMY_SUN:
+	            			sp = game.add.Sun({
+								player:player,
+								images:game.assets.image('enemy2')
+							});
+							break;
+	            	}
+	                var x = rush.x || rx;
+	                var y = rush.y || ry;
+
+	                if(rush.enemies.length>1 && rush.samePos){
+	                	rush.x = x;
+	                	rush.y = y;
+	                }
+
+	                sp.x = x;
+	                sp.y = y;
+
+	                Observer.enemies.push(sp);
+	                sp.show();
+				}
+			});
+		}
+	};
+	var gameOverScene = {
+		onInit:function(game){
+			game.world.setBounds(game.w,game.h);
+			//自动应用UI
+			this.setView(game.assets.xml('over'));
+
+			var scoreTxt = this.findView('scoreText');
+			scoreTxt.setText(game.status.score);
+		},
+		home:function(){
+			game.sound.stopAll();
+			game.scene.start(loaderScene,true);
+		}
+	};
+    var game = soya.render('#stage',960,640,loaderScene);
+</script>

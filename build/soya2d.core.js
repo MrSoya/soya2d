@@ -6,7 +6,7 @@
  * Released under the MIT license
  *
  * website: http://soya2d.com
- * last build: 2016-09-04
+ * last build: 2016-09-08
  */
 !function (global) {
 	'use strict';
@@ -40,7 +40,7 @@ global.soya2d = new function(){
          * @property version.state 
          * @type {String}
          */
-        state:'beta2',
+        state:'beta3',
         /**
          * 返回版本信息
          * @method version.toString
@@ -144,10 +144,9 @@ toString:function(){}//原型方法
          * @param  {Object} opts 回调事件
          * @param  {function} opts.onInit 模块初始化时调用,回调参数[soya2d.Game]
          * @param  {function} opts.onBeforeUpdate 主循环逻辑更新前调用，[soya2d.Game,当前时间毫秒,循环间隔]
-         * @param  {function} opts.onUpdate 主循环逻辑更新时调用，[soya2d.Game,当前时间毫秒,循环间隔]
-         * @param  {function} opts.onAfterUpdate 主循环逻辑更新后调用，[soya2d.Game,当前时间毫秒,循环间隔]
+         * @param  {function} opts.onPostUpdate 主循环逻辑更新后调用，[soya2d.Game,当前时间毫秒,循环间隔]
          * @param  {function} opts.onBeforeRender 主循环绘图前调用，[soya2d.Game,当前时间毫秒,循环间隔]
-         * @param  {function} opts.onAfterRender 主循环绘图后调用，[soya2d.Game,当前时间毫秒,循环间隔]
+         * @param  {function} opts.onPostRender 主循环绘图后调用，[soya2d.Game,当前时间毫秒,循环间隔,渲染实体数]
          * @param  {function} opts.onStart 游戏实例启动时调用[soya2d.Game]
          * @param  {function} opts.onStop 游戏实例停止时调用[soya2d.Game]
          * @param  {function} opts.onSceneChange 游戏当前场景发生改变时调用[soya2d.Game，当前场景]
@@ -1884,7 +1883,7 @@ function build(scene,node,parent,game){
         }
         //filter data
         if(game.objects.map[type].prototype.onBuild){
-            game.objects.map[type].prototype.onBuild(data,n);
+            game.objects.map[type].prototype.onBuild(data,n,game);
         }
         var ins = newInstance(type,data,game);
 
@@ -1960,14 +1959,12 @@ SceneManager.prototype = {
         }
         if(scene.onPreload){
             scene.onPreload(game);
-            
             game.load.once('end',function(){
                 //初始化场景
                 if(game.currentScene.onInit){
                     setTimeout(function(){
                         game.currentScene.onInit(game);
-                    },0)
-                    
+                    },0);
                 }
             });
             game.load.start();
@@ -1979,7 +1976,7 @@ SceneManager.prototype = {
 
         var modules = soya2d.module._getAll();
         for(var k in modules){
-            if(modules[k].onSceneChange)modules[k].onSceneChange(that,scene);
+            if(modules[k].onSceneChange)modules[k].onSceneChange(game,scene);
         }
 
         return this;
@@ -2169,7 +2166,7 @@ function checkTimePart(part,v){
                 20-40 第20到40秒触发<br>
                 0-50/5 第0到50秒，每5秒触发<br>
                 0/1 每秒触发<br>
-                *\/15 每15秒触发<br>
+                0/15 每15秒触发<br>
                 5,25,50 第5/25/50秒触发<br>
           </td>
       </tr>
@@ -3116,23 +3113,19 @@ var Physics = soya2d.class("",{
 });
 
 /**
- * 事件类型 - 碰撞开始
- * @property EVENT_CONTACTSTART
- * @static
- * @final
- * @for soya2d
+ * 碰撞开始
+ * @property EVENT_COLLISIONSTART
  * @type {String}
+ * @for soya2d
  */
-soya2d.EVENT_CONTACTSTART = 'contactstart';
+soya2d.EVENT_COLLISIONSTART = 'collisionStart';
 /**
- * 事件类型 - 碰撞结束
- * @property EVENT_CONTACTEND
- * @static
- * @final
- * @for soya2d
+ * 碰撞结束
+ * @property EVENT_COLLISIONEND
  * @type {String}
+ * @for soya2d
  */
-soya2d.EVENT_CONTACTEND = 'contactend';
+soya2d.EVENT_COLLISIONEND = 'collisionEnd';
 
 
 /**
@@ -3561,7 +3554,7 @@ soya2d.class("soya2d.DisplayObject",{
          * @type {soya2d.Point}
          * @private
          */
-        this.__screenPosition = new soya2d.Point();
+        this.__screenPosition = new soya2d.Point(Infinity,Infinity);
         /**
          * 混合方式
          * @property blendMode
@@ -3741,6 +3734,15 @@ soya2d.class("soya2d.DisplayObject",{
         if(t || ot)
         this.__y = getYH(t,this.parent) + offT;
 
+        return this;
+    },
+    /**
+     * 刷新已有布局
+     * @method refreshLayout
+     * @chainable
+     */
+    refreshLayout:function(){
+        this.setLayout(this.layout);
         return this;
     },
     /**
@@ -4343,6 +4345,7 @@ function getH(parent,rate){
  * @method onBuild
  * @param {Object} data XML节点上的所有属性
  * @param {Node} node XML节点对象
+ * @param {soya2d.Game} game 当前game实例
  */
 /**
  * 显示对象容器继承自显示对象，是所有显示容器的基类。该类提供了用于管理包含子节点的容器相关的方法。<br/>
@@ -5201,7 +5204,7 @@ soya2d.class("soya2d.Sprite",{
 		return soya2d.DisplayObject.prototype.clone.call(this,isRecur,copy);
 	},
 	onBuild:function(data,node){
-		this._super.onBuild(data);
+		soya2d.DisplayObject.prototype.onBuild(data);
 
         for(var k in data){
             var name = k;
@@ -5229,7 +5232,7 @@ soya2d.class("soya2d.Sprite",{
         }
 	},
 	_onAdded:function(){
-		this._super._onAdded.call(this);
+		soya2d.DisplayObject.prototype._onAdded.call(this);
 		if(this.__scale9grid && (this.__w != this.images[0].width || this.__h != this.images[0].height)){
 	    	this.__cacheGrid = true;
 	    	this.__parseScale9();
@@ -6271,6 +6274,7 @@ soya2d.CanvasRenderer = function(data){
         return cvs;
     }
 
+    var count = 0;
     /**
      * 渲染方法。每调用一次，只进行一次渲染
      * @method render
@@ -6285,8 +6289,9 @@ soya2d.CanvasRenderer = function(data){
         }
 
         var rect = camera.__view;
-
+        count = 0;
         render(rect,ctx,stage,g,this.sortEnable,renderStyle);
+        return count;
     };
 
     var ctxFnMap = {
@@ -6354,12 +6359,16 @@ soya2d.CanvasRenderer = function(data){
             }
         }
     }
-    function render(cameraRect,ctx,ro,g,sortEnable,rs,inWorld){
+    function render(cameraRect,ctx,ro,g,sortEnable,rs){
         if(ro.opacity===0 
         || !ro.visible
         || ro.__masker)return;
 
-        if(!ro.__renderable)return;
+        var sp = ro.__screenPosition;
+
+        if(!ro.__renderable && (sp.x != Infinity && sp.y != Infinity))return;
+
+        count++;
 
         if(ro.mask instanceof soya2d.DisplayObject){
             ctx.save();
@@ -6373,8 +6382,8 @@ soya2d.CanvasRenderer = function(data){
         
         if(ro.onRender){
             var te = ro.__worldTransform.e;
-            var sp = ro.__screenPosition;
             var ap = ro.anchorPosition;
+            var wp = ro.worldPosition;
             if(ro.__updateCache){
                 var x = ap.x,
                     y = ap.y;
@@ -6382,6 +6391,10 @@ soya2d.CanvasRenderer = function(data){
             }else{
                 var x = sp.x,
                     y = sp.y;
+                if(x == Infinity && y == Infinity){//for stage children
+                    x = wp.x,
+                    y = wp.y;
+                }
                 
                 ctx.setTransform(te[0],te[1],te[2],te[3],x,y);
             }
@@ -6421,8 +6434,7 @@ soya2d.CanvasRenderer = function(data){
             });
 
             for(var i=0;i<children.length;i++){
-                render(cameraRect,ctx,children[i],g,sortEnable,rs,
-                    children[i].__soya_type != 'world' && !(ro instanceof Stage)?true:false);
+                render(cameraRect,ctx,children[i],g,sortEnable,rs);
             }
         }
 
@@ -6443,7 +6455,8 @@ soya2d.CanvasRenderer = function(data){
      * @method destroy
      */
     this.destroy = function(){
-        cvs.parentNode.removeChild(cvs);
+        if(cvs.parentNode)
+            cvs.parentNode.removeChild(cvs);
         ctxFnMap = 
         g = 
         this.ctx = null;
@@ -6564,10 +6577,10 @@ soya2d.CanvasRenderer = function(data){
      * @param {Number} [opt.x=0] 渐变坐标；线性渐变为起点，放射渐变为圆心
      * @param {Number} [opt.y=0] 渐变坐标；线性渐变为起点，放射渐变为圆心
      * @param {Number} [opt.angle=0] 渐变角度；线性渐变为渐变方向，放射渐变为焦点改变方向
-     * @param {Number} [opt.type=soya2d.GRADIENTTYPE_LINEAR] 渐变类型
+     * @param {Number} [opt.type=soya2d.GRADIENT_LINEAR] 渐变类型
      * @param {Number} [opt.focalRatio=0] 放射渐变焦点偏移比率
      * @param {Number} [opt.focalRadius=0] 焦点半径
-     * @see soya2d.GRADIENTTYPE_LINEAR
+     * @see soya2d.GRADIENT_LINEAR
      */
     this.createGradient = function(ratios,colors,len,opt){
         var angle=0,x=0,y=0,type=soya2d.GRADIENT_LINEAR,focalRatio=0,focalRadius=0;
@@ -7082,14 +7095,12 @@ soya2d.class("soya2d.Text",{
          * @default soya2d.Font
          * @see soya2d.Font
          */
-        this.font = data.font;
+        this.font = data.font || new soya2d.Font();
         if(typeof this.font === 'string'){
             this.font = new soya2d.Font(this.font);
         }else if(this.font instanceof soya2d.Atlas){
             this.font = new soya2d.ImageFont(this.font,data.size);
         }
-        var font = this.font||new soya2d.Font();
-        this.font = font;
 
         this.__changed = true;//默认需要修改
         this.__lines;//分行内容
@@ -7107,8 +7118,9 @@ soya2d.class("soya2d.Text",{
         if(!this.w)this.w = bounds.w;
         if(!this.h)this.h = bounds.h;
     },
-    onBuild:function(data,n){
-        this._super.onBuild(data);
+    onBuild:function(data,n,game){
+        soya2d.DisplayObject.prototype.onBuild(data);
+
         var txt = '';
         for(var k=0;k<n.childNodes.length;k++){
             if(n.childNodes[k].nodeType === 3){
@@ -7122,6 +7134,14 @@ soya2d.class("soya2d.Text",{
             data.size = parseInt(data['size']);
             data.font = game.assets.atlas(atlas);
         }
+        for(var k in data){
+            var name = k;
+            var v = data[k];
+            switch(name){
+                case 'letterSpacing':case 'lineSpacing':
+                    data[name] = parseFloat(v);
+            }
+        }
     },
     onRender:function(g){
         this.__renderer(g);
@@ -7130,25 +7150,31 @@ soya2d.class("soya2d.Text",{
      * 刷新显示内容<br/>
      * 用在修改了宽度时调用
      * @method refresh
+     * @chainable
      */
     refresh:function(){
         this.__changed = true;
+        return this;
     },
     /**
      * 重新设置文本域字体
      * @method setFont
      * @param {soya2d.Font | soya2d.ImageFont} font 字体
+     * @chainable
      */
     setFont:function(font){
-        if(!font)return;
+        if(!font)return this;
         this.font = font;
         this.__renderer = this.font.__textRenderer;//绑定渲染
+
+        return this;
     },
     /**
      * 设置文本内容，并刷新
      * @method setText
      * @param {string} txt 文本内容
      * @param {Boolean} changeW 是否自动改变宽度
+     * @chainable
      */
 	setText:function(txt,changeW){
 		this.text = txt+'';
@@ -7172,7 +7198,7 @@ soya2d.class("soya2d.Text",{
     },
     //计算每行内容
     __calc:function(){
-        var ls = this.letterSpacing;
+        var ls = this.letterSpacing>>0;
         var charNum = this.w / (this.__uw+ls) >>0;//理论单行个数
         if(charNum<1){
             this.w = this.__uw * 1.5;
@@ -7389,18 +7415,16 @@ soya2d.Game = function(opts){
 		//start modules
 		var modules = soya2d.module._getAll();
 		var beforeUpdates = [],
-            onUpdates = [],
-            afterUpdates = [],
+            postUpdates = [],
             beforeRenders = [],
-            afterRenders = [];
+            postRenders = [];
 		for(var k in modules){
 			if(modules[k].onStart)modules[k].onStart(this);
 
             if(modules[k].onBeforeUpdate)beforeUpdates.push([modules[k],modules[k].onBeforeUpdate]);
-			if(modules[k].onUpdate)onUpdates.push([modules[k],modules[k].onUpdate]);
-            if(modules[k].onAfterUpdate)afterUpdates.push([modules[k],modules[k].onAfterUpdate]);
+            if(modules[k].onPostUpdate)postUpdates.push([modules[k],modules[k].onPostUpdate]);
             if(modules[k].onBeforeRender)beforeRenders.push([modules[k],modules[k].onBeforeRender]);
-            if(modules[k].onAfterRender)afterRenders.push([modules[k],modules[k].onAfterRender]);
+            if(modules[k].onPostRender)postRenders.push([modules[k],modules[k].onPostRender]);
 		}
 		
 		//start
@@ -7410,25 +7434,15 @@ soya2d.Game = function(opts){
             beforeUpdates.forEach(function(cbk){
                 cbk[1].call(cbk[0],thisGame,now,d);
             });
-            //update modules
-            if(onUpdates.length>0){
-                now = Date.now();
-                onUpdates.forEach(function(cbk){
-                    cbk[1].call(cbk[0],thisGame,now,d);
-                });
-            }
 
             //physics
-            if(thisGame.physics.running)game.physics.update();
-
+            if(thisGame.physics.running)thisGame.physics.update();
             //calc camera rect
             thisGame.camera.__onUpdate();
+            thisGame.timer.__scan(d);
 
             //update entities
             //update matrix——>sort(optional)——>onUpdate(matrix)——>onRender(g)
-            
-            thisGame.timer.__scan(d);
-
             if(thisGame.currentScene.onUpdate)
                 thisGame.currentScene.onUpdate(thisGame,d);
 
@@ -7436,17 +7450,16 @@ soya2d.Game = function(opts){
             thisGame.stage.__updateMatrix();
             thisGame.stage.__postUpdate(thisGame,d);
             
-            //after updates
-            if(afterUpdates.length>0){
+            //post updates
+            if(postUpdates.length>0){
                 now = Date.now();
-                afterUpdates.forEach(function(cbk){
+                postUpdates.forEach(function(cbk){
                     cbk[1].call(cbk[0],thisGame,now,d);
                 });
             }
 
             
             thisGame.camera.__cull(thisGame.stage);
-
             thisGame.camera.__viewport(thisGame.world);
             
             //before render
@@ -7457,13 +7470,13 @@ soya2d.Game = function(opts){
                 });
             }
             //render
-            renderer.render(thisGame.stage,thisGame.camera);
+            var count = renderer.render(thisGame.stage,thisGame.camera);
             
             //after render
-            if(afterRenders.length>0){
+            if(postRenders.length>0){
                 now = Date.now();
-                afterRenders.forEach(function(cbk){
-                    cbk[1].call(cbk[0],thisGame,now,d);
+                postRenders.forEach(function(cbk){
+                    cbk[1].call(cbk[0],thisGame,now,d,count);
                 });
             }
 		});
@@ -7589,18 +7602,21 @@ soya2d.console.info(t2);
  * 渲染器类型,自动选择。
  * 引擎会根据运行环境自动选择渲染器类型
  * @property RENDERER_TYPE_AUTO
+ * @private
  */
 soya2d.RENDERER_TYPE_AUTO = 1;
 /**
  * 渲染器类型,canvas。
  * 引擎会使用canvas 2d方式进行渲染
  * @property RENDERER_TYPE_CANVAS
+ * @private
  */
 soya2d.RENDERER_TYPE_CANVAS = 2;
 /**
  * 渲染器类型,webgl
  * 引擎会使用webgl方式进行渲染
  * @property RENDERER_TYPE_WEBGL
+ * @private
  */
 soya2d.RENDERER_TYPE_WEBGL = 3;
 

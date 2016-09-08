@@ -27,7 +27,7 @@ soya2d.module.install('event',{
     onStop:function(game){
         this.events.stopListen(game);
     },
-    onUpdate:function(game){
+    onBeforeUpdate:function(game){
         this.events.scan();
     }
 });

@@ -1,0 +1,110 @@
+/*
+ * Base structure
+ */
+
+html,
+body {
+  height: 100%;
+  font-size: 15px;
+  color: #000;
+  font-family: "Hiragino Sans GB", "Microsoft YaHei",
+             "WenQuanYi Micro Hei", sans-serif;
+}
+h1{
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.bg-gray{
+  background: #f0f0f0;
+}
+.bg-drak{
+  background: #000;
+}
+
+.disabled,.disabled *{
+  color:#ddd !important;
+}
+
+.soya-white{
+  background: url(../image/brand_white.png) no-repeat;
+  background-size: contain;
+  float: left;
+  display: block;
+  width:2rem;
+  height: 2.5rem;
+}
+
+/**
+ * custom btns
+ * require FontAwesome
+ */
+.btn-link{
+  font-size: 1.5rem;
+  outline: none;
+  padding: .5rem 5rem .5rem 2rem;
+  position: relative;
+  display: inline-block;
+  margin: 3rem 0;
+  overflow: hidden;
+  transition: background-color 0.3s,color 0.3s;
+}
+.btn-link:before{
+  font-family: FontAwesome;
+  left: auto;
+  right: 1rem;
+  z-index: 2;
+  position: absolute;
+  height: 100%;
+  line-height: 2;
+  top: 0;
+  font-size: 1.5rem;
+  content: "\f105";
+}
+.btn-link:after{
+  width: 30%;
+  height: 200%;
+  background: rgba(255,255,255,0.2);
+  z-index: 1;
+  right: 0;
+  top: 0;
+  margin: -20px 0 0 50px;
+  transform-origin: 100% 100%;
+  transform: rotate(20deg);
+  content: '';
+  position: absolute;
+  transition: all 0.3s;
+}
+.btn-link:hover:after {
+  width: 35%;
+}
+
+/**
+ * navbar
+ */
+.navbar{
+  padding-top: .5rem; 
+}
+.navbar *{
+  color:#000 !important;
+}
+.navbar .nav-item{
+  margin-right:1rem;
+}
+.navbar .nav-item:hover,
+.navbar .nav-item.active{
+  border-bottom: 2px solid #2280bd;
+}
+.navbar .navbar-brand{
+  margin-right: 4rem;
+  font-size: 1.3rem;
+}
+.navbar.white *{
+  color: #fff !important;
+}
+
+footer.footer{
+  text-align: center;
+  width: 100%;
+  padding: 3rem 1rem;
+}

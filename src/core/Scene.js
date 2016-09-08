@@ -62,7 +62,7 @@ function build(scene,node,parent,game){
         }
         //filter data
         if(game.objects.map[type].prototype.onBuild){
-            game.objects.map[type].prototype.onBuild(data,n);
+            game.objects.map[type].prototype.onBuild(data,n,game);
         }
         var ins = newInstance(type,data,game);
 

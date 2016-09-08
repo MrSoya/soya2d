@@ -81,7 +81,7 @@ soya2d.class("soya2d.Sprite",{
 		return soya2d.DisplayObject.prototype.clone.call(this,isRecur,copy);
 	},
 	onBuild:function(data,node){
-		this._super.onBuild(data);
+		soya2d.DisplayObject.prototype.onBuild(data);
 
         for(var k in data){
             var name = k;
@@ -109,7 +109,7 @@ soya2d.class("soya2d.Sprite",{
         }
 	},
 	_onAdded:function(){
-		this._super._onAdded.call(this);
+		soya2d.DisplayObject.prototype._onAdded.call(this);
 		if(this.__scale9grid && (this.__w != this.images[0].width || this.__h != this.images[0].height)){
 	    	this.__cacheGrid = true;
 	    	this.__parseScale9();

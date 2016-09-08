@@ -86,6 +86,7 @@ soya2d.CanvasRenderer = function(data){
         return cvs;
     }
 
+    var count = 0;
     /**
      * 渲染方法。每调用一次，只进行一次渲染
      * @method render
@@ -100,8 +101,9 @@ soya2d.CanvasRenderer = function(data){
         }
 
         var rect = camera.__view;
-
+        count = 0;
         render(rect,ctx,stage,g,this.sortEnable,renderStyle);
+        return count;
     };
 
     var ctxFnMap = {
@@ -169,12 +171,16 @@ soya2d.CanvasRenderer = function(data){
             }
         }
     }
-    function render(cameraRect,ctx,ro,g,sortEnable,rs,inWorld){
+    function render(cameraRect,ctx,ro,g,sortEnable,rs){
         if(ro.opacity===0 
         || !ro.visible
         || ro.__masker)return;
 
-        if(!ro.__renderable)return;
+        var sp = ro.__screenPosition;
+
+        if(!ro.__renderable && (sp.x != Infinity && sp.y != Infinity))return;
+
+        count++;
 
         if(ro.mask instanceof soya2d.DisplayObject){
             ctx.save();
@@ -188,8 +194,8 @@ soya2d.CanvasRenderer = function(data){
         
         if(ro.onRender){
             var te = ro.__worldTransform.e;
-            var sp = ro.__screenPosition;
             var ap = ro.anchorPosition;
+            var wp = ro.worldPosition;
             if(ro.__updateCache){
                 var x = ap.x,
                     y = ap.y;
@@ -197,6 +203,10 @@ soya2d.CanvasRenderer = function(data){
             }else{
                 var x = sp.x,
                     y = sp.y;
+                if(x == Infinity && y == Infinity){//for stage children
+                    x = wp.x,
+                    y = wp.y;
+                }
                 
                 ctx.setTransform(te[0],te[1],te[2],te[3],x,y);
             }
@@ -236,8 +246,7 @@ soya2d.CanvasRenderer = function(data){
             });
 
             for(var i=0;i<children.length;i++){
-                render(cameraRect,ctx,children[i],g,sortEnable,rs,
-                    children[i].__soya_type != 'world' && !(ro instanceof Stage)?true:false);
+                render(cameraRect,ctx,children[i],g,sortEnable,rs);
             }
         }
 
@@ -258,7 +267,8 @@ soya2d.CanvasRenderer = function(data){
      * @method destroy
      */
     this.destroy = function(){
-        cvs.parentNode.removeChild(cvs);
+        if(cvs.parentNode)
+            cvs.parentNode.removeChild(cvs);
         ctxFnMap = 
         g = 
         this.ctx = null;
@@ -379,10 +389,10 @@ soya2d.CanvasRenderer = function(data){
      * @param {Number} [opt.x=0] 渐变坐标；线性渐变为起点，放射渐变为圆心
      * @param {Number} [opt.y=0] 渐变坐标；线性渐变为起点，放射渐变为圆心
      * @param {Number} [opt.angle=0] 渐变角度；线性渐变为渐变方向，放射渐变为焦点改变方向
-     * @param {Number} [opt.type=soya2d.GRADIENTTYPE_LINEAR] 渐变类型
+     * @param {Number} [opt.type=soya2d.GRADIENT_LINEAR] 渐变类型
      * @param {Number} [opt.focalRatio=0] 放射渐变焦点偏移比率
      * @param {Number} [opt.focalRadius=0] 焦点半径
-     * @see soya2d.GRADIENTTYPE_LINEAR
+     * @see soya2d.GRADIENT_LINEAR
      */
     this.createGradient = function(ratios,colors,len,opt){
         var angle=0,x=0,y=0,type=soya2d.GRADIENT_LINEAR,focalRatio=0,focalRadius=0;

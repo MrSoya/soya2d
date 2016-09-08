@@ -108,6 +108,7 @@
          */
         to:function(attris,duration,opts){
             if(this.__infinite)return this;
+            duration = duration||1;
             opts = opts || {};
             var easing = opts.easing||soya2d.Tween.Linear;
             var data = this.__calc(attris,duration,easing);
@@ -183,11 +184,12 @@
         },
         /**
          * 重置补间，播放头归0
+         * @param {Boolean} keepAlive 是否在补间执行完后继续保留实例
          * @chainable
          */
-        restart:function(){
+        restart:function(keepAlive){
             this.position = 0;
-            this.play();
+            this.play(keepAlive);
 
             return this;
         },
@@ -200,7 +202,7 @@
         },
         __onUpdate:function(r,td){
             this.emit('process',r,this.position / this.__long);
-            if(((r === 1 && !this.__reversed) || (r === 0 && this.__reversed)) && 
+            if(((r >= 1 && !this.__reversed) || (r === 0 && this.__reversed)) && 
                 this.__lastChangeTD != td){
                 
                 this.__onChange(++this.__changeTimes);

@@ -1,4 +1,9 @@
 # Change Log
+## Version 2.0.0 beta3 - 2016/9/8
+* 增加ext扩展模块
+* 增加本地examples
+* 修改模块安装接口
+* 其他修改
 
 ## Version 2.0.0 beta - 2016/8/26
 * 2.0 beta

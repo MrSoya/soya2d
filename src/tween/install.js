@@ -9,7 +9,7 @@
          */
         game.tween = soya2d.TweenManager;
     },
-    onUpdate:function(game,now,d){
+    onBeforeUpdate:function(game,now,d){
     	soya2d.TweenManager.__update(now,d);
     },
     onStop:function(){

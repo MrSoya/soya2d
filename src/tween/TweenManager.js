@@ -132,7 +132,7 @@ soya2d.TweenManager = new function(){
 		while(true){
 			var toBreak = true;
 			for(var i=this.list.length;i--;){
-				if(!this.list[i].target.__seq){
+				if(!this.list[i].target){
 					this.__remove(this.list[i]);
 					toBreak = false;
 				}
@@ -147,7 +147,7 @@ soya2d.TweenManager = new function(){
 	this.__update = function(now,d){
 		var needRefresh = false;
 		for(var i=this.list.length;i--;){
-			if(!this.list[i].target.__seq){
+			if(!this.list[i].target){
 				
 				needRefresh = true;
 				continue;

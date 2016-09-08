@@ -152,18 +152,16 @@ soya2d.Game = function(opts){
 		//start modules
 		var modules = soya2d.module._getAll();
 		var beforeUpdates = [],
-            onUpdates = [],
-            afterUpdates = [],
+            postUpdates = [],
             beforeRenders = [],
-            afterRenders = [];
+            postRenders = [];
 		for(var k in modules){
 			if(modules[k].onStart)modules[k].onStart(this);
 
             if(modules[k].onBeforeUpdate)beforeUpdates.push([modules[k],modules[k].onBeforeUpdate]);
-			if(modules[k].onUpdate)onUpdates.push([modules[k],modules[k].onUpdate]);
-            if(modules[k].onAfterUpdate)afterUpdates.push([modules[k],modules[k].onAfterUpdate]);
+            if(modules[k].onPostUpdate)postUpdates.push([modules[k],modules[k].onPostUpdate]);
             if(modules[k].onBeforeRender)beforeRenders.push([modules[k],modules[k].onBeforeRender]);
-            if(modules[k].onAfterRender)afterRenders.push([modules[k],modules[k].onAfterRender]);
+            if(modules[k].onPostRender)postRenders.push([modules[k],modules[k].onPostRender]);
 		}
 		
 		//start
@@ -173,25 +171,15 @@ soya2d.Game = function(opts){
             beforeUpdates.forEach(function(cbk){
                 cbk[1].call(cbk[0],thisGame,now,d);
             });
-            //update modules
-            if(onUpdates.length>0){
-                now = Date.now();
-                onUpdates.forEach(function(cbk){
-                    cbk[1].call(cbk[0],thisGame,now,d);
-                });
-            }
 
             //physics
-            if(thisGame.physics.running)game.physics.update();
-
+            if(thisGame.physics.running)thisGame.physics.update();
             //calc camera rect
             thisGame.camera.__onUpdate();
+            thisGame.timer.__scan(d);
 
             //update entities
             //update matrix——>sort(optional)——>onUpdate(matrix)——>onRender(g)
-            
-            thisGame.timer.__scan(d);
-
             if(thisGame.currentScene.onUpdate)
                 thisGame.currentScene.onUpdate(thisGame,d);
 
@@ -199,17 +187,16 @@ soya2d.Game = function(opts){
             thisGame.stage.__updateMatrix();
             thisGame.stage.__postUpdate(thisGame,d);
             
-            //after updates
-            if(afterUpdates.length>0){
+            //post updates
+            if(postUpdates.length>0){
                 now = Date.now();
-                afterUpdates.forEach(function(cbk){
+                postUpdates.forEach(function(cbk){
                     cbk[1].call(cbk[0],thisGame,now,d);
                 });
             }
 
             
             thisGame.camera.__cull(thisGame.stage);
-
             thisGame.camera.__viewport(thisGame.world);
             
             //before render
@@ -220,13 +207,13 @@ soya2d.Game = function(opts){
                 });
             }
             //render
-            renderer.render(thisGame.stage,thisGame.camera);
+            var count = renderer.render(thisGame.stage,thisGame.camera);
             
             //after render
-            if(afterRenders.length>0){
+            if(postRenders.length>0){
                 now = Date.now();
-                afterRenders.forEach(function(cbk){
-                    cbk[1].call(cbk[0],thisGame,now,d);
+                postRenders.forEach(function(cbk){
+                    cbk[1].call(cbk[0],thisGame,now,d,count);
                 });
             }
 		});
@@ -352,17 +339,20 @@ soya2d.console.info(t2);
  * 渲染器类型,自动选择。
  * 引擎会根据运行环境自动选择渲染器类型
  * @property RENDERER_TYPE_AUTO
+ * @private
  */
 soya2d.RENDERER_TYPE_AUTO = 1;
 /**
  * 渲染器类型,canvas。
  * 引擎会使用canvas 2d方式进行渲染
  * @property RENDERER_TYPE_CANVAS
+ * @private
  */
 soya2d.RENDERER_TYPE_CANVAS = 2;
 /**
  * 渲染器类型,webgl
  * 引擎会使用webgl方式进行渲染
  * @property RENDERER_TYPE_WEBGL
+ * @private
  */
 soya2d.RENDERER_TYPE_WEBGL = 3;

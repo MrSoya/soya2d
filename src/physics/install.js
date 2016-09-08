@@ -31,9 +31,6 @@
 					var ro = b.__sprite;
 					if(b.isStatic)continue;
 
-					var offx = 0,offy = 0;
-					offx = ro.w/2,offy = ro.h/2;
-					
 					ro.__x = b.position.x;
 					ro.__y = b.position.y;
 					
@@ -44,9 +41,6 @@
 				Matter.World.remove(engine.world,obj);
 			},
 			onBind:function(obj){
-				var offx = 0,offy = 0;
-					offx = obj.w/2,offy = obj.h/2;
-
 				var opts = {
 					angle:obj.angle * soya2d.Math.ONERAD,
 		    		position:{
@@ -62,11 +56,8 @@
 					shape = Matter.Bodies.circle(0,0,obj.bounds.r,opts);
 				}else if (obj.bounds instanceof soya2d.Polygon) {
 					var vtx = obj.bounds.vtx;
-					var convex = [];
-					for(var i=0;i<vtx.length;i+=2){
-						convex.push([vtx[i] - offx,vtx[i+1] - offy]);
-					}
-					shape = Matter.Bodies.fromVertices(0,0,convex,opts);
+					var vx = Matter.Vertices.fromPath(vtx.join(','));
+					shape = Matter.Bodies.fromVertices(0,0,vx,opts);
 				}
 
 				Matter.World.add(engine.world, shape);

@@ -19,7 +19,7 @@ soya2d.class("soya2d.RRect",{
         g.beginPath();
         g.moveTo(0,0);
         g.fillStyle(this.fillStyle);
-        g.roundRect(0,0,this.w,this.h,this.r);
+        g.roundRect(0,0,this.w,this.h,this.r<0?0:this.r);
         g.fill();
         if(this.lineWidth>0){
             g.lineStyle(this.lineWidth);

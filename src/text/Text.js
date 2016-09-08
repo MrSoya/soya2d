@@ -43,14 +43,12 @@ soya2d.class("soya2d.Text",{
          * @default soya2d.Font
          * @see soya2d.Font
          */
-        this.font = data.font;
+        this.font = data.font || new soya2d.Font();
         if(typeof this.font === 'string'){
             this.font = new soya2d.Font(this.font);
         }else if(this.font instanceof soya2d.Atlas){
             this.font = new soya2d.ImageFont(this.font,data.size);
         }
-        var font = this.font||new soya2d.Font();
-        this.font = font;
 
         this.__changed = true;//默认需要修改
         this.__lines;//分行内容
@@ -68,8 +66,9 @@ soya2d.class("soya2d.Text",{
         if(!this.w)this.w = bounds.w;
         if(!this.h)this.h = bounds.h;
     },
-    onBuild:function(data,n){
-        this._super.onBuild(data);
+    onBuild:function(data,n,game){
+        soya2d.DisplayObject.prototype.onBuild(data);
+
         var txt = '';
         for(var k=0;k<n.childNodes.length;k++){
             if(n.childNodes[k].nodeType === 3){
@@ -83,6 +82,14 @@ soya2d.class("soya2d.Text",{
             data.size = parseInt(data['size']);
             data.font = game.assets.atlas(atlas);
         }
+        for(var k in data){
+            var name = k;
+            var v = data[k];
+            switch(name){
+                case 'letterSpacing':case 'lineSpacing':
+                    data[name] = parseFloat(v);
+            }
+        }
     },
     onRender:function(g){
         this.__renderer(g);
@@ -91,25 +98,31 @@ soya2d.class("soya2d.Text",{
      * 刷新显示内容<br/>
      * 用在修改了宽度时调用
      * @method refresh
+     * @chainable
      */
     refresh:function(){
         this.__changed = true;
+        return this;
     },
     /**
      * 重新设置文本域字体
      * @method setFont
      * @param {soya2d.Font | soya2d.ImageFont} font 字体
+     * @chainable
      */
     setFont:function(font){
-        if(!font)return;
+        if(!font)return this;
         this.font = font;
         this.__renderer = this.font.__textRenderer;//绑定渲染
+
+        return this;
     },
     /**
      * 设置文本内容，并刷新
      * @method setText
      * @param {string} txt 文本内容
      * @param {Boolean} changeW 是否自动改变宽度
+     * @chainable
      */
 	setText:function(txt,changeW){
 		this.text = txt+'';
@@ -133,7 +146,7 @@ soya2d.class("soya2d.Text",{
     },
     //计算每行内容
     __calc:function(){
-        var ls = this.letterSpacing;
+        var ls = this.letterSpacing>>0;
         var charNum = this.w / (this.__uw+ls) >>0;//理论单行个数
         if(charNum<1){
             this.w = this.__uw * 1.5;
