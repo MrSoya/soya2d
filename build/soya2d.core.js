@@ -1837,7 +1837,7 @@ Scene.prototype = {
      * @param {XMLDocument} doc xml文档对象
      */
     setView:function(doc){
-        var world = doc.children[0];
+        var world = doc.childNodes[0];
         build(this,world,this.game.world,this.game);
     },
     /**
@@ -1870,8 +1870,10 @@ Scene.prototype = {
  */
 
 function build(scene,node,parent,game){
-    for(var i=0;i<node.children.length;i++){
-        var n = node.children[i];
+    for(var i=0;i<node.childNodes.length;i++){
+        var n = node.childNodes[i];
+        if(n.nodeType == 3)continue;
+        
         var type = n.tagName;
         var id = n.attributes['id'] ? n.attributes['id'].value : null;
         var data = {};
@@ -1893,7 +1895,7 @@ function build(scene,node,parent,game){
         }
         parent.add(ins);
 
-        if(n.children.length>0){
+        if(n.childNodes.length>0){
             build(scene,n,ins,game);
         }
     }

@@ -1,7 +1,7 @@
 (function() {
 	'use strict';
 
-	function Meter(game) {
+	function Meter() {
 		this.prevTime = Date.now();
 
 		this.startTime = 0;
@@ -15,7 +15,6 @@
 		this.frames = 0;
 		this.entities = 0;
 
-		this.game = game;
 		this.font = null;
 		this.text = null;
 		this.bg = null;
@@ -24,10 +23,9 @@
 	Meter.prototype = {
 		init: function(game) {
 			this.info = game.add.text({
-				font: this.font,
 				text: '',
 				fillStyle: '#fff',
-				font:'normal normal 1.2rem/20px "Hiragino Sans GB", "Microsoft YaHei", sans-serif',
+				font:'normal normal 16px/20px "Hiragino Sans GB", "Microsoft YaHei", sans-serif',
 				x: 10,
 				y: 10,
 				w: 150,
@@ -109,7 +107,7 @@
 
 	soya2d.module.install('FPSMeter', {
 		onInit: function(game) {
-			game.FPSMeter = new Meter(game);
+			game.FPSMeter = new Meter();
 		},
 		onSceneChange: function(game, scene) {
 			game.FPSMeter.init(game);
