@@ -54,5 +54,12 @@ http://soya2d.com
 2. http-server ./examples/ -p30760 -o
 ```
 
+## Gen API doc
+
+```
+1. npm -g install yuidocjs
+2. yuidoc
+```
+
 ## License
 base on [MIT](http://opensource.org/licenses/MIT)
