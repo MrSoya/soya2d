@@ -360,6 +360,10 @@ var Loader = soya2d.class("",{
     },
     __loadAssets:function(){
         var loader = this;
+        if(this.__assetsQueue.length<1){
+            this.emit('end');
+            return;
+        }
         this.__assetsQueue.forEach(function(asset){
             switch(asset.type){
                 case 'image':
