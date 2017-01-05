@@ -2,11 +2,11 @@
  * Soya2D is a web interactive animation(game) engine for modern web browsers 
  *
  *
- * Copyright 2015-2016 MrSoya and other contributors
+ * Copyright 2015-2017 MrSoya and other contributors
  * Released under the MIT license
  *
  * website: http://soya2d.com
- * last build: 2016-09-08
+ * last build: 2017-01-05
  */
 !function (global) {
 	'use strict';
@@ -1591,6 +1591,10 @@ var Loader = soya2d.class("",{
     },
     __loadAssets:function(){
         var loader = this;
+        if(this.__assetsQueue.length<1){
+            this.emit('end');
+            return;
+        }
         this.__assetsQueue.forEach(function(asset){
             switch(asset.type){
                 case 'image':
@@ -1877,11 +1881,10 @@ function build(scene,node,parent,game){
         var type = n.tagName;
         var id = n.attributes['id'] ? n.attributes['id'].value : null;
         var data = {};
-        var ks = Object.keys(n.attributes);
-        for(var j=ks.length;j--;){
-            var k = ks[j];
-            var kName = n.attributes[k].name;
-            data[kName] = n.attributes[k].value;
+        var attrs = n.attributes;
+        for(var j=0;j<attrs.length;j++){
+            var tmp = attrs[j].name;
+            data[tmp] = attrs[j].value;
         }
         //filter data
         if(game.objects.map[type].prototype.onBuild){
@@ -1889,7 +1892,7 @@ function build(scene,node,parent,game){
         }
         var ins = newInstance(type,data,game);
 
-        bindEvent(n.attributes,ins,scene);
+        bindEvent(data,ins,scene);
         if(id){
             scene.map[id] = ins;
         }
@@ -1902,19 +1905,18 @@ function build(scene,node,parent,game){
 }
 
 
-function bindEvent(attrs,ins,scene){
-    var ks = Object.keys(attrs);
+function bindEvent(data,ins,scene){
+    var ks = Object.keys(data);
     for(var i=ks.length;i--;){
-        var k = ks[i];
-        var kName = attrs[k].name;
-        var val = attrs[k].value;
-        if(kName.indexOf('on-') !== 0)continue;
-        var evType = kName.substr(3);
+        var name = ks[i];
+        var val = data[name];
+        if(name.indexOf('on-') !== 0)continue;
+        var evType = name.substr(3);
         var evFn = scene[val];
         if(evFn instanceof Function){
             ins.on(evType,evFn);
         }else{
-            soya2d.console.warn('invalid callback "'+val+'" of '+kName);
+            soya2d.console.warn('invalid callback "'+val+'" of '+name);
         }
     }
 }
