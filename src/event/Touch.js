@@ -130,11 +130,6 @@ soya2d.Touch = function(){
     /******************* handler *******************/
     function proxy(e){
         if(e.pointerType && (e.pointerType !== e.MSPOINTER_TYPE_TOUCH))return;
-        if (e.preventManipulation){
-            e.preventManipulation();
-        }else{
-            e.preventDefault();
-        }
 
         var type = e.type;
         switch(type){
@@ -163,6 +158,14 @@ soya2d.Touch = function(){
                 setEvent('touchcancel',e);
                 break;
         }
+    }
+    function proxyWithPrevent(e){
+        if (e.preventManipulation){
+            e.preventManipulation();
+        }else{
+            e.preventDefault();
+        }
+        proxy(e);
     }
 
     /******************* interface *******************/
@@ -266,18 +269,18 @@ soya2d.Touch = function(){
         var cvs = game.renderer.getCanvas();
 
         if (window.PointerEvent) {
-            cvs.addEventListener("pointerdown", proxy, false);
-            cvs.addEventListener("pointermove", proxy, false);
+            cvs.addEventListener("pointerdown", proxyWithPrevent, false);
+            cvs.addEventListener("pointermove", proxyWithPrevent, false);
             self.addEventListener("pointerup", proxy, false);
             self.addEventListener('pointercancel',proxy,false);
         }else if(window.MSPointerEvent){
-            cvs.addEventListener("MSPointerDown", proxy, false);
-            cvs.addEventListener("MSPointerMove", proxy, false);
+            cvs.addEventListener("MSPointerDown", proxyWithPrevent, false);
+            cvs.addEventListener("MSPointerMove", proxyWithPrevent, false);
             self.addEventListener("MSPointerUp", proxy, false);
             self.addEventListener('MSPointerCancel',proxy,false);
         }else{
-            cvs.addEventListener('touchstart',proxy,false);
-            cvs.addEventListener('touchmove',proxy,false);
+            cvs.addEventListener('touchstart',proxyWithPrevent,false);
+            cvs.addEventListener('touchmove',proxyWithPrevent,false);
             self.addEventListener('touchend',proxy,false);
             self.addEventListener('touchcancel',proxy,false);
         }
