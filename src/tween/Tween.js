@@ -15,6 +15,7 @@
      * @class soya2d.Tween
      * @constructor
      * @param {Object} target 补间目标
+     * @extends Signal
      */
     soya2d.class("soya2d.Tween",{
         extends:Signal,

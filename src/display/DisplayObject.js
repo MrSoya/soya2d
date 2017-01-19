@@ -15,6 +15,7 @@
  该类不能被实例化 
  * @class soya2d.DisplayObject
  * @param {Object} data 定义参数,见类参数定义
+ * @extends Signal
  */
 soya2d.class("soya2d.DisplayObject",{
     extends:Signal,

@@ -11,6 +11,7 @@
      * @class soya2d.PathTween
      * @constructor
      * @param {Object} target 补间目标
+     * @extends Signal
      */
     soya2d.class("soya2d.PathTween",{
         extends:Signal,

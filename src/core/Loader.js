@@ -9,6 +9,7 @@
  * });
  * ```
  *  @class Loader
+ *  @extends Signal
  */
 var Loader = soya2d.class("",{
     extends:Signal,
