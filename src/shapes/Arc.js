@@ -16,7 +16,7 @@
 soya2d.class("soya2d.Arc",{
     extends:soya2d.DisplayObjectContainer,
     constructor:function(data){
-
+        data = data||{};
         this.bounds = new soya2d.Circle(0,0,this.w/2);
         this.fillStyle = data.fillStyle || 'transparent';
     },

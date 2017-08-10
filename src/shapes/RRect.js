@@ -12,6 +12,7 @@
 soya2d.class("soya2d.RRect",{
     extends:soya2d.DisplayObjectContainer,
     constructor:function(data){
+        data = data||{};
         this.fillStyle = data.fillStyle || 'transparent';
         this.r = data.r || 0;
     },

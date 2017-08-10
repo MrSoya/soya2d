@@ -11,7 +11,7 @@
 soya2d.class("soya2d.Ellipse",{
     extends:soya2d.DisplayObjectContainer,
     constructor:function(data){
-
+        data = data||{};
         this.fillStyle = data.fillStyle || 'transparent';
     },
     onRender:function(g){

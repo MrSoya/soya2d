@@ -14,6 +14,7 @@
 soya2d.class("soya2d.RPoly",{
     extends:soya2d.DisplayObjectContainer,
     constructor:function(data){
+        data = data||{};
         this.fillStyle = data.fillStyle || 'transparent';
     },
     onRender:function(g){

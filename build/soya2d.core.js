@@ -6,7 +6,7 @@
  * Released under the MIT license
  *
  * website: http://soya2d.com
- * last build: 2017-01-06
+ * last build: 2017-08-07
  */
 !function (global) {
 	'use strict';
@@ -1240,6 +1240,7 @@ SignalHandler.prototype = {
  * });
  * ```
  *  @class Loader
+ *  @extends Signal
  */
 var Loader = soya2d.class("",{
     extends:Signal,
@@ -3229,6 +3230,7 @@ function DisplayObjectFactoryProxy(game){
  该类不能被实例化 
  * @class soya2d.DisplayObject
  * @param {Object} data 定义参数,见类参数定义
+ * @extends Signal
  */
 soya2d.class("soya2d.DisplayObject",{
     extends:Signal,

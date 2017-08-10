@@ -12,6 +12,7 @@
 soya2d.class("soya2d.Poly",{
     extends:soya2d.DisplayObjectContainer,
     constructor:function(data){
+        data = data||{};
         this.bounds = new soya2d.Polygon(data.vtx);
         this.fillStyle = data.fillStyle || 'transparent';
     },

@@ -268,7 +268,7 @@ soya2d.Touch = function(){
         thisGame = game;
         var cvs = game.renderer.getCanvas();
 
-        if (window.PointerEvent) {
+        if (window.PointerEvent && soya2d.Device.mobile) {
             cvs.addEventListener("pointerdown", proxyWithPrevent, false);
             cvs.addEventListener("pointermove", proxyWithPrevent, false);
             self.addEventListener("pointerup", proxy, false);
@@ -297,18 +297,18 @@ soya2d.Touch = function(){
         var cvs = game.renderer.getCanvas();
         
         if (window.PointerEvent) {
-            cvs.removeEventListener("pointerdown", proxy, false);
-            cvs.removeEventListener("pointermove", proxy, false);
+            cvs.removeEventListener("pointerdown", proxyWithPrevent, false);
+            cvs.removeEventListener("pointermove", proxyWithPrevent, false);
             self.removeEventListener("pointerup", proxy, false);
             self.removeEventListener('pointercancel',proxy,false);
         }else if(window.MSPointerEvent){
-            cvs.removeEventListener("MSPointerDown", proxy, false);
-            cvs.removeEventListener("MSPointerMove", proxy, false);
+            cvs.removeEventListener("MSPointerDown", proxyWithPrevent, false);
+            cvs.removeEventListener("MSPointerMove", proxyWithPrevent, false);
             self.removeEventListener("MSPointerUp", proxy, false);
             self.removeEventListener('MSPointerCancel',proxy,false);
         }else{
-            cvs.removeEventListener('touchstart',proxy,false);
-            cvs.removeEventListener('touchmove',proxy,false);
+            cvs.removeEventListener('touchstart',proxyWithPrevent,false);
+            cvs.removeEventListener('touchmove',proxyWithPrevent,false);
             self.removeEventListener('touchend',proxy,false);
             self.removeEventListener('touchcancel',proxy,false);
         }

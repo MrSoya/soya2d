@@ -6,7 +6,7 @@
  * Released under the MIT license
  *
  * website: http://soya2d.com
- * last build: 2017-01-06
+ * last build: 2017-08-07
  */
 !function (global) {
 	'use strict';
@@ -1240,6 +1240,7 @@ SignalHandler.prototype = {
  * });
  * ```
  *  @class Loader
+ *  @extends Signal
  */
 var Loader = soya2d.class("",{
     extends:Signal,
@@ -3229,6 +3230,7 @@ function DisplayObjectFactoryProxy(game){
  该类不能被实例化 
  * @class soya2d.DisplayObject
  * @param {Object} data 定义参数,见类参数定义
+ * @extends Signal
  */
 soya2d.class("soya2d.DisplayObject",{
     extends:Signal,
@@ -7640,6 +7642,7 @@ soya2d.RENDERER_TYPE_WEBGL = 3;
      * @class soya2d.Tween
      * @constructor
      * @param {Object} target 补间目标
+     * @extends Signal
      */
     soya2d.class("soya2d.Tween",{
         extends:Signal,
@@ -8055,6 +8058,7 @@ soya2d.RENDERER_TYPE_WEBGL = 3;
      * @class soya2d.PathTween
      * @constructor
      * @param {Object} target 补间目标
+     * @extends Signal
      */
     soya2d.class("soya2d.PathTween",{
         extends:Signal,
@@ -9127,7 +9131,7 @@ soya2d.module.install('tween',{
 soya2d.class("soya2d.Arc",{
     extends:soya2d.DisplayObjectContainer,
     constructor:function(data){
-
+        data = data||{};
         this.bounds = new soya2d.Circle(0,0,this.w/2);
         this.fillStyle = data.fillStyle || 'transparent';
     },
@@ -9169,7 +9173,7 @@ soya2d.class("soya2d.Arc",{
 soya2d.class("soya2d.Ellipse",{
     extends:soya2d.DisplayObjectContainer,
     constructor:function(data){
-
+        data = data||{};
         this.fillStyle = data.fillStyle || 'transparent';
     },
     onRender:function(g){
@@ -9199,6 +9203,7 @@ soya2d.class("soya2d.Ellipse",{
 soya2d.class("soya2d.Poly",{
     extends:soya2d.DisplayObjectContainer,
     constructor:function(data){
+        data = data||{};
         this.bounds = new soya2d.Polygon(data.vtx);
         this.fillStyle = data.fillStyle || 'transparent';
     },
@@ -9228,6 +9233,7 @@ soya2d.class("soya2d.Poly",{
 soya2d.class("soya2d.Rect",{
     extends:soya2d.DisplayObjectContainer,
     constructor:function(data){
+        data = data||{};
         this.fillStyle = data.fillStyle || 'transparent';
     },
     onRender:function(g){
@@ -9260,6 +9266,7 @@ soya2d.class("soya2d.Rect",{
 soya2d.class("soya2d.RPoly",{
     extends:soya2d.DisplayObjectContainer,
     constructor:function(data){
+        data = data||{};
         this.fillStyle = data.fillStyle || 'transparent';
     },
     onRender:function(g){
@@ -9289,6 +9296,7 @@ soya2d.class("soya2d.RPoly",{
 soya2d.class("soya2d.RRect",{
     extends:soya2d.DisplayObjectContainer,
     constructor:function(data){
+        data = data||{};
         this.fillStyle = data.fillStyle || 'transparent';
         this.r = data.r || 0;
     },
@@ -9321,7 +9329,7 @@ soya2d.class("soya2d.RRect",{
 soya2d.class("soya2d.EArc",{
     extends:soya2d.DisplayObjectContainer,
     constructor:function(data){
-
+        data = data||{};
         this.fillStyle = data.fillStyle || 'transparent';
     },
     onRender:function(g){
@@ -10898,7 +10906,7 @@ soya2d.Touch = function(){
         thisGame = game;
         var cvs = game.renderer.getCanvas();
 
-        if (window.PointerEvent) {
+        if (window.PointerEvent && soya2d.Device.mobile) {
             cvs.addEventListener("pointerdown", proxyWithPrevent, false);
             cvs.addEventListener("pointermove", proxyWithPrevent, false);
             self.addEventListener("pointerup", proxy, false);
@@ -10927,18 +10935,18 @@ soya2d.Touch = function(){
         var cvs = game.renderer.getCanvas();
         
         if (window.PointerEvent) {
-            cvs.removeEventListener("pointerdown", proxy, false);
-            cvs.removeEventListener("pointermove", proxy, false);
+            cvs.removeEventListener("pointerdown", proxyWithPrevent, false);
+            cvs.removeEventListener("pointermove", proxyWithPrevent, false);
             self.removeEventListener("pointerup", proxy, false);
             self.removeEventListener('pointercancel',proxy,false);
         }else if(window.MSPointerEvent){
-            cvs.removeEventListener("MSPointerDown", proxy, false);
-            cvs.removeEventListener("MSPointerMove", proxy, false);
+            cvs.removeEventListener("MSPointerDown", proxyWithPrevent, false);
+            cvs.removeEventListener("MSPointerMove", proxyWithPrevent, false);
             self.removeEventListener("MSPointerUp", proxy, false);
             self.removeEventListener('MSPointerCancel',proxy,false);
         }else{
-            cvs.removeEventListener('touchstart',proxy,false);
-            cvs.removeEventListener('touchmove',proxy,false);
+            cvs.removeEventListener('touchstart',proxyWithPrevent,false);
+            cvs.removeEventListener('touchmove',proxyWithPrevent,false);
             self.removeEventListener('touchend',proxy,false);
             self.removeEventListener('touchcancel',proxy,false);
         }
