@@ -15,7 +15,6 @@ var Loader = soya2d.class("",{
     extends:Signal,
     timeout:5000,
     constructor:function(game){
-        this.__signalHandler = new SignalHandler();
         this.__assetsQueue = [];
 
         this.game = game;

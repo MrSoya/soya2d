@@ -14,7 +14,6 @@
 var Physics = soya2d.class("",{
     extends:Signal,
     constructor:function(game){
-        this.__signalHandler = new SignalHandler();
         this.running = false;
     },
     /**

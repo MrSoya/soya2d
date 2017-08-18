@@ -11,7 +11,6 @@
  */
 var Tilemap = soya2d.class("",{
     extends:Signal,
-    __signalHandler : new SignalHandler(),
     constructor: function(data){
         /**
          * 单个瓦片宽度

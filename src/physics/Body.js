@@ -8,7 +8,6 @@
 var Body = soya2d.class("",{
     extends:Signal,
     constructor:function(displayObject){
-        this.__signalHandler = new SignalHandler();
         /**
          * 显示对象引用
          */

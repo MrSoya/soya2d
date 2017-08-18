@@ -62,7 +62,12 @@ var src_core = [
     "src/text/Font.js",
     "src/text/ImageFont.js",
     "src/text/Text.js",
-    "src/core/Game.js"
+    "src/core/Game.js",
+    //event
+    "src/event/Events.js",
+    "src/event/KeyCode.js",
+    "src/event/InputListener.js",
+    "src/event/listeners.js"
 ];
 
 var src_ext = [
@@ -81,14 +86,6 @@ var src_ext = [
     "src/shapes/RRect.js",
     "src/shapes/EArc.js",
     "src/shapes/install.js",
-    //event
-    "src/event/Events.js",
-    "src/event/Keyboard.js",
-    "src/event/KeyCode.js",
-    "src/event/Mobile.js",
-    "src/event/Mouse.js",
-    "src/event/Touch.js",
-    "src/event/install.js",
     //sound
     "src/sound/howler.min.js",
     "src/sound/Sound.js",

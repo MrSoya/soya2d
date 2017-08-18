@@ -1,120 +1,57 @@
-﻿/**
- * 事件模块定义了soya2d中内置的事件处理系统，包括键盘、鼠标、触摸、设备等。
- * <b>该模块是扩展模块，可以自行卸载</b>
- * @module event
- */
+﻿
+var eventSignal = new Signal();
 /**
- * 事件组用于管理一个soya2d.Game实例内的所有事件的启动，停止，和触法。<br/>
- * 该类由引擎自动管理，无需开发者控制
- * @class soya2d.Events
+ * 精灵事件接口，用来绑定回调事件
+ * @param {[type]} displayObject [description]
  */
-soya2d.Events = function(){
+function Events(displayObject){
+    this.obj = displayObject;
     
-    var evts = [];
-    /**
-     * 注册一个事件处理器，以及能处理的事件类型,用于扩展事件处理模块
-     * @method register
-     * @param  {Array} events  事件数组
-     * @param  {Object} handler 事件处理器
-     */
-    this.register = function(events,handler){
-        evts.push([events,handler]);
+    //pointer
+    this.onPointerDown = function(cbk){
+        eventSignal.on('pointerdown',cbk,this.obj);
+    }
+    this.onPointerTap = function(cbk){
+        eventSignal.on('pointertap',cbk,this.obj);
+    }
+    this.onPointerDblTap = function(cbk){
+        eventSignal.on('pointerdbltap',cbk,this.obj);
+    }
+    this.onPointerUp = function(cbk){
+        eventSignal.on('pointerup',cbk,this.obj);
+    }
+    this.onPointerMove = function(cbk){
+        eventSignal.on('pointermove',cbk,this.obj);
+    }
+    this.onPointerOver = function(cbk){
+        eventSignal.on('pointerover',cbk,this.obj);
+    }
+    this.onPointerOut = function(cbk){
+        eventSignal.on('pointerout',cbk,this.obj);
+    }
+    this.onPointerCancel = function(cbk){
+        eventSignal.on('pointercancel',cbk,this.obj);
     }
 
-    //扫描是否有事件需要触发
-    this.scan = function(){
-        for(var i=evts.length;i--;){
-            evts[i][1].scan();
-        }
+    //keyboard
+    this.onKeyDown = function(cbk){
+        eventSignal.on('keydown',cbk,this.obj);
+    }
+    this.onKeyPress = function(cbk){
+        eventSignal.on('keypress',cbk,this.obj);
+    }
+    this.onKeyUp = function(cbk){
+        eventSignal.on('keyup',cbk,this.obj);
     }
 
-    /**
-     * 启动所有事件监听
-     * @method startListen
-     * @param {soya2d.Game} game 游戏实例
-     * @chainable
-     */
-    this.startListen = function(game){
-        for(var i=evts.length;i--;){
-            evts[i][1].startListen(game);
-        }
-
-        return this;
+    //device
+    this.onDeviceHov = function(cbk){
+        eventSignal.on('hov',cbk,this.obj);
     }
-
-    /**
-     * 停止所有事件监听
-     * @method stopListen
-     * @param {soya2d.Game} game 游戏实例
-     * @chainable
-     */
-    this.stopListen = function(game){
-        for(var i=evts.length;i--;){
-            evts[i][1].stopListen(game);
-        }
-
-        return this;
+    this.onDeviceTilt = function(cbk){
+        eventSignal.on('tilt',cbk,this.obj);
     }
-    /**
-     * 增加事件监听
-     * @method addListener
-     * @param {String} events 一个或多个用空格分隔的事件类型
-     * @param {Function} callback 回调函数
-     * @param {Object} context 回调函数的上下文，通常会是事件触发的主体
-     * @param {int} order 触发顺序，值越大越先触发
-     */
-    this.addListener = function(events,callback,context,order){
-    	var evs = events.split(' ');
-        for(var i=evs.length;i--;){
-            var ev = evs[i];
-
-            for(var j=evts.length;j--;){
-                if(evts[j][0].indexOf(ev)>-1){
-                    evts[j][1].addListener(ev,callback,context,order);
-                    break;
-                }
-            }
-        }
-    }
-    /**
-     * 删除事件监听
-     * @method removeListener
-     * @param {String} events 一个或多个用空格分隔的事件类型
-     * @param {Function} [callback] 回调函数。如果该参数为空。则删除指定类型下所有监听
-     * @param {Object} context 回调函数的上下文，通常会是事件触发的主体
-     */
-    this.removeListener = function(events,callback,context){
-    	var evs = events.split(' ');
-        for(var i=evs.length;i--;){
-            var ev = evs[i];
-
-            for(var j=evts.length;j--;){
-                if(evts[j][0].indexOf(ev)>-1){
-                    evts[j][1].removeListener(ev,callback,context);
-                    break;
-                }
-            }
-        }
-    }
-
-    /**
-     * 清除事件监听器
-     * @method clearListener
-     * @param  {soya2d.EventHandler} [handler] 需要清除的事件处理器类型。如果为空，清除所有监听器
-     * @param  {String} [ev] 事件类型。如果为空，清除该事件处理器下的所有监听器
-     */
-    this.clearListener = function(handler,ev){
-        if(handler){
-            for(var i=evts.length;i--;){
-                if(evts[i][1] instanceof handler){
-                    evts[i][1].clearListener(ev);
-                    return;
-                }
-            }
-        }else{
-            for(var i=evts.length;i--;){
-                evts[i][1].clearListener();
-            }
-        }
+    this.onDeviceMotion = function(cbk){
+        eventSignal.on('motion',cbk,this.obj);
     }
 }

@@ -72,7 +72,7 @@ global.soya2d = new function(){
      * 定义一个类。并可以定义原型属性或实例属性。
      * ```
      * soya2d.class("mrsoya.shape",{
-extends:Signal,
+extends:soya2d.DisplayObject,
 color:'#000',//原型属性
 constructor: function(data){
     this.x = data.x;//实例属性

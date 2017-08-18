@@ -53,7 +53,6 @@
 var Timer = soya2d.class('',{
     extends:Signal,
     constructor:function(){
-        this.__signalHandler = new SignalHandler();
         this.triggerList = [];
         this.expMap = {};
         this.threshold = 1000;
@@ -63,10 +62,10 @@ var Timer = soya2d.class('',{
      * @method on
      * @param  {String} exp  表达式，必须用中括号包裹 [* * *]
      * @param  {Function} cbk  回调函数，回调参数[milliseconds,times,[s,m,h]]
-     * @param  {Number} order 序号
+     * @param  {Object} [context] 上下文
      * @return this
      */
-    on:function(exp,cbk,order){
+    on:function(exp,cbk,context){
         var that = this;
         exp = exp.replace(/\[(.*?)\]/mg,function(all,ex){
             if(!that.expMap[ex]){
@@ -77,17 +76,17 @@ var Timer = soya2d.class('',{
             return ex.replace(/\s+/mg,'_');
         });
         
-        return this._super.on.call(this,exp,cbk,order);
+        return this._super.on.call(this,exp,cbk,context);
     },
     /**
      * 添加一个定时器，只执行一次
      * @method once
      * @param  {String} exp  表达式，必须用中括号包裹 [* * *]
      * @param  {Function} cbk  回调函数，回调参数[milliseconds,times,[s,m,h]]
-     * @param  {Number} order 序号
+     * @param  @param  {Object} [context] 上下文
      * @return this
      */
-    once:function(exp,cbk,order){
+    once:function(exp,cbk,context){
         var that = this;
         exp = exp.replace(/\[(.*?)\]/mg,function(all,ex){
             if(!that.expMap[ex]){
@@ -97,7 +96,7 @@ var Timer = soya2d.class('',{
             }
             return ex.replace(/\s+/mg,'_');
         });
-        return this._super.once.call(this,exp,cbk,order);
+        return this._super.once.call(this,exp,cbk,context);
     },
     /**
      * 取消一个定时器

@@ -20,7 +20,6 @@
     soya2d.class("soya2d.Tween",{
         extends:Signal,
         constructor:function(target){
-            this.__signalHandler = new SignalHandler();
             /**
              * 补间目标
              * @property target

@@ -6,7 +6,7 @@
  * Released under the MIT license
  *
  * website: http://soya2d.com
- * last build: 2017-08-07
+ * last build: 2017-08-18
  */
 !function (global) {
 	'use strict';
@@ -84,7 +84,7 @@ global.soya2d = new function(){
      * 定义一个类。并可以定义原型属性或实例属性。
      * ```
      * soya2d.class("mrsoya.shape",{
-extends:Signal,
+extends:soya2d.DisplayObject,
 color:'#000',//原型属性
 constructor: function(data){
     this.x = data.x;//实例属性
@@ -1080,38 +1080,31 @@ soya2d.Atlas.prototype = {
 
 
 /**
- * 信号类用来实现soya2D内部的消息系统
+ * 信号类用来实现soya2D内部的消息系统。
+ * 同时，对于自定义全局消息，也可以直接创建信号通道进行通信
  * 
- * @class Signal
+ * @class soya2d.Signal
  */
 
-function Signal(){
-    // this.__signalHandler;
+var Signal = soya2d.Signal = function (){
+    this.__sigmap = {};
 }
-Signal.prototype = {
+soya2d.Signal.prototype = {
     /**
      * 监听一个信号
      * @method on
      * @param {String} type 信号类型，多个类型使用空格分割
-     * @param {Function} cbk 回调函数，回调参数[target,...]
-     * @param {int} order 触发序号，越大的值越先触发
+     * @param {Function} cbk 回调函数，回调参数和emit时所传参数一致
+     * @param {Object} [context] 函数执行上下文
      * @chainable
      */
-    on:function(type,cbk,order){
-        if(this instanceof soya2d.DisplayObject){
-            switch(type){
-                case 'pointdown':
-                    type = soya2d.Device.mobile?'touchstart':'mousedown';
-                    break;
-                case 'pointmove':
-                    type = soya2d.Device.mobile?'touchmove':'mousemove';
-                    break;
-                case 'pointup':
-                    type = soya2d.Device.mobile?'touchend':'mouseup';
-                    break;
-            }
+    on:function(type,cbk,context){
+        var ts = type.replace(/\s+/mg,' ').split(' ');
+        for(var i=ts.length;i--;){
+            var listeners = this.__sigmap[ts[i]];
+            if(!listeners)listeners = this.__sigmap[ts[i]] = [];
+            listeners.push([cbk,context||this]);
         }
-        this.__signalHandler.on(type,cbk,order,this);
         return this;
     },
     /**
@@ -1119,11 +1112,16 @@ Signal.prototype = {
      * @method once
      * @param {String} type 信号类型，多个类型使用空格分割
      * @param {Function} cbk 回调函数
-     * @param {int} order 触发序号，越大的值越先触发
+     * @param {Object} [context] 函数执行上下文
      * @chainable
      */
-    once:function(type,cbk,order){
-        this.__signalHandler.once(type,cbk,order,this);
+    once:function(type,cbk,context){
+        var ts = type.replace(/\s+/mg,' ').split(' ');
+        for(var i=ts.length;i--;){
+            var listeners = this.__sigmap[ts[i]];
+            if(!listeners)listeners = this.__sigmap[ts[i]] = [];
+            listeners.push([cbk,context||this,true]);
+        }
         return this;
     },
     /**
@@ -1131,67 +1129,23 @@ Signal.prototype = {
      * @method off
      * @param {String} [type] 信号类型，多个类型使用空格分割。如果为空，删除所有信号监听
      * @param {Function} [cbk] 监听时的函数引用。如果为空，删除该类型下所有监听
+     * @param {Object} [context] 函数执行上下文
      * @chainable
      */
-    off:function(type,cbk){
-        this.__signalHandler.off(type,cbk,this);
-        return this
-    },
-    /**
-     * 发射指定类型信号
-     * @method emit
-     * @param {String} type 信号类型
-     * @param {...} params 不定类型和数量的参数
-     * @chainable
-     */
-    emit:function(){
-        var params = [arguments[0],this];
-        for(var i=1;i<arguments.length;i++){
-            params.push(arguments[i]);
-        }
-        this.__signalHandler.emit.apply(this.__signalHandler,params);
-        return this;
-    }
-}
-
-/**
- * 信号类用来实现soya2D内部的消息系统
- * @class SignalHandler
- */
-function SignalHandler(){
-    this.map = {};
-}
-SignalHandler.prototype = {
-    on:function(type,cbk,order,context){
-        var ts = type.replace(/\s+/mg,' ').split(' ');
-        for(var i=ts.length;i--;){
-            var listeners = this.map[ts[i]];
-            if(!listeners)listeners = this.map[ts[i]] = [];
-            listeners.push([cbk,context,order]);
-        }
-    },
-    once:function(type,cbk,order,context){
-        var ts = type.replace(/\s+/mg,' ').split(' ');
-        for(var i=ts.length;i--;){
-            var listeners = this.map[ts[i]];
-            if(!listeners)listeners = this.map[ts[i]] = [];
-            listeners.push([cbk,context,order,true]);
-        }
-    },
     off:function(type,cbk,context){
         var types = null;
         if(!type){
-            types = Object.keys(this.map);
+            types = Object.keys(this.__sigmap);
         }else{
             types = type.replace(/\s+/mg,' ').split(' ');
         }
 
         for(var i=types.length;i--;){
-            var listeners = this.map[types[i]];
+            var listeners = this.__sigmap[types[i]];
             if(listeners){
                 var toDel = [];
                 for(var j=listeners.length;j--;){
-                    if(context === listeners[j][1] && 
+                    if((context||this) === listeners[j][1] && 
                         (cbk?listeners[j][0] === cbk:true)){
                         toDel.push(listeners[j]);
                     }
@@ -1202,33 +1156,39 @@ SignalHandler.prototype = {
                 });
             }
         }
+        return this
     },
-    //type,src
+    /**
+     * 发射指定类型信号
+     * @method emit
+     * @param {String} type 信号类型
+     * @param {...} params 不定类型和数量的参数
+     * @chainable
+     */
     emit:function(){
-        var listeners = this.map[arguments[0]];
-        if(!listeners)return;
+        console.log(arguments[0])
+        var listeners = this.__sigmap[arguments[0]];
+        if(!listeners)return;        
         
-        var target = arguments[1];
-        var params = [target];
-        for(var i=2;i<arguments.length;i++){
+        var target = this;
+        var params = [];
+        for(var i=1;i<arguments.length;i++){
             params.push(arguments[i]);
         }
 
-        listeners.sort(function(a,b){
-            return b[2] - a[2];
-        });
-
         listeners.filter(function(item){
-            if(item[1] === target)
-                item[0].apply(item[1],params);
+            item[0].apply(item[1],params);
         });
         var last = listeners.filter(function(item){
-            if(!item[3])return true;
+            if(!item[2])return true;
         });
 
-        this.map[arguments[0]] = last;
+        this.__sigmap[arguments[0]] = last;
+
+        return this;
     }
 }
+
 /**
  *  资源加载类加载所有相关资源，并放入{{#crossLink "Assets"}}{{/crossLink}}中。
  *  该类不能被实例化，系统会自动创建实例给game。
@@ -1246,7 +1206,6 @@ var Loader = soya2d.class("",{
     extends:Signal,
     timeout:5000,
     constructor:function(game){
-        this.__signalHandler = new SignalHandler();
         this.__assetsQueue = [];
 
         this.game = game;
@@ -2210,7 +2169,6 @@ function checkTimePart(part,v){
 var Timer = soya2d.class('',{
     extends:Signal,
     constructor:function(){
-        this.__signalHandler = new SignalHandler();
         this.triggerList = [];
         this.expMap = {};
         this.threshold = 1000;
@@ -2220,10 +2178,10 @@ var Timer = soya2d.class('',{
      * @method on
      * @param  {String} exp  表达式，必须用中括号包裹 [* * *]
      * @param  {Function} cbk  回调函数，回调参数[milliseconds,times,[s,m,h]]
-     * @param  {Number} order 序号
+     * @param  {Object} [context] 上下文
      * @return this
      */
-    on:function(exp,cbk,order){
+    on:function(exp,cbk,context){
         var that = this;
         exp = exp.replace(/\[(.*?)\]/mg,function(all,ex){
             if(!that.expMap[ex]){
@@ -2234,17 +2192,17 @@ var Timer = soya2d.class('',{
             return ex.replace(/\s+/mg,'_');
         });
         
-        return this._super.on.call(this,exp,cbk,order);
+        return this._super.on.call(this,exp,cbk,context);
     },
     /**
      * 添加一个定时器，只执行一次
      * @method once
      * @param  {String} exp  表达式，必须用中括号包裹 [* * *]
      * @param  {Function} cbk  回调函数，回调参数[milliseconds,times,[s,m,h]]
-     * @param  {Number} order 序号
+     * @param  @param  {Object} [context] 上下文
      * @return this
      */
-    once:function(exp,cbk,order){
+    once:function(exp,cbk,context){
         var that = this;
         exp = exp.replace(/\[(.*?)\]/mg,function(all,ex){
             if(!that.expMap[ex]){
@@ -2254,7 +2212,7 @@ var Timer = soya2d.class('',{
             }
             return ex.replace(/\s+/mg,'_');
         });
-        return this._super.once.call(this,exp,cbk,order);
+        return this._super.once.call(this,exp,cbk,context);
     },
     /**
      * 取消一个定时器
@@ -2872,7 +2830,6 @@ soya2d.Vector.prototype = {
 var Body = soya2d.class("",{
     extends:Signal,
     constructor:function(displayObject){
-        this.__signalHandler = new SignalHandler();
         /**
          * 显示对象引用
          */
@@ -3014,7 +2971,6 @@ var Body = soya2d.class("",{
 var Physics = soya2d.class("",{
     extends:Signal,
     constructor:function(game){
-        this.__signalHandler = new SignalHandler();
         this.running = false;
     },
     /**
@@ -3230,449 +3186,452 @@ function DisplayObjectFactoryProxy(game){
  该类不能被实例化 
  * @class soya2d.DisplayObject
  * @param {Object} data 定义参数,见类参数定义
- * @extends Signal
  */
-soya2d.class("soya2d.DisplayObject",{
-    extends:Signal,
-    __signalHandler : new SignalHandler(),
-    constructor: function(data){
-        data = data||{};
-        	
-        this.__seq = soya2d.__roIndex++;
+soya2d.DisplayObject = function(data){
+    data = data||{};
+        
+    this.__seq = soya2d.__roIndex++;
+    /**
+     * 对父类的引用
+     * @property _super
+     * @type {soya2d.DisplayObject}
+     */
+
+    /**
+     * 渲染对象id
+     * @property roid
+     * @readOnly
+     * @type {string}
+     */
+    this.roid = 'roid_' + this.__seq;
+    /**
+     * 名称——用于识别显示对象。如果创建时不指定，默认和roid相同
+     * @property name
+     * @type {string}
+     */
+    this.name = data.name||this.roid;
+    /**
+     * 是否可见
+     * @property visible
+     * @type boolean
+     * @default true
+     */
+    this.visible = data.visible===false?false:data.visible||true;
+    /**
+     * 布局对象允许以更灵活的方式设置显示对象的尺寸或坐标，属性列表如下：
+     * left 当值是百分比时，相对父类的宽度
+     * top  当值是百分比时，相对父类的高度
+     * offsetLeft 当值是百分比时，相对自身的宽度
+     * offsetTop 当值是百分比时，相对自身的高度
+     * 都支持数值和百分比
+     * @property layout
+     * @type {Object}
+     */
+    this.layout = data.layout;
+
+    this.__opacity = data.opacity===0?0:data.opacity||1;
+    this.__x = data.x||0;
+    this.__y = data.y||0;
+    this.__w = data.w||0;
+    this.__h = data.h||0;
+    this.__anchorX = data.anchorX === 0?0:(data.anchorX||'50%');
+    this.__anchorY = data.anchorY === 0?0:(data.anchorY||'50%');
+    this.__angle = data.angle||0;
+    this.__scaleX = data.scaleX==0?0:data.scaleX||1;
+    this.__scaleY = data.scaleY==0?0:data.scaleY||1;
+    this.__skewX = data.skewX||0;
+    this.__skewY = data.skewY||0;
+
+    Object.defineProperties(this,{
         /**
-         * 对父类的引用
-         * @property _super
-         * @type {soya2d.DisplayObject}
+         * 不可见度0-1
+         * 1:不透明
+         * 0:全透明
+         * @type Number
+         * @property opacity
+         * @default 1
          */
-
+        opacity:{
+            set:function(v){
+                if(v == 0)v = 0;
+                else{
+                    v = parseFloat(v)||1;
+                }
+                this.__opacity = v<0?0:v>1?1:v;
+            },
+            get:function(){
+                return this.__opacity;
+            },
+            enumerable:true
+        },
         /**
-         * 渲染对象id
-         * @property roid
-         * @readOnly
-         * @type {string}
-         */
-        this.roid = 'roid_' + this.__seq;
-        /**
-         * 名称——用于识别显示对象。如果创建时不指定，默认和roid相同
-         * @property name
-         * @type {string}
-         */
-        this.name = data.name||this.roid;
-        /**
-         * 是否可见
-         * @property visible
-         * @type boolean
-         * @default true
-         */
-        this.visible = data.visible===false?false:data.visible||true;
-        /**
-         * 布局对象允许以更灵活的方式设置显示对象的尺寸或坐标，属性列表如下：
-         * left 当值是百分比时，相对父类的宽度
-         * top  当值是百分比时，相对父类的高度
-         * offsetLeft 当值是百分比时，相对自身的宽度
-         * offsetTop 当值是百分比时，相对自身的高度
-         * 都支持数值和百分比
-         * @property layout
-         * @type {Object}
-         */
-        this.layout = data.layout;
-
-        this.__opacity = data.opacity===0?0:data.opacity||1;
-        this.__x = data.x||0;
-        this.__y = data.y||0;
-        this.__w = data.w||0;
-        this.__h = data.h||0;
-        this.__anchorX = data.anchorX === 0?0:(data.anchorX||'50%');
-        this.__anchorY = data.anchorY === 0?0:(data.anchorY||'50%');
-        this.__angle = data.angle||0;
-        this.__scaleX = data.scaleX==0?0:data.scaleX||1;
-        this.__scaleY = data.scaleY==0?0:data.scaleY||1;
-        this.__skewX = data.skewX||0;
-        this.__skewY = data.skewY||0;
-
-        Object.defineProperties(this,{
-            /**
-             * 不可见度0-1
-             * 1:不透明
-             * 0:全透明
-             * @type Number
-             * @property opacity
-             * @default 1
-             */
-            opacity:{
-                set:function(v){
-                    if(v == 0)v = 0;
-                    else{
-                        v = parseFloat(v)||1;
-                    }
-                    this.__opacity = v<0?0:v>1?1:v;
-                },
-                get:function(){
-                    return this.__opacity;
-                },
-                enumerable:true
-            },
-            /**
-             * x坐标。使用top-left坐标系
-             * @type Number
-             * @property x
-             * @default 0
-             */
-            x:{
-                set:function(v){
-                    this.__x = v || 0;
-                    this.__localChange = true;
-
-                    if(this.game.physics.running){
-                        this.body.moveTo(this.__x,this.__y);
-                    }
-                },
-                get:function(){
-                    return this.__x;
-                },
-                enumerable:true
-            },
-            /**
-             * y坐标。使用top-left坐标系
-             * @type Number
-             * @property y
-             * @default 0
-             */
-            y:{
-                set:function(v){
-                    this.__y = v || 0;
-                    this.__localChange = true;
-
-                    if(this.game.physics.running){
-                        this.body.moveTo(this.__x,this.__y);
-                    }
-                },
-                get:function(){
-                    return this.__y;
-                },
-                enumerable:true
-            },
-            /**
-             * 宽度。和高度一起，标识对象的碰撞区、以及事件触发区<br/>
-             * *anchorX属性也依赖该属性
-             * @type Number
-             * @property w
-             * @default 0
-             */
-            w:{
-                set:function(v){
-                    this.__w = v;
-                    this.__anchorChange = true;
-                },
-                get:function(){
-                    return this.__w;
-                },
-                enumerable:true
-            },
-            /**
-             * 高度。和宽度一起，标识对象的碰撞区、以及事件触发区<br/>
-             * *anchorY属性也依赖该属性
-             * @type Number
-             * @property h
-             * @default 0
-             */
-            h:{
-                set:function(v){
-                    this.__h = v;
-                    this.__anchorChange = true;
-                },
-                get:function(){
-                    return this.__h;
-                },
-                enumerable:true
-            },
-            /**
-             * x轴参考点，对象变形时的原点,可以设置百分比字符串或者数字
-             * @type {String|Number}
-             * @property anchorX
-             * @default 0
-             */
-            anchorX:{
-                set:function(v){
-                    this.__anchorX = v;
-                    this.__anchorChange = true;
-                },
-                get:function(){
-                    return this.__anchorX;
-                },
-                enumerable:true
-            },
-            /**
-             * y轴参考点，对象变形时的原点,可以设置百分比字符串或者数字
-             * @type {String|Number}
-             * @property anchorY
-             * @default 0
-             */
-            anchorY:{
-                set:function(v){
-                    this.__anchorY = v;
-                    this.__anchorChange = true;
-                },
-                get:function(){
-                    return this.__anchorY;
-                },
-                enumerable:true
-            },
-            /**
-             * 当前旋转角度
-             * @type {Number}
-             * @property angle
-             * @default 0
-             */
-            angle:{
-                set:function(v){
-                    this.__angle = v;
-                    this.__localChange = true;
-
-                    if(this.game.physics.running){
-                        this.body.rotateTo(this.__angle);
-                    }
-                },
-                get:function(){
-                    return this.__angle;
-                },
-                enumerable:true
-            },
-            /**
-             * x轴缩放比<br/>
-             * 如果大于1，则会把对象横向拉伸<br/>
-             * 如果等于1，不改变<br/>
-             * 如果小于1，则会把对象横向缩短
-             * @type {Number}
-             * @property scaleX
-             * @default 1
-             */
-            scaleX:{
-                set:function(v){
-                    this.__scaleX = v;
-                    this.__localChange = true;
-                },
-                get:function(){
-                    return this.__scaleX;
-                },
-                enumerable:true
-            },
-            /**
-             * y轴缩放比<br/>
-             * 如果大于1，则会把对象纵向拉伸<br/>
-             * 如果等于1，不改变<br/>
-             * 如果小于1，则会把对象纵向缩短
-             * @type {Number}
-             * @property scaleY
-             * @default 1
-             */
-            scaleY:{
-                set:function(v){
-                    this.__scaleY = v;
-                    this.__localChange = true;
-                },
-                get:function(){
-                    return this.__scaleY;
-                },
-                enumerable:true
-            },
-            /**
-             * x轴偏移角。单位：角度
-             * @type {Number}
-             * @property skewX
-             * @default 0
-             */
-            skewX:{
-                set:function(v){
-                    this.__skewX = v;
-                    this.__localChange = true;
-                },
-                get:function(){
-                    return this.__skewX;
-                },
-                enumerable:true
-            },
-            /**
-             * y轴偏移角。单位：角度
-             * @type {Number}
-             * @property skewY
-             * @default 0
-             */
-            skewY:{
-                set:function(v){
-                    this.__skewY = v;
-                    this.__localChange = true;
-                },
-                get:function(){
-                    return this.__skewY;
-                },
-                enumerable:true
-            }
-        });
-
-        /**
-         * z坐标。标识对象所属图层，并且引擎会按照z值的大小进行渲染
-         * @type {Number}
-         * @property z
+         * x坐标。使用top-left坐标系
+         * @type Number
+         * @property x
          * @default 0
          */
-        this.z = data.z||0;
-        /**
-         * 是否需要本地变换
-         * @type {Boolean}
-         * @private
-         */
-        this.__localChange = true;
-        /**
-         * 是否需要参考点变换
-         * @type {Boolean}
-         * @private
-         */
-        this.__anchorChange = true;
-        /**
-         * 本地变形
-         * @type {soya2d.Matrix2x2}
-         * @private
-         */
-        this.__localTransform = new soya2d.Matrix2x2();
-        /**
-         * 世界变形，用于渲染
-         * @type {soya2d.Matrix2x2}
-         * @private
-         */
-        this.__worldTransform = new soya2d.Matrix2x2();
-        /**
-         * 世界坐标
-         * @readOnly
-         * @property worldPosition
-         * @type {soya2d.Point}
-         */
-        this.worldPosition = new soya2d.Point();
-        /**
-         * 锚点坐标
-         * @property anchorPosition
-         * @readOnly
-         * @type {soya2d.Point}
-         */
-        this.anchorPosition = new soya2d.Point();
-        /**
-         * 屏幕坐标
-         * @type {soya2d.Point}
-         * @private
-         */
-        this.__screenPosition = new soya2d.Point(Infinity,Infinity);
-        /**
-         * 混合方式
-         * @property blendMode
-         * @type String
-         * @default soya2d.BLEND_NORMAL
-         * @see soya2d.BLEND_NORMAL
-         */
-        this.blendMode = data.blendMode || 'source-over';
+        x:{
+            set:function(v){
+                this.__x = v || 0;
+                this.__localChange = true;
 
-        this.__mask = data.mask || null;
-        this.__fixedToCamera = data.fixedToCamera || false;
-        Object.defineProperties(this,{
-            /**
-             * 遮罩。可以是一个绘制的简单图形比如圆，也可以是包含了多个形状子节点的复合形状。
-             * 被用于遮罩的对象只能同时存在一个需要遮罩的对象上，多次设置只会保留最后一次，
-             * 并且被用于遮罩的对象不会出现在画面上<br/>
-             * *如果需要动态控制遮罩对象，需要把遮罩对象添加到场景中
-             * @property mask
-             * @type {soya2d.DisplayObject}
-             * @default null; 
-             */
-            mask:{
-                set:function(m){
-                    if(m){
-                        if(m.__masker){
-                            m.__masker.__mask = null;
-                        }
-                        this.__mask = m;
-                        m.__masker = this;
-                    }
-                },
-                get:function(){
-                    return this.__mask;
-                },
-                enumerable:true
+                if(this.game.physics.running){
+                    this.body.moveTo(this.__x,this.__y);
+                }
             },
-            /**
-             * 是否固定到摄像机。如果该属性为true，当摄像机移动时，精灵会固定在摄像机的指定位置
-             * @property fixedToCamera
-             * @type {Boolean}
-             */
-            fixedToCamera:{
-                set:function(v){
-                    this.__fixedToCamera = v;
-                    if(v)
-                        this.cameraOffset.set(this.x,this.y);
-                },
-                get:function(){
-                    return this.__fixedToCamera;
-                },
-                enumerable:true
-            }
-        });
+            get:function(){
+                return this.__x;
+            },
+            enumerable:true
+        },
         /**
-         * 使用当前对象作为遮罩的对象，如果该属性有值，则不会被渲染
-         * @private
+         * y坐标。使用top-left坐标系
+         * @type Number
+         * @property y
+         * @default 0
          */
-        this.__masker = null;
-        /**
-         * 对象范围，用于拾取测试和物理碰撞
-         * @property bounds
-         * @type {soya2d.Rectangle | soya2d.Circle | soya2d.Polygon}
-         * @default soya2d.Rectangle实例
-         */
-        this.bounds = data.bounds || new soya2d.Rectangle(0,0,this.__w,this.__h);
-        /**
-         * 存储boundingbox
-         * @private
-         */
-        this.__boundRect = new soya2d.Rectangle(0,0,1,1);
-        /**
-         * 对象在物理世界中的实体
-         * @property body
-         * @type {Body}
-         */
-        this.body = new Body(this);
-        /**
-         * 对象所属的游戏实例。当对象被添加到一个game上时，该值为game实例的引用。
-         * 当对象被创建或从game实例上删除时，该值为null<br/>
-         * 必须先创建game实例(这样引擎会自动引用该实例)或者显式指定game参数，否则会引起异常
-         * @property game
-         * @default null
-         * @readOnly
-         * @type {soya2d.Game}
-         */
-        this.game = data.game || soya2d.games[0];
-        /**
-         * 对象缓存的的内部图形。删除该属性可以取消缓存
-         * @property imageCache
-         * @type {HTMLCanvasElement}
-         * @default null 
-         */
-        this.imageCache = null;
-        this.__updateCache = false;
+        y:{
+            set:function(v){
+                this.__y = v || 0;
+                this.__localChange = true;
 
+                if(this.game.physics.running){
+                    this.body.moveTo(this.__x,this.__y);
+                }
+            },
+            get:function(){
+                return this.__y;
+            },
+            enumerable:true
+        },
         /**
-         * 相对镜头左上角的偏移对象
-         * @property cameraOffset
-         * @type {Object}
-         * @default {x:0,y:0}
+         * 宽度。和高度一起，标识对象的碰撞区、以及事件触发区<br/>
+         * *anchorX属性也依赖该属性
+         * @type Number
+         * @property w
+         * @default 0
          */
-        this.cameraOffset = new soya2d.Point();
+        w:{
+            set:function(v){
+                this.__w = v;
+                this.__anchorChange = true;
+            },
+            get:function(){
+                return this.__w;
+            },
+            enumerable:true
+        },
+        /**
+         * 高度。和宽度一起，标识对象的碰撞区、以及事件触发区<br/>
+         * *anchorY属性也依赖该属性
+         * @type Number
+         * @property h
+         * @default 0
+         */
+        h:{
+            set:function(v){
+                this.__h = v;
+                this.__anchorChange = true;
+            },
+            get:function(){
+                return this.__h;
+            },
+            enumerable:true
+        },
+        /**
+         * x轴参考点，对象变形时的原点,可以设置百分比字符串或者数字
+         * @type {String|Number}
+         * @property anchorX
+         * @default 0
+         */
+        anchorX:{
+            set:function(v){
+                this.__anchorX = v;
+                this.__anchorChange = true;
+            },
+            get:function(){
+                return this.__anchorX;
+            },
+            enumerable:true
+        },
+        /**
+         * y轴参考点，对象变形时的原点,可以设置百分比字符串或者数字
+         * @type {String|Number}
+         * @property anchorY
+         * @default 0
+         */
+        anchorY:{
+            set:function(v){
+                this.__anchorY = v;
+                this.__anchorChange = true;
+            },
+            get:function(){
+                return this.__anchorY;
+            },
+            enumerable:true
+        },
+        /**
+         * 当前旋转角度
+         * @type {Number}
+         * @property angle
+         * @default 0
+         */
+        angle:{
+            set:function(v){
+                this.__angle = v;
+                this.__localChange = true;
 
-        //check valid
-        if(!this.game){
-            throw new Error('soya2d.DisplayObject: invalid param [game]; '+this.game);
+                if(this.game.physics.running){
+                    this.body.rotateTo(this.__angle);
+                }
+            },
+            get:function(){
+                return this.__angle;
+            },
+            enumerable:true
+        },
+        /**
+         * x轴缩放比<br/>
+         * 如果大于1，则会把对象横向拉伸<br/>
+         * 如果等于1，不改变<br/>
+         * 如果小于1，则会把对象横向缩短
+         * @type {Number}
+         * @property scaleX
+         * @default 1
+         */
+        scaleX:{
+            set:function(v){
+                this.__scaleX = v;
+                this.__localChange = true;
+            },
+            get:function(){
+                return this.__scaleX;
+            },
+            enumerable:true
+        },
+        /**
+         * y轴缩放比<br/>
+         * 如果大于1，则会把对象纵向拉伸<br/>
+         * 如果等于1，不改变<br/>
+         * 如果小于1，则会把对象纵向缩短
+         * @type {Number}
+         * @property scaleY
+         * @default 1
+         */
+        scaleY:{
+            set:function(v){
+                this.__scaleY = v;
+                this.__localChange = true;
+            },
+            get:function(){
+                return this.__scaleY;
+            },
+            enumerable:true
+        },
+        /**
+         * x轴偏移角。单位：角度
+         * @type {Number}
+         * @property skewX
+         * @default 0
+         */
+        skewX:{
+            set:function(v){
+                this.__skewX = v;
+                this.__localChange = true;
+            },
+            get:function(){
+                return this.__skewX;
+            },
+            enumerable:true
+        },
+        /**
+         * y轴偏移角。单位：角度
+         * @type {Number}
+         * @property skewY
+         * @default 0
+         */
+        skewY:{
+            set:function(v){
+                this.__skewY = v;
+                this.__localChange = true;
+            },
+            get:function(){
+                return this.__skewY;
+            },
+            enumerable:true
         }
+    });
 
-        soya2d.ext(this, data);
+    /**
+     * z坐标。标识对象所属图层，并且引擎会按照z值的大小进行渲染
+     * @type {Number}
+     * @property z
+     * @default 0
+     */
+    this.z = data.z||0;
+    /**
+     * 是否需要本地变换
+     * @type {Boolean}
+     * @private
+     */
+    this.__localChange = true;
+    /**
+     * 是否需要参考点变换
+     * @type {Boolean}
+     * @private
+     */
+    this.__anchorChange = true;
+    /**
+     * 本地变形
+     * @type {soya2d.Matrix2x2}
+     * @private
+     */
+    this.__localTransform = new soya2d.Matrix2x2();
+    /**
+     * 世界变形，用于渲染
+     * @type {soya2d.Matrix2x2}
+     * @private
+     */
+    this.__worldTransform = new soya2d.Matrix2x2();
+    /**
+     * 世界坐标
+     * @readOnly
+     * @property worldPosition
+     * @type {soya2d.Point}
+     */
+    this.worldPosition = new soya2d.Point();
+    /**
+     * 锚点坐标
+     * @property anchorPosition
+     * @readOnly
+     * @type {soya2d.Point}
+     */
+    this.anchorPosition = new soya2d.Point();
+    /**
+     * 屏幕坐标
+     * @type {soya2d.Point}
+     * @private
+     */
+    this.__screenPosition = new soya2d.Point(Infinity,Infinity);
+    /**
+     * 混合方式
+     * @property blendMode
+     * @type String
+     * @default soya2d.BLEND_NORMAL
+     * @see soya2d.BLEND_NORMAL
+     */
+    this.blendMode = data.blendMode || 'source-over';
 
-        this.fixedToCamera = this.__fixedToCamera;
-    },
+    this.__mask = data.mask || null;
+    this.__fixedToCamera = data.fixedToCamera || false;
+    Object.defineProperties(this,{
+        /**
+         * 遮罩。可以是一个绘制的简单图形比如圆，也可以是包含了多个形状子节点的复合形状。
+         * 被用于遮罩的对象只能同时存在一个需要遮罩的对象上，多次设置只会保留最后一次，
+         * 并且被用于遮罩的对象不会出现在画面上<br/>
+         * *如果需要动态控制遮罩对象，需要把遮罩对象添加到场景中
+         * @property mask
+         * @type {soya2d.DisplayObject}
+         * @default null; 
+         */
+        mask:{
+            set:function(m){
+                if(m){
+                    if(m.__masker){
+                        m.__masker.__mask = null;
+                    }
+                    this.__mask = m;
+                    m.__masker = this;
+                }
+            },
+            get:function(){
+                return this.__mask;
+            },
+            enumerable:true
+        },
+        /**
+         * 是否固定到摄像机。如果该属性为true，当摄像机移动时，精灵会固定在摄像机的指定位置
+         * @property fixedToCamera
+         * @type {Boolean}
+         */
+        fixedToCamera:{
+            set:function(v){
+                this.__fixedToCamera = v;
+                if(v)
+                    this.cameraOffset.set(this.x,this.y);
+            },
+            get:function(){
+                return this.__fixedToCamera;
+            },
+            enumerable:true
+        }
+    });
+    /**
+     * 使用当前对象作为遮罩的对象，如果该属性有值，则不会被渲染
+     * @private
+     */
+    this.__masker = null;
+    /**
+     * 对象范围，用于拾取测试和物理碰撞
+     * @property bounds
+     * @type {soya2d.Rectangle | soya2d.Circle | soya2d.Polygon}
+     * @default soya2d.Rectangle实例
+     */
+    this.bounds = data.bounds || new soya2d.Rectangle(0,0,this.__w,this.__h);
+    /**
+     * 存储boundingbox
+     * @private
+     */
+    this.__boundRect = new soya2d.Rectangle(0,0,1,1);
+    /**
+     * 对象在物理世界中的实体
+     * @property body
+     * @type {Body}
+     */
+    this.body = new Body(this);
+    /**
+     * 对象所属的游戏实例。当对象被添加到一个game上时，该值为game实例的引用。
+     * 当对象被创建或从game实例上删除时，该值为null<br/>
+     * 必须先创建game实例(这样引擎会自动引用该实例)或者显式指定game参数，否则会引起异常
+     * @property game
+     * @default null
+     * @readOnly
+     * @type {soya2d.Game}
+     */
+    this.game = data.game || soya2d.games[0];
+    /**
+     * 对象缓存的的内部图形。删除该属性可以取消缓存
+     * @property imageCache
+     * @type {HTMLCanvasElement}
+     * @default null 
+     */
+    this.imageCache = null;
+    this.__updateCache = false;
+
+    /**
+     * 相对镜头左上角的偏移对象
+     * @property cameraOffset
+     * @type {Object}
+     * @default {x:0,y:0}
+     */
+    this.cameraOffset = new soya2d.Point();
+
+    //check valid
+    if(!this.game){
+        throw new Error('soya2d.DisplayObject: invalid param [game]; '+this.game);
+    }
+
+    soya2d.ext(this, data);
+
+    this.fixedToCamera = this.__fixedToCamera;
+
+    /**
+     * 事件回调接口
+     * @type {Events}
+     */
+    this.events = new Events(this);
+}
+soya2d.DisplayObject.prototype = {
     onBuild:function(data,node){
         for(var k in data){
             var name = k;
@@ -4122,12 +4081,17 @@ soya2d.class("soya2d.DisplayObject",{
     /**
      * 拾取测试。依赖当前显示对象的bounds
      * @method hitTest
-     * @param  {number} x x坐标
-     * @param  {number} y y坐标
+     * @param  {Number | soya2d.Point} x x坐标 或者一个坐标点
+     * @param  {Number} y y坐标。如果第一个参数是坐标点，第二个参数可以为空
      * @return {Boolean} 点是否在bounds内
      * @see soya2d.DisplayObject#bounds
      */
     hitTest:function(x,y){
+        if(x instanceof soya2d.Point){
+            var p = x;
+            x = p.x,
+            y = p.y;
+        }
         var wp = this.worldPosition;
         if(this.bounds instanceof soya2d.Circle){
             var dis = Math.abs(soya2d.Math.len2D(wp.x,wp.y,x,y));
@@ -4280,7 +4244,7 @@ soya2d.class("soya2d.DisplayObject",{
         this.game = 
         this.body = null;
     }
-});
+};
 
 function getXW(val,parent){
     if(/^(-?\d+)%$/.test(val)){
@@ -4298,7 +4262,6 @@ function getYH(val,parent){
         return val;
     }
 }
-
 function getOff(offset,typeVal){
     if(!isNaN(offset))return parseFloat(offset);
 
@@ -4309,7 +4272,6 @@ function getOff(offset,typeVal){
     }
     return off*per;
 }
-
 function getW(parent,rate){
     var pw = parent.w;
     if(pw === 0 && parent.parent){
@@ -5054,7 +5016,6 @@ Animation.prototype.reset = function(){
  */
 var AnimationManager = soya2d.class("",{
     extends:Signal,
-    __signalHandler : new SignalHandler(),
     constructor: function(sp,size){
     	this.map = {};
     	var frames = [];
@@ -7326,13 +7287,6 @@ soya2d.Game = function(opts){
      */
     this.add = new DisplayObjectFactoryProxy(this);
     /**
-     * 全局事件监听器，包括DOM事件和自定义事件
-     * @property events
-     * @type {Signal}
-     */
-    this.events = new Signal();
-    this.events.__signalHandler = new SignalHandler();
-    /**
      * 场景管理器
      * @property scene
      * @type {SceneManager}
@@ -7404,6 +7358,21 @@ soya2d.Game = function(opts){
 	 * @default false
 	 */
 	this.running = false;
+
+    /**
+     * 保存当前输入设备的相关状态
+     * @type {Object}
+     */
+    this.input = {
+        pointer:{
+            changeType:function(type){
+                pointerListener.changeType(type);
+            }
+        },
+        keyboard:{},
+        device:{}
+    };
+
 	/**
 	 * 启动当前游戏实例
      * @method start
@@ -7432,6 +7401,11 @@ soya2d.Game = function(opts){
             if(modules[k].onBeforeRender)beforeRenders.push([modules[k],modules[k].onBeforeRender]);
             if(modules[k].onPostRender)postRenders.push([modules[k],modules[k].onPostRender]);
 		}
+
+        //start listeners
+        pointerListener.start(this);
+        keyboardListener.start(this);
+        deviceListener.start(this);
 		
 		//start
 		threshold = 1000 / currFPS;
@@ -7446,6 +7420,11 @@ soya2d.Game = function(opts){
             //calc camera rect
             thisGame.camera.__onUpdate();
             thisGame.timer.__scan(d);
+
+            //update input state & dispatch events
+            pointerListener.scan(thisGame);
+            keyboardListener.scan(thisGame);
+            deviceListener.scan(thisGame);
 
             //update entities
             //update matrix——>sort(optional)——>onUpdate(matrix)——>onRender(g)
@@ -7463,6 +7442,9 @@ soya2d.Game = function(opts){
                     cbk[1].call(cbk[0],thisGame,now,d);
                 });
             }
+            pointerListener.clear();
+            keyboardListener.clear();
+            deviceListener.clear();
 
             
             thisGame.camera.__cull(thisGame.stage);
@@ -7625,5 +7607,864 @@ soya2d.RENDERER_TYPE_CANVAS = 2;
  * @private
  */
 soya2d.RENDERER_TYPE_WEBGL = 3;
+
+var eventSignal = new Signal();
+/**
+ * 精灵事件接口，用来绑定回调事件
+ * @param {[type]} displayObject [description]
+ */
+function Events(displayObject){
+    this.obj = displayObject;
+    
+    //pointer
+    this.onPointerDown = function(cbk){
+        eventSignal.on('pointerdown',cbk,this.obj);
+    }
+    this.onPointerTap = function(cbk){
+        eventSignal.on('pointertap',cbk,this.obj);
+    }
+    this.onPointerDblTap = function(cbk){
+        eventSignal.on('pointerdbltap',cbk,this.obj);
+    }
+    this.onPointerUp = function(cbk){
+        eventSignal.on('pointerup',cbk,this.obj);
+    }
+    this.onPointerMove = function(cbk){
+        eventSignal.on('pointermove',cbk,this.obj);
+    }
+    this.onPointerOver = function(cbk){
+        eventSignal.on('pointerover',cbk,this.obj);
+    }
+    this.onPointerOut = function(cbk){
+        eventSignal.on('pointerout',cbk,this.obj);
+    }
+    this.onPointerCancel = function(cbk){
+        eventSignal.on('pointercancel',cbk,this.obj);
+    }
+
+    //keyboard
+    this.onKeyDown = function(cbk){
+        eventSignal.on('keydown',cbk,this.obj);
+    }
+    this.onKeyPress = function(cbk){
+        eventSignal.on('keypress',cbk,this.obj);
+    }
+    this.onKeyUp = function(cbk){
+        eventSignal.on('keyup',cbk,this.obj);
+    }
+
+    //device
+    this.onDeviceHov = function(cbk){
+        eventSignal.on('hov',cbk,this.obj);
+    }
+    this.onDeviceTilt = function(cbk){
+        eventSignal.on('tilt',cbk,this.obj);
+    }
+    this.onDeviceMotion = function(cbk){
+        eventSignal.on('motion',cbk,this.obj);
+    }
+}
+/**
+ * 键码表<br/>
+ * @class soya2d.KeyCode
+ */
+soya2d.KeyCode = {
+	/**
+     * DELETE键码
+     * @property DELETE
+     * @type {Number}
+     * @static
+     * @final
+     */
+	DELETE:46,
+    /**
+     * BACKSPACE键码
+     * @property BACKSPACE
+     * @type {Number}
+     * @static
+     * @final
+     */
+    BACKSPACE:8,
+    /**
+     * TAB键码
+     * @property TAB
+     * @type {Number}
+     * @static
+     * @final
+     */
+    TAB:9,
+    /**
+     * ENTER键码
+     * @property ENTER
+     * @type {Number}
+     * @static
+     * @final
+     */
+    ENTER:13,
+    /**
+     * SHIFT键码。左右相同
+     * @property SHIFT
+     * @type {Number}
+     * @static
+     * @final
+     */
+    SHIFT:16,
+    /**
+     * CONTROL键码。左右相同
+     * @property CONTROL
+     * @type {Number}
+     * @static
+     * @final
+     */
+    CONTROL:17,
+    /**
+     * ALT键码。左右相同
+     * @property ALT
+     * @type {Number}
+     * @static
+     * @final
+     */
+    ALT:18,
+    /**
+     * ESC键码
+     * @property ESC
+     * @type {Number}
+     * @static
+     * @final
+     */
+    ESC:27,
+    /**
+     * 方向键左键码
+     * @property SPACE
+     * @type {Number}
+     * @static
+     * @final
+     */
+    SPACE:32,
+    /**
+     * ENTER键码
+     * @property LEFT
+     * @type {Number}
+     * @static
+     * @final
+     */
+    LEFT:37,
+    /**
+     * 方向键上键码
+     * @property UP
+     * @type {Number}
+     * @static
+     * @final
+     */
+    UP:38,
+    /**
+     * 方向键右键码
+     * @property RIGHT
+     * @type {Number}
+     * @static
+     * @final
+     */
+    RIGHT:39,
+    /**
+     * 方向键下键码
+     * @property DOWN
+     * @type {Number}
+     * @static
+     * @final
+     */
+    DOWN:40,
+    /**
+     * 大写字母
+     * @property A-Z
+     * @type {Number}
+     * @static
+     * @final
+     */
+    A:65,
+    B:66,
+    
+    C:67,
+    
+    D:68,
+    
+    E:69,
+    
+    F:70,
+    
+    G:71,
+    
+    H:72,
+    
+    I:73,
+    
+    J:74,
+    
+    K:75,
+    
+    L:76,
+    
+    M:77,
+    
+    N:78,
+    
+    O:79,
+    
+    P:80,
+    
+    Q:81,
+    
+    R:82,
+    
+    S:83,
+    
+    T:84,
+    
+    U:85,
+    
+    V:86,
+    
+    W:87,
+    
+    X:88,
+    
+    Y:89,
+    
+    Z:90,
+    /**
+     * 小写字母
+     * @property a-z
+     * @type {Number}
+     * @static
+     * @final
+     */
+    a:97,
+    
+    b:98,
+    
+    c:99,
+    
+    d:100,
+    
+    e:101,
+    
+    f:102,
+    
+    g:103,
+    
+    h:104,
+    
+    i:105,
+    
+    j:106,
+    
+    k:107,
+    
+    l:108,
+    
+    m:109,
+    
+    n:110,
+    
+    o:111,
+    
+    p:112,
+    
+    q:113,
+    
+    r:114,
+    
+    s:115,
+    
+    t:116,
+    
+    u:117,
+    
+    v:118,
+    
+    w:119,
+    
+    x:120,
+    
+    y:121,
+    
+    z:122,
+    /**
+     * 功能键
+     * @property F1-F12
+     * @type {Number}
+     * @static
+     * @final
+     */
+    F1:112,
+    F2:113,
+    F3:114,
+    F4:115,
+    F5:116,
+    F6:117,
+    F7:118,
+    F8:119,
+    F9:120,
+    F10:121,
+    F11:122,
+    F12:123,
+    /**
+     * 特殊符号
+     * @property [ ] \ = - , . / ; '
+     * @type {Number}
+     * @static
+     * @final
+     */
+    '[':219,
+    ']':221,
+    '\\':220,
+    '=':187,
+    '-':189,
+    ',':188,
+    '.':190,
+    '/':191,
+    ';':186,
+    '\'':222
+};
+/**
+ * @classdesc 事件监听器。用来监听输入设备产生的原生事件。
+ * 在每帧渲染前，如果有事件发生，监听器会更新对应类型的输入设备参数
+ * 
+ * @class 
+ */
+function InputListener(data) {
+	this.eventMap = {};
+
+	soya2d.ext(this,data);
+};
+InputListener.prototype = {
+	/**
+	 * 保存事件。类型相同覆盖
+	 * @param  {String} type 事件名
+	 * @param  {Object} e 事件对象
+	 */
+	setEvent:function(type,e){
+		this.eventMap[type] = e;
+	},
+	/**
+	 * 每帧调用
+	 */
+    clear:function(){
+    	for(var k in this.eventMap){
+    		this.eventMap[k] = null;
+    	}
+    	this.eventMap = {};
+    },
+    start:function(game){
+    	this.onInit(game);
+    },
+    scan:function(game){
+    	this.onScan(game);
+    }
+};
+
+
+///////////////////// 鼠标/触摸监听器 /////////////////////
+var pointerListener = new InputListener({
+    onInit:function(game) {
+        var cvs = game.renderer.getCanvas();
+        this.cvs = cvs;
+
+        this.fn_md = this.doMousedown.bind(this);
+        this.fn_mm = this.doMousemove.bind(this);
+        this.fn_mu = this.doMouseup.bind(this);
+        this.fn_mo = this.doMouseout.bind(this);
+        this.fn_mov = this.doMouseover.bind(this);
+
+        this.fn_ts = this.doStart.bind(this);
+        this.fn_tm = this.doMove.bind(this);
+        this.fn_te = this.doEnd.bind(this);
+        this.fn_tc = this.doCancel.bind(this);
+    
+        if(soya2d.Device.mobile){
+            this.bindTouch(cvs);
+        }else{
+            this.bindMouse(cvs);
+        }
+
+        this.lastTapTime = 0;
+        this.lastClickTime = 0;
+
+        this.inList = [];//for over/out
+
+        this.pressStartTime = 0;
+    },
+    bindMouse:function(cvs) {
+        this.pointerType = 'mouse';
+        //mouse
+        cvs.addEventListener('mousedown',this.fn_md,true);
+        cvs.addEventListener('mousemove',this.fn_mm,true);
+        cvs.addEventListener('mouseup',this.fn_mu,true);
+        window.addEventListener('blur',this.fn_tc,true);
+        //stage
+        cvs.addEventListener('mouseout',this.fn_mo,true);
+        cvs.addEventListener('mouseover',this.fn_mov,true);
+    },
+    bindTouch:function(cvs) {
+        this.pointerType = 'touch';
+        //touch
+        cvs.addEventListener('touchstart',this.fn_ts,true);
+        cvs.addEventListener('touchmove',this.fn_tm,true);
+        cvs.addEventListener('touchend',this.fn_te,true);
+        cvs.addEventListener('touchcancel',this.fn_tc,true);
+    },
+    changeType:function(type) {
+        if(this.pointerType == type)return;
+        var cvs = this.cvs;
+        this.pressing = false;
+        switch(type){
+            case 'mouse':
+                cvs.removeEventListener('touchstart',this.fn_ts,true);
+                cvs.removeEventListener('touchmove',this.fn_tm,true);
+                cvs.removeEventListener('touchend',this.fn_te,true);
+                cvs.removeEventListener('touchcancel',this.fn_tc,true);
+                this.bindMouse(cvs);
+                break;
+            case 'touch':
+                cvs.removeEventListener('mousedown',this.fn_md,true);
+                cvs.removeEventListener('mousemove',this.fn_mm,true);
+                cvs.removeEventListener('mouseup',this.fn_mu,true);
+                window.removeEventListener('blur',this.fn_tc,true);
+                cvs.removeEventListener('mouseout',this.fn_mo,true);
+                cvs.removeEventListener('mouseover',this.fn_mov,true);
+                this.bindTouch(cvs);
+                break;
+        }
+    },
+    onScan:function(game){
+        var input = game.input.pointer;
+        var renderer = game.renderer;
+
+        var isDown = false,
+            isUp = false,
+            isMove = false,
+            e = null;
+        if(this.eventMap['down']){
+            isDown = true;
+            e = this.eventMap['down'];
+
+            eventSignal.emit('pointerdown',e);
+        }else if(this.eventMap['up']){
+            isUp = true;
+            e = this.eventMap['up'];
+
+            eventSignal.emit('pointerup',e);
+        }
+
+        if(this.eventMap['move']){
+            isMove = true;
+            e = this.eventMap['move'];
+
+            eventSignal.emit('pointermove',e);
+        }
+        if(this.eventMap['tap']){
+            e = this.eventMap['tap'];
+
+            eventSignal.emit('pointertap',e);
+        }
+        if(this.eventMap['dbltap']){
+            e = this.eventMap['dbltap'];
+
+            eventSignal.emit('pointerdbltap',e);
+        }
+
+        input.isDown = isDown;
+        input.isUp = isUp;
+        input.isMove = isMove;
+        input.isPressing = this.pressing;
+        input.duration = this.pressStartTime==0?0:Date.now() - this.pressStartTime;
+        input.e = e;
+        input.touches = [];
+        
+        if(!e)return;
+
+        if(e.changedTouches){
+            var points = this.handleTouches(e,e.changedTouches,game);
+            input.position = points[0];
+            input.touches = points;
+
+            if(isMove){
+                for(var i=points.length;i--;){
+                    //一次事件只匹配一次
+                    if(this.handleOverOut(e,points[i]))break;
+                }
+            }
+        }else{
+            input.button = {
+                left:e.button==0||e.button==1,
+                right:e.button==2,
+                middle:e.button==4||e.which==2
+            };
+            var x = (e.offsetX||e.layerX) / renderer.hr;
+            var y = (e.offsetY||e.layerY) / renderer.vr;
+            input.position = new soya2d.Point(x,y);
+
+            if(isMove){
+                this.handleOverOut(e,input.position);
+            }
+        }
+
+        if(this.eventMap['enterstage']){
+            eventSignal.emit('enterstage',this.eventMap['enterstage']);
+        }
+        if(this.eventMap['leavestage']){
+            eventSignal.emit('leavestage',this.eventMap['leavestage']);
+        }
+
+        if(this.eventMap['cancel']){
+            eventSignal.emit('pointercancel',this.eventMap['cancel']);
+        }
+    },
+    handleOverOut:function(e,point){
+        //over/out
+        var ooList = [];
+        var map = eventSignal.__sigmap;
+        var overList = map['pointerover'];
+        var outList = map['pointerout'];
+        if(overList){
+            overList.forEach(function(o){
+                ooList.push(o);
+            });
+        }
+        if(outList){
+            outList.forEach(function(o){
+                for(var i=ooList.length;i--;){
+                    if(ooList[i][1] == o[1])return;
+                }
+
+                ooList.push(o);
+            });
+        }
+        if(ooList.length>0){
+            var currIn = [];
+            var isMatch = false;
+            ooList.forEach(function(o){
+                var target = o[1];
+                var fn = o[0];
+                if(!target.hitTest || !target.hitTest(point.x,point.y))return;
+
+                currIn.push(target);
+                if(this.inList.indexOf(target) > -1)return;
+                this.inList.push(target);
+                
+                eventSignal.emit('pointerover',e);
+
+                isMatch = true;
+            },this);
+
+            var toDel = [];
+            this.inList.forEach(function(sp){
+                if(currIn.indexOf(sp) < 0){
+                    toDel.push(sp); 
+                }
+            });
+            if(toDel.length<1)return;
+            for(var i=toDel.length;i--;){
+                var k = this.inList.indexOf(toDel[i]);
+                this.inList.splice(k,1);
+                var target = toDel[i];
+
+                eventSignal.emit('pointerout',e);
+
+                isMatch = true;
+            }
+            return isMatch;
+        }
+    },
+    doMousedown:function(e){
+        this.setEvent('down',e);
+
+        this.pressing = true;
+        this.pressStartTime = Date.now();
+    },
+    doMousemove:function(e){
+        this.setEvent('move',e);
+    },
+    doMouseup:function(e){
+        this.pressing = false;
+        this.pressStartTime = 0;
+
+        this.setEvent('up',e);
+
+        if(this.canceled)return;
+        if(e.button === 0){
+            this.setEvent('tap',e);
+            if(Date.now() - this.lastClickTime < 300){
+                this.setEvent('dbltap',e);
+            }
+
+            this.lastClickTime = Date.now();
+        }
+    },
+    doMouseover:function(e){
+        this.setEvent('enterstage',e);
+    },
+    doMouseout:function(e){
+        this.setEvent('leavestage',e);
+    },
+    handleTouches:function(e,touches,game){
+        var touchList = [];
+        var points = [];
+        if(touches && touches.length>0){
+            var t = e.target||e.srcElement;
+            var ol=t.offsetLeft,ot=t.offsetTop;
+            while((t=t.offsetParent) && t.tagName!='BODY'){
+                ol+=t.offsetLeft-t.scrollLeft;
+                ot+=t.offsetTop-t.scrollTop;
+            }
+            var scrollTop = document.body.scrollTop || document.documentElement.scrollTop,
+                scrollLeft = document.body.scrollLeft || document.documentElement.scrollLeft;
+            for(var i=0;i<touches.length;i++){
+                var tev = touches[i];
+                touchList[i] = tev.clientX - ol + scrollLeft;
+                touchList[i+1] = tev.clientY - ot + scrollTop;
+            }
+        }
+
+        var renderer = game.renderer;
+        var cvs = renderer.getCanvas();
+        var marginLeft = window.getComputedStyle(cvs,null).marginLeft;
+        marginLeft = parseFloat(marginLeft) || 0;
+        var marginTop = window.getComputedStyle(cvs,null).marginTop;
+        marginTop = parseFloat(marginTop) || 0;
+        
+        for(var i=0;i<touchList.length;i+=2){
+            var x = touchList[i];
+            var y = touchList[i+1];
+            
+            switch(game.stage.rotateMode){
+                case soya2d.ROTATEMODE_90:
+                    //平移，计算出canvas内坐标
+                    x = x + cvs.offsetLeft - marginTop;
+                    y = y + cvs.offsetTop - marginLeft;
+                    
+                    //旋转
+                    var tmp = x;
+                    x = y;
+                    y = thisGame.stage.w - Math.abs(tmp);
+                    break;
+                case soya2d.ROTATEMODE_270:
+                    //平移，计算出canvas内坐标
+                    x = x + cvs.offsetLeft - marginTop;
+                    y = y + cvs.offsetTop - marginLeft;
+                    
+                    //旋转
+                    var tmp = y;
+                    y = x;
+                    x = thisGame.stage.h - Math.abs(tmp);
+                    break;
+                case soya2d.ROTATEMODE_180:
+                    //旋转
+                    x = thisGame.stage.w - Math.abs(x);
+                    y = thisGame.stage.h - Math.abs(y);
+                    break;
+            }
+            
+            x = x / renderer.hr;
+            y = y / renderer.vr;  
+
+            points.push(new soya2d.Point(x,y));
+        }
+
+        return points;
+    },
+    doStart:function(e){
+        this.setEvent('down',e);
+
+        this.pressing = true;
+        this.pressStartTime = Date.now();
+
+        this.hasMoved = false;
+        this.canceled = false;
+    },
+    doMove:function(e){
+        this.setEvent('move',e);
+        this.hasMoved = true;
+    },
+    doCancel:function(e){
+        this.canceled = true;
+        this.setEvent('cancel',e);
+
+        this.pressing = false;
+        this.pressStartTime = 0;
+    },
+    doEnd:function(e){
+        this.setEvent('up',e);
+
+        if(e.touches.length < 1){
+            this.pressing = false;
+            this.pressStartTime = 0;
+        }
+
+        if(this.canceled)return;
+        if(!this.hasMoved){
+            this.setEvent('tap',e);
+
+            if(Date.now() - this.lastTapTime < 300){
+                this.setEvent('dbltap',e);
+            }
+
+            this.lastTapTime = Date.now();
+        }
+    }
+
+});
+
+///////////////////// 键盘事件分派器 /////////////////////
+var keyboardListener = new InputListener({
+    onInit:function() {
+        window.addEventListener('keyup',this.doKeyUp.bind(this),false);
+        window.addEventListener('keydown',this.doKeyDown.bind(this),false);
+        window.addEventListener('blur',this.doBlur.bind(this),false);
+
+        this.preesingKeys = [];//keycode
+
+        this.pressing = false;//is key pressing
+
+        this.lastEv = null;
+    },
+    onScan:function(game){
+        var input = game.input.keyboard;
+
+        var isDown = false,
+            isUp = false,
+            isPress = false,
+            e = this.lastEv;
+        if(this.eventMap['down']){
+            isDown = true;
+            this.lastEv = e = this.eventMap['down'];
+
+            eventSignal.emit('keydown',e);
+        }else if(this.eventMap['up']){
+            isUp = true;
+            this.lastEv = e = this.eventMap['up'];
+
+            eventSignal.emit('keyup',e);
+        }
+
+        if(this.pressing){
+            eventSignal.emit('keypress',e);
+        }
+        
+        input.isDown = isDown;
+        input.isUp = isUp;
+        input.isPressing = this.pressing;
+        input.e = e;
+        input.shiftKey = e?e.shiftKey:false;
+        input.metaKey = e?e.metaKey:false;
+        input.ctrlKey = e?e.ctrlKey:false;
+        input.altKey = e?e.altKey:false;
+        input.keys = this.preesingKeys;
+    },
+    doKeyUp:function(e){
+        var keys = this.preesingKeys;
+        var keycode = e.keyCode||e.which;
+        var i = keys.indexOf(keycode);
+        if(i>-1){
+            keys.splice(i,1);
+        }
+
+        //没有按键
+        if(keys.length<1){
+            this.pressing = false;
+        }
+
+        this.setEvent('up',e);
+    },
+    doKeyDown:function(e){
+        var keys = this.preesingKeys;
+        var keycode = e.keyCode||e.which;
+        if(keys.indexOf(keycode)<0){
+            keys.push(keycode);
+        }else{
+            return;
+        }
+
+        this.pressing = true;
+
+        this.setEvent('down',e);
+    },
+    doBlur:function(e){
+        this.preesingKeys = [];
+        this.pressing = false;
+    }
+});
+
+///////////////////// 设备事件分派器 /////////////////////
+var deviceListener = new InputListener({
+    onInit:function() {
+        window.addEventListener('orientationchange',this.doHOV.bind(this),false);
+        window.addEventListener('deviceorientation',this.doTilt.bind(this),false);
+        window.addEventListener('devicemotion',this.doMotion.bind(this),false);
+    },
+    onScan:function(game){
+        var input = game.input.device;
+        var e = null;
+
+        if(this.eventMap['hov']){
+            e = this.eventMap['hov'];
+
+            if(this.timer)clearTimeout(this.timer);
+            var that = this;
+            //start timer
+            this.timer = setTimeout(function(){
+                var orientation = that.getOrientation();
+                eventSignal.emit('hov',orientation);
+            },500);
+        }
+        if(this.eventMap['tilt']){
+            e = this.eventMap['tilt'];
+
+            var tilt = {
+                z: e.alpha,
+                x: e.beta,
+                y: e.gamma,
+                absolute: e.absolute
+            };
+            input.tilt = tilt;
+
+            eventSignal.emit('tilt',tilt);
+        }
+        if(this.eventMap['motion']){
+            e = this.eventMap['motion'];
+
+            var motion = {
+                x: e.acceleration.x,
+                y: e.acceleration.y,
+                z: e.acceleration.z,
+                interval: e.interval
+            };
+            input.motion = motion;
+
+            eventSignal.emit('motion',motion);
+        }
+
+        input.e = e;
+    },
+    getOrientation:function(){
+        var w = window.innerWidth;
+        var h = window.innerHeight;
+        var rs;
+        if(w > h){
+            rs = 'landscape';
+        }else{
+            rs = 'portrait';
+        }
+        return rs;
+    },
+    doHOV:function(e){
+        this.setEvent('hov',e);
+    },
+    doTilt:function(e){
+        this.setEvent('tilt',e);
+    },
+    doMotion:function(e){
+        this.setEvent('motion',e);
+    }
+});
 
 }(window||this);

@@ -57,13 +57,6 @@ soya2d.Game = function(opts){
      */
     this.add = new DisplayObjectFactoryProxy(this);
     /**
-     * 全局事件监听器，包括DOM事件和自定义事件
-     * @property events
-     * @type {Signal}
-     */
-    this.events = new Signal();
-    this.events.__signalHandler = new SignalHandler();
-    /**
      * 场景管理器
      * @property scene
      * @type {SceneManager}
@@ -135,6 +128,21 @@ soya2d.Game = function(opts){
 	 * @default false
 	 */
 	this.running = false;
+
+    /**
+     * 保存当前输入设备的相关状态
+     * @type {Object}
+     */
+    this.input = {
+        pointer:{
+            changeType:function(type){
+                pointerListener.changeType(type);
+            }
+        },
+        keyboard:{},
+        device:{}
+    };
+
 	/**
 	 * 启动当前游戏实例
      * @method start
@@ -163,6 +171,11 @@ soya2d.Game = function(opts){
             if(modules[k].onBeforeRender)beforeRenders.push([modules[k],modules[k].onBeforeRender]);
             if(modules[k].onPostRender)postRenders.push([modules[k],modules[k].onPostRender]);
 		}
+
+        //start listeners
+        pointerListener.start(this);
+        keyboardListener.start(this);
+        deviceListener.start(this);
 		
 		//start
 		threshold = 1000 / currFPS;
@@ -177,6 +190,11 @@ soya2d.Game = function(opts){
             //calc camera rect
             thisGame.camera.__onUpdate();
             thisGame.timer.__scan(d);
+
+            //update input state & dispatch events
+            pointerListener.scan(thisGame);
+            keyboardListener.scan(thisGame);
+            deviceListener.scan(thisGame);
 
             //update entities
             //update matrix——>sort(optional)——>onUpdate(matrix)——>onRender(g)
@@ -194,6 +212,9 @@ soya2d.Game = function(opts){
                     cbk[1].call(cbk[0],thisGame,now,d);
                 });
             }
+            pointerListener.clear();
+            keyboardListener.clear();
+            deviceListener.clear();
 
             
             thisGame.camera.__cull(thisGame.stage);
