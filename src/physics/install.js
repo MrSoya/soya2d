@@ -18,8 +18,7 @@
 					for (var i = 0; i < pairs.length; i++) {
 		                var pair = pairs[i];
 		                game.physics.emit(event.name,pair.bodyA.__sprite,pair.bodyB.__sprite);
-		                pair.bodyA.__sprite.emit(event.name,pair.bodyB.__sprite);
-		                pair.bodyB.__sprite.emit(event.name,pair.bodyA.__sprite);
+		                eventSignal.emit(event.name.toLowerCase(),pair.bodyA.__sprite,pair.bodyB.__sprite);
 		            }
 				});
 			},

@@ -426,7 +426,18 @@ soya.render('#stage',800,600,scene);</textarea>
         var hero = game.add.sprite({
             images:game.assets.atlas('hero').getAll(),
             x:game.w/2 - 40,
-            y:game.h/2 - 40
+            y:game.h/2 - 40,
+            onAdded:function(){
+                //使用A / D 控制帧切换方向
+                var kb = game.input.keyboard;
+                this.events.onKeyDown(function(){
+                    if(kb.keys.indexOf(soya2d.KeyCode.A)>-1){
+                        this.prevFrame();
+                    }else if(kb.keys.indexOf(soya2d.KeyCode.D)>-1){
+                        this.nextFrame();
+                    }
+                });
+            }
         });
 
         game.add.text({
@@ -435,15 +446,6 @@ soya.render('#stage',800,600,scene);</textarea>
             fillStyle:'#fff',
             x:game.w/2 - 90,
             y:game.h/2 + 50
-        });
-
-        //使用A / D 控制帧切换方向
-        hero.on('keydown',function(e){
-            if(e.contains(soya2d.KeyCode.A)){
-                hero.prevFrame();
-            }else if(e.contains(soya2d.KeyCode.D)){
-                hero.nextFrame();
-            }
         });
     }
 }

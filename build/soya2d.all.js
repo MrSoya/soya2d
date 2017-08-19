@@ -6,7 +6,7 @@
  * Released under the MIT license
  *
  * website: http://soya2d.com
- * last build: 2017-08-18
+ * last build: 2017-8-19
  */
 !function (global) {
 	'use strict';
@@ -1170,7 +1170,6 @@ soya2d.Signal.prototype = {
         var listeners = this.__sigmap[arguments[0]];
         if(!listeners)return;        
         
-        var target = this;
         var params = [];
         for(var i=1;i<arguments.length;i++){
             params.push(arguments[i]);
@@ -1871,10 +1870,11 @@ function bindEvent(data,ins,scene){
         var name = ks[i];
         var val = data[name];
         if(name.indexOf('on-') !== 0)continue;
-        var evType = name.substr(3);
         var evFn = scene[val];
         if(evFn instanceof Function){
-            ins.on(evType,evFn);
+            var tmp = name.replace(/-([\w])/img,function(a,b){return b.toUpperCase();});
+            if(ins.events[tmp])
+                ins.events[tmp](evFn);
         }else{
             soya2d.console.warn('invalid callback "'+val+'" of '+name);
         }
@@ -2228,7 +2228,7 @@ var Timer = soya2d.class('',{
         });
         this._super.off.call(this,exp,cbk);
         exArray.forEach(function(ex){
-            var cbks = this.__signalHandler.map[ex.replace(/\s+/mg,'_')];
+            var cbks = this.__sigmap[ex.replace(/\s+/mg,'_')];
             if(Object.keys(cbks).length<1){
                 this.expMap[ex] = null;
                 this.__removeTrigger(ex);
@@ -2242,7 +2242,7 @@ var Timer = soya2d.class('',{
         var deleteExp = [];
         for(var i=this.triggerList.length;i--;){
             var trigger = this.triggerList[i];
-            var tasks = this.__signalHandler.map[trigger.exp.replace(/\s+/mg,'_')];
+            var tasks = this.__sigmap[trigger.exp.replace(/\s+/mg,'_')];
             var canTrigger = false;
             trigger.milliseconds += d;//毫秒数增加
             var delta = trigger.milliseconds - trigger._lastTriggerMilliseconds;
@@ -7663,6 +7663,14 @@ function Events(displayObject){
     this.onDeviceMotion = function(cbk){
         eventSignal.on('motion',cbk,this.obj);
     }
+
+    //physics
+    this.onCollisionStart = function(cbk){
+        eventSignal.on('collisionstart',cbk,this.obj);
+    }
+    this.onCollisionEnd = function(cbk){
+        eventSignal.on('collisionend',cbk,this.obj);
+    }
 }
 /**
  * 键码表<br/>
@@ -10824,8 +10832,7 @@ soya2d.module.install('physics',{
 					for (var i = 0; i < pairs.length; i++) {
 		                var pair = pairs[i];
 		                game.physics.emit(event.name,pair.bodyA.__sprite,pair.bodyB.__sprite);
-		                pair.bodyA.__sprite.emit(event.name,pair.bodyB.__sprite);
-		                pair.bodyB.__sprite.emit(event.name,pair.bodyA.__sprite);
+		                eventSignal.emit(event.name.toLowerCase(),pair.bodyA.__sprite,pair.bodyB.__sprite);
 		            }
 				});
 			},

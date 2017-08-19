@@ -54,4 +54,12 @@ function Events(displayObject){
     this.onDeviceMotion = function(cbk){
         eventSignal.on('motion',cbk,this.obj);
     }
+
+    //physics
+    this.onCollisionStart = function(cbk){
+        eventSignal.on('collisionstart',cbk,this.obj);
+    }
+    this.onCollisionEnd = function(cbk){
+        eventSignal.on('collisionend',cbk,this.obj);
+    }
 }

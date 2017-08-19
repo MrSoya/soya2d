@@ -112,7 +112,7 @@ var Timer = soya2d.class('',{
         });
         this._super.off.call(this,exp,cbk);
         exArray.forEach(function(ex){
-            var cbks = this.__signalHandler.map[ex.replace(/\s+/mg,'_')];
+            var cbks = this.__sigmap[ex.replace(/\s+/mg,'_')];
             if(Object.keys(cbks).length<1){
                 this.expMap[ex] = null;
                 this.__removeTrigger(ex);
@@ -126,7 +126,7 @@ var Timer = soya2d.class('',{
         var deleteExp = [];
         for(var i=this.triggerList.length;i--;){
             var trigger = this.triggerList[i];
-            var tasks = this.__signalHandler.map[trigger.exp.replace(/\s+/mg,'_')];
+            var tasks = this.__sigmap[trigger.exp.replace(/\s+/mg,'_')];
             var canTrigger = false;
             trigger.milliseconds += d;//毫秒数增加
             var delta = trigger.milliseconds - trigger._lastTriggerMilliseconds;

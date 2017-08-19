@@ -22,13 +22,13 @@ global.soya2d = new function(){
          * @property version.v
          * @type {Array}
          */
-        v:[2,0,0],
+        v:[2,1,0],
         /**
          * state
          * @property version.state 
          * @type {String}
          */
-        state:'beta3',
+        state:'alpha',
         /**
          * 返回版本信息
          * @method version.toString

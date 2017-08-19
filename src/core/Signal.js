@@ -89,7 +89,6 @@ soya2d.Signal.prototype = {
         var listeners = this.__sigmap[arguments[0]];
         if(!listeners)return;        
         
-        var target = this;
         var params = [];
         for(var i=1;i<arguments.length;i++){
             params.push(arguments[i]);

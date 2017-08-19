@@ -86,10 +86,11 @@ function bindEvent(data,ins,scene){
         var name = ks[i];
         var val = data[name];
         if(name.indexOf('on-') !== 0)continue;
-        var evType = name.substr(3);
         var evFn = scene[val];
         if(evFn instanceof Function){
-            ins.on(evType,evFn);
+            var tmp = name.replace(/-([\w])/img,function(a,b){return b.toUpperCase();});
+            if(ins.events[tmp])
+                ins.events[tmp](evFn);
         }else{
             soya2d.console.warn('invalid callback "'+val+'" of '+name);
         }
