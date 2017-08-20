@@ -32,6 +32,12 @@ function Events(displayObject){
     this.onPointerCancel = function(cbk){
         eventSignal.on('pointercancel',cbk,this.obj);
     }
+    this.onEnterStage = function(cbk){
+        eventSignal.on('enterstage',cbk,this.obj);
+    }
+    this.onLeaveStage = function(cbk){
+        eventSignal.on('leavestage',cbk,this.obj);
+    }
 
     //keyboard
     this.onKeyDown = function(cbk){
