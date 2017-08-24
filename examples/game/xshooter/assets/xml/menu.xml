@@ -7,7 +7,7 @@
 	<sprite layout-left="50%" layout-offsetLeft="-150%" 
 			layout-top="50%" layout-offsetTop="-50%" 
 			images="player">
-		<text layout-left="100%" on-pointdown="start"
+		<text layout-left="100%" on-pointer-down="start"
 			layout-top="25%"
 			fillStyle="#fff" atlas="imgFont">
 			START

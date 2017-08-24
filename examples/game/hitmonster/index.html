@@ -3,7 +3,7 @@
   	<head>
 			<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 			<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-			<script src="../../assets/js/soya2d.all.js" type="text/javascript" language='javascript'></script>
+			<script src="../../../../assets/js/soya2d.all.js" type="text/javascript" language='javascript'></script>
 			<style>
 				html,body{
 					margin:0;
@@ -81,7 +81,7 @@
 							game.stage.rotateMode = soya2d.ROTATEMODE_90;
 						}
 
-						game.stage.on('hov',function(e){
+						game.stage.events.onDeviceHov(function(e){
 							if(game.stage.orientation == 'portrait'){
 								game.stage.rotateMode = soya2d.ROTATEMODE_90;
 							}else{
@@ -94,7 +94,8 @@
 					var thisScene = this;
 
 					var ground = this.findView('ground');
-					game.stage.on(soya2d.Device.mobile?'touchstart':'click',function(e){
+
+					game.stage.events.onPointerDown(function(pointer,e){
 						if(game.state == STATE_INIT){
 							thisScene.play(game);
 						}
@@ -102,16 +103,12 @@
 						if(game.state == STATE_RUNNING){
 							var x = e.x,y = e.y;
 							
-							if(soya2d.Device.mobile){
-								var touchList = e.touchList;
-								x = touchList[0];
-								y = touchList[1];
-							}
+							var xy = pointer.position;
 
 							var hitMonster = null;
-							if(y < ground.y){
+							if(xy.y < ground.y){
 								for(var i=game.monsters.length;i--;){
-									if(game.monsters[i].hitTest(x,y)){
+									if(game.monsters[i].hitTest(xy)){
 										hitMonster = game.monsters[i];
 										break;
 									}
@@ -190,7 +187,7 @@
 					});
 
 					var restart = this.findView('restart');
-					restart.on(soya2d.Device.mobile?'touchstart':'click',function(e){
+					restart.events.onPointerTap(function(e){
 						if(this.isRendered()){
 							thisScene.start(game);
 							//防止触发场景跳转
@@ -198,10 +195,10 @@
 						}
 					});
 					//mouse only
-					restart.on('mouseover',function(e){
+					restart.events.onPointerOver(function(e){
 						this.scaleBy(0.1);
 					});
-					restart.on('mouseout',function(e){
+					restart.events.onPointerOut(function(e){
 						this.scaleBy(-0.1);
 					});
 				},

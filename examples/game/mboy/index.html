@@ -3,7 +3,7 @@
   	<head>
 			<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 			<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-			<script src="../../assets/js/soya2d.all.js" type="text/javascript" language='javascript'></script>
+			<script src="../../../../assets/js/soya2d.all.js" type="text/javascript" language='javascript'></script>
 			<script src="model.js" type="text/javascript" language='javascript'></script>
 			<script src="util.js" type="text/javascript" language='javascript'></script>
 			<style>
@@ -66,6 +66,30 @@
 				},
 				onInit:function(game){
 
+					game.add.rect({
+						x:game.w - 200,
+						y:game.h - 40,
+						w:100,
+						h:30,
+						fillStyle:'#ddd',
+						z:90,
+						fixedToCamera:true,
+						onAdded:function(){
+							var t = game.add.text({
+								text:'debug',
+								w:100,
+								// x:25,
+								y:10
+							});
+							this.add(t);
+
+							this.events.onPointerDown(function(){
+								game.map.debug = !game.map.debug;
+								t.setText('debug='+game.map.debug);
+							});
+						}
+					});
+
 					//自动应用UI
 					this.setView(game.assets.xml('main'));
 
@@ -115,6 +139,8 @@
 					.setCollisionZone(9,30,10,31)
 					.setCollisionZone(10,34,11,39);
 
+					game.map = map;
+
 					// map.debug = true;
 
 					this.initItems(map);
@@ -122,13 +148,12 @@
 					this.initMonsters(map);
 
 					var scene = this;
-					map.on('tileCollision',function(target,another,tile){
-
+					map.on('tileCollision',function(another,tile){
 						if(another == scene.hero){
 							scene.hero.onTileCollision(tile);
 						}
 						console.log(another);
-					})
+					});
 				},
 				initItems:function(map){
 					var scene = this;
@@ -151,8 +176,8 @@
 								}
 							},
 							pickup:function(){
-
-								game.assets.sound('pickup').play();
+								if(game.assets.sound('pickup'))
+									game.assets.sound('pickup').play();
 								var t = game.tween.add(this).to({y:'-80',opacity:0},.5).play();
 								t.on('stop',function(){
 									t.target.parent.remove(t.target);

@@ -3,7 +3,7 @@
   	<head>
 			<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 			<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-			<script src="../../assets/js/soya2d.all.js" type="text/javascript" language='javascript'></script>
+			<script src="../../../../assets/js/soya2d.all.js" type="text/javascript" language='javascript'></script>
 			<style>
 				html,body{
 					margin:0;
@@ -102,7 +102,8 @@
 					var hra = this.findView('hra');
 					game.tween.add(hra).to({x:'-20'},.5,{repeat:-1,yoyo:true}).play();
 
-					game.assets.sound('menu').loop(true).play();
+					if(game.assets.sound('menu'))
+						game.assets.sound('menu').loop(true).play();
 				},
 				selectUser:function(){
 					var thisScene = this.game.currentScene;
@@ -111,10 +112,11 @@
 
 					thisScene.findView('userUI').visible = true;
 				},
-				changeUser:function(e){
+				changeUser:function(pointer,e){
 					var thisScene = this.game.currentScene;
 					var box = this.getBoundingBox();
-					var offx = e.x - box.x;
+					var pos = pointer.position;
+					var offx = pos.x - box.x;
 
 					if(offx < box.w/2){//left
 						game.info.user--;
@@ -161,7 +163,8 @@
 
 			var mainScene = {
 				onInit:function(game){
-					game.assets.sound('game').loop(true).play();
+					if(game.assets.sound('game'))
+						game.assets.sound('game').loop(true).play();
 
 					//生成数据 bottom->top
 					var treeQ = [];
@@ -285,7 +288,7 @@
 					this.game.info.score++;
 					this.findView('score1').setText(this.game.info.score,true);
 				},
-				cut:function(e){
+				cut:function(pointer,e){
 					if(this.game.info.state != 'running' && this.game.info.state != 'prepare')return;
 					var thisScene = this.game.currentScene;
 					if(this.game.info.state == 'prepare'){
@@ -293,8 +296,8 @@
 						thisScene.findView('rightTip').visible = false;
 						this.game.info.state = 'running';
 					}
-					
-					var x = e.x || e.touchList[0];
+					var pos = pointer.position;
+					var x = pos.x;
 					var side = '';
 					if(x < this.game.w/2){//left
 						side = 'l';

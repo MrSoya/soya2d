@@ -5,19 +5,18 @@
  *  @extends Signal
  *  @module physics
  */
-var Body = soya2d.class("",{
-    extends:Signal,
-    constructor:function(displayObject){
-        /**
-         * 显示对象引用
-         */
-        this.sprite = displayObject;
-        /**
-         * 物理刚体引用
-         * @property rigid
-         */
-        this.rigid = null;//物理刚体
-    },
+function Body(displayObject){
+    /**
+     * 显示对象引用
+     */
+    this.sprite = displayObject;
+    /**
+     * 物理刚体引用
+     * @property rigid
+     */
+    this.rigid = null;//物理刚体
+}
+Body.prototype = {
     /**
      * 设置是否为传感器。传感器刚体会触发碰撞事件，但不会显现碰撞效果
      * @method sensor
@@ -131,4 +130,4 @@ var Body = soya2d.class("",{
         this.__cbk && this.__cbk.inertia(this.rigid,v||0);
         return this;
     }
-});
+};

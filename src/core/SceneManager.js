@@ -30,7 +30,7 @@ SceneManager.prototype = {
         if(clearWorld){
             //clear world
             game.world.clear(true);
-            game.world.off();
+            game.world.events.clear();
             game.camera.reset();
         }
         if(scene.onPreload){

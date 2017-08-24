@@ -3,7 +3,7 @@
   	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 		<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-		<script src="../../assets/js/soya2d.all.js" type="text/javascript" language='javascript'></script>
+		<script src="../../../../assets/js/soya2d.all.js" type="text/javascript" language='javascript'></script>
 		<script src="model/Player.js" type="text/javascript" language='javascript'></script>
 		<script src="model/Enemy.js" type="text/javascript" language='javascript'></script>
 		<script src="model/Observer.js" type="text/javascript" language='javascript'></script>
@@ -67,6 +67,8 @@
 			this.game.scene.start(mainScene,true);
 		}
 	};
+
+	var g_signal = new soya2d.Signal();
 	var mainScene = {
 		onPreload:function(game){
 			game.load.baseUrl = 'assets/image/';
@@ -130,7 +132,7 @@
 
 			Observer.start(game,this.player,this);
 
-			game.events.on('gameover',function(){
+			g_signal.on('gameover',function(){
 				Observer.over();
 				game.sound.stopAll();
 				game.scene.start(gameOverScene,true);
@@ -167,23 +169,6 @@
 				y:scope.h/2,
 				rotation:0,
 				scope:scope
-			});
-
-			var scene = this;
-			game.world.on('mousemove',function(e){
-				var x = e.x;
-				var y = e.y;
-
-				var wp = scene.player.worldPosition;
-	            var radian = Math.atan2(wp.y-y-game.camera.y,wp.x-x-game.camera.x);
-	            radian = soya2d.Math.toAngle(radian);
-	            scene.player.spin(radian+180);
-			});
-			game.world.on('mousedown',function(e){
-				scene.player.fire();
-			});
-			game.world.on('mouseup',function(e){
-				scene.player.holdfire();
 			});
 
 			game.world.add(this.player);

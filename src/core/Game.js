@@ -139,9 +139,13 @@ soya2d.Game = function(opts){
                 pointerListener.changeType(type);
             }
         },
-        keyboard:{},
+        keyboard:{
+        },
         device:{}
     };
+
+    var pointerListener = new InputListener(pointerListenerPrototype);
+    this.__pointerSignal = new Signal();
 
 	/**
 	 * 启动当前游戏实例
@@ -334,6 +338,7 @@ soya2d.Game = function(opts){
     this.objects.register('tileSprite',soya2d.TileSprite);
     this.objects.register('group',soya2d.DisplayObjectContainer);
     this.objects.register('text',soya2d.Text);
+    this.objects.register('button',soya2d.Button);
 
     var t1 = 'soya2d Game instance created...';
     var t2 = ms + ' plugins loaded...';

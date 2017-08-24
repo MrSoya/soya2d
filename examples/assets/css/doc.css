@@ -113,3 +113,42 @@ body{
 .card{
   border-radius: 0;
 }
+
+
+/* article */
+.page-main h1{
+  font-size: 1.8rem;
+    margin: 1rem 0 2rem;
+    font-weight: bold;
+}
+.page-main h2{
+  font-size: 1.5rem;
+    padding-bottom: 1.8rem;
+    border-bottom: 1px solid #d6d6d6;
+    margin: 2.5em 0 1.8em;
+}
+.page-main h3{
+  font-size: 1.3rem;
+  margin: 3rem 0 1rem;
+}
+.page-main pre{
+  display: block;
+    padding: 9.5px;
+    margin: 0 0 10px;
+    font-size: 13px;
+    line-height: 1.42857143;
+    color: #333;
+    word-break: break-all;
+    word-wrap: break-word;
+    background-color: #f0f0f0;
+}
+.page-main blockquote.warning {
+    padding: 10px 20px;
+    margin: 0 0 20px;
+    border-left: 5px solid red;
+}
+.page-main blockquote.tip {
+    padding: 10px 20px;
+    margin: 0 0 20px;
+    border-left: 5px solid #11de11;
+}

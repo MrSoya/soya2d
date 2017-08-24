@@ -7,7 +7,7 @@
 
 			<sprite id="playBtn" images="tlacidlo" scale9grid="15,15,90,10"
 				 layout-left="50%" layout-offsetLeft="-50%" w="300" y="300"
-				on-pointdown="selectUser">
+				on-pointer-tap="selectUser">
 				<text layout-left="50%" layout-offsetLeft="-50%" y="10" 
 				fillStyle="#fff" font="normal 30px/normal vt323">
 					PLAY
@@ -15,7 +15,7 @@
 			</sprite>
 			<sprite id="soundBtn" images="tlacidlo" scale9grid="15,15,90,10"
 				layout-left="50%" layout-offsetLeft="-50%" w="300" y="400"
-				on-pointdown="toggleSound">
+				on-pointer-tap="toggleSound">
 				<text layout-left="50%" layout-offsetLeft="-50%" y="10" 
 				fillStyle="#fff" font="normal 30px/normal vt323">
 					SOUND ON
@@ -25,7 +25,7 @@
 
 		<group id="userUI" visible="false">
 			<sprite images="userbox" id="userbox" scale9grid="25,25,100,100"
-			layout-left="50%" layout-offsetLeft="-50%" y="60" w="360" h="300" on-pointdown="changeUser">
+			layout-left="50%" layout-offsetLeft="-50%" y="60" w="360" h="300" on-pointer-tap="changeUser">
 				<text id="name" layout-left="50%" layout-offsetLeft="-50%" y="60" 
 				fillStyle="#7a4d0b" font="normal 40px/normal vt323">LOGAN</text>
 
@@ -40,7 +40,7 @@
 			</sprite>
 			<sprite id="playBtn2" images="tlacidlo" scale9grid="15,15,90,10"
 				layout-left="50%" layout-offsetLeft="-50%" w="300" y="400"
-				on-pointdown="play">
+				on-pointer-tap="play">
 				<text layout-left="50%" layout-offsetLeft="-50%" y="10" 
 				fillStyle="#fff" font="normal 30px/normal vt323">
 					PLAY
@@ -49,7 +49,7 @@
 		</group>
 
 
-		<sprite images="back" id="back" visible="false" on-pointdown="back"
+		<sprite images="back" id="back" visible="false" on-pointer-down="back"
 			layout-left="100%" layout-offsetLeft="-100%" layout-top="100%" layout-offsetTop="-100%"></sprite>
 
 		<text layout-left="50%" layout-offsetLeft="-50%" layout-top="100%" layout-offsetTop="-50" 

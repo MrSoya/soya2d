@@ -1,6 +1,5 @@
-﻿
-///////////////////// 鼠标/触摸监听器 /////////////////////
-var pointerListener = new InputListener({
+﻿///////////////////// 鼠标/触摸监听器 /////////////////////
+var pointerListenerPrototype = {
     onInit:function(game) {
         var cvs = game.renderer.getCanvas();
         this.cvs = cvs;
@@ -74,6 +73,7 @@ var pointerListener = new InputListener({
     onScan:function(game){
         var input = game.input.pointer;
         var renderer = game.renderer;
+        var eventSignal = game.__pointerSignal;
 
         var isDown = false,
             isUp = false,
@@ -82,39 +82,39 @@ var pointerListener = new InputListener({
         if(this.eventMap['down']){
             isDown = true;
             e = this.eventMap['down'];
-
-            eventSignal.emit('pointerdown',e);
-        }else if(this.eventMap['up']){
+        }
+        if(this.eventMap['up']){
             isUp = true;
             e = this.eventMap['up'];
-
-            eventSignal.emit('pointerup',e);
         }
-
         if(this.eventMap['move']){
             isMove = true;
             e = this.eventMap['move'];
-
-            eventSignal.emit('pointermove',e);
         }
         if(this.eventMap['tap']){
             e = this.eventMap['tap'];
-
-            eventSignal.emit('pointertap',e);
         }
         if(this.eventMap['dbltap']){
             e = this.eventMap['dbltap'];
-
-            eventSignal.emit('pointerdbltap',e);
+        }
+        if(this.eventMap['enterstage']){
+            e = this.eventMap['enterstage'];
+        }
+        if(this.eventMap['leavestage']){
+            e = this.eventMap['leavestage'];
+        }
+        if(this.eventMap['cancel']){
+            e = this.eventMap['cancel'];
         }
 
         input.isDown = isDown;
         input.isUp = isUp;
         input.isMove = isMove;
-        input.isPressing = this.pressing;
+        input.isPressing = this.pressing || false;
         input.duration = this.pressStartTime==0?0:Date.now() - this.pressStartTime;
         input.e = e;
         input.touches = [];
+        input.position = input.position?input.position:{};
         
         if(!e)return;
 
@@ -126,7 +126,7 @@ var pointerListener = new InputListener({
             if(isMove){
                 for(var i=points.length;i--;){
                     //一次事件只匹配一次
-                    if(this.handleOverOut(e,points[i]))break;
+                    if(this.handleOverOut(e,points[i],eventSignal))break;
                 }
             }
         }else{
@@ -140,57 +140,83 @@ var pointerListener = new InputListener({
             input.position = new soya2d.Point(x,y);
 
             if(isMove){
-                this.handleOverOut(e,input.position);
+                this.handleOverOut(e,input.position,eventSignal);
             }
         }
 
+        if(this.eventMap['down']){
+            eventSignal.__emitPointer('pointerdown',input,e,input.position,input.touches);
+        }
+        if(this.eventMap['up']){
+            eventSignal.__emitPointer('pointerup',input,e,input.position,input.touches);
+        }
+        if(this.eventMap['move']){
+            eventSignal.__emitPointer('pointermove',input,e,input.position,input.touches);
+        }
+        if(this.eventMap['tap']){
+            eventSignal.__emitPointer('pointertap',input,e,input.position,input.touches);
+        }
+        if(this.eventMap['dbltap']){
+            eventSignal.__emitPointer('pointerdbltap',input,e,input.position,input.touches);
+        }
         if(this.eventMap['enterstage']){
-            eventSignal.emit('enterstage',this.eventMap['enterstage']);
+            eventSignal.emit('enterstage',input,e);
         }
         if(this.eventMap['leavestage']){
-            eventSignal.emit('leavestage',this.eventMap['leavestage']);
+            eventSignal.emit('leavestage',input,e);
+        }
+        if(this.eventMap['cancel']){
+            eventSignal.emit('pointercancel',input,e);
         }
 
-        if(this.eventMap['cancel']){
-            eventSignal.emit('pointercancel',this.eventMap['cancel']);
-        }
     },
-    handleOverOut:function(e,point){
+    handleOverOut:function(e,point,eventSignal){
         //over/out
         var ooList = [];
         var map = eventSignal.__sigmap;
         var overList = map['pointerover'];
         var outList = map['pointerout'];
+        var outMap = {};
+        var overMap = {};
+        var targetMap = {};
         if(overList){
             overList.forEach(function(o){
-                ooList.push(o);
+                var roid = o[1].roid;
+                if(!overMap[roid]){
+                    overMap[roid] = [];
+                }
+                targetMap[roid] = o[1];
+                overMap[roid].push(o[0]);
             });
         }
         if(outList){
             outList.forEach(function(o){
-                for(var i=ooList.length;i--;){
-                    if(ooList[i][1] == o[1])return;
+                var roid = o[1].roid;
+                if(!outMap[roid]){
+                    outMap[roid] = [];
                 }
-
-                ooList.push(o);
+                targetMap[roid] = o[1];
+                outMap[roid].push(o[0]);
             });
         }
-        if(ooList.length>0){
+        if(Object.keys(overMap).length>0){
             var currIn = [];
             var isMatch = false;
-            ooList.forEach(function(o){
-                var target = o[1];
-                var fn = o[0];
-                if(!target.hitTest || !target.hitTest(point.x,point.y))return;
 
-                currIn.push(target);
-                if(this.inList.indexOf(target) > -1)return;
-                this.inList.push(target);
+            for(var roid in overMap){
+                var cbks = overMap[roid];
+                var t = targetMap[roid];
+                if(!t.hitTest || !t.hitTest(point.x,point.y) || t.events.disabled)continue;
+                currIn.push(t);
+                if(this.inList.indexOf(t) > -1)continue;
                 
-                eventSignal.emit('pointerover',e);
+                this.inList.push(t);
 
+                cbks.forEach(function(fn){
+                    fn.call(t,e);
+                });
                 isMatch = true;
-            },this);
+            }
 
             var toDel = [];
             this.inList.forEach(function(sp){
@@ -203,8 +229,11 @@ var pointerListener = new InputListener({
                 var k = this.inList.indexOf(toDel[i]);
                 this.inList.splice(k,1);
                 var target = toDel[i];
-
-                eventSignal.emit('pointerout',e);
+                if(!target.events || target.events.disabled)continue;
+                var fns = outMap[target.roid];
+                for(var l=fns.length;l--;){
+                    fns[l].call(target,e);
+                }                
 
                 isMatch = true;
             }
@@ -216,6 +245,8 @@ var pointerListener = new InputListener({
 
         this.pressing = true;
         this.pressStartTime = Date.now();
+
+        this.canceled = false;
     },
     doMousemove:function(e){
         this.setEvent('move',e);
@@ -347,8 +378,7 @@ var pointerListener = new InputListener({
             this.lastTapTime = Date.now();
         }
     }
-
-});
+};
 
 ///////////////////// 键盘事件分派器 /////////////////////
 var keyboardListener = new InputListener({
@@ -374,16 +404,16 @@ var keyboardListener = new InputListener({
             isDown = true;
             this.lastEv = e = this.eventMap['down'];
 
-            eventSignal.emit('keydown',e);
+            globalEventSignal.emit('keydown',input,e);
         }else if(this.eventMap['up']){
             isUp = true;
             this.lastEv = e = this.eventMap['up'];
 
-            eventSignal.emit('keyup',e);
+            globalEventSignal.emit('keyup',input,e);
         }
 
         if(this.pressing){
-            eventSignal.emit('keypress',e);
+            globalEventSignal.emit('keypress',input,e);
         }
         
         input.isDown = isDown;
@@ -449,7 +479,7 @@ var deviceListener = new InputListener({
             //start timer
             this.timer = setTimeout(function(){
                 var orientation = that.getOrientation();
-                eventSignal.emit('hov',orientation);
+                globalEventSignal.emit('hov',input,orientation);
             },500);
         }
         if(this.eventMap['tilt']){
@@ -463,7 +493,7 @@ var deviceListener = new InputListener({
             };
             input.tilt = tilt;
 
-            eventSignal.emit('tilt',tilt);
+            globalEventSignal.emit('tilt',input,tilt);
         }
         if(this.eventMap['motion']){
             e = this.eventMap['motion'];
@@ -476,7 +506,7 @@ var deviceListener = new InputListener({
             };
             input.motion = motion;
 
-            eventSignal.emit('motion',motion);
+            globalEventSignal.emit('motion',input,motion);
         }
 
         input.e = e;

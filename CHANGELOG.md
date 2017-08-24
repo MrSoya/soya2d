@@ -1,4 +1,19 @@
 # Change Log
+## Version 2.1.0 alpha - 2017/8/22
+### 新增
+* soya2d.Button 显示类
+* soya2d.Signal 信号类
+* game.input 输入状态监测接口
+* DisplayObject.events 输入事件回调接口
+
+### 更新
+* examples
+* 事件系统，优化事件处理性能
+
+### bug修复
+* 一些bug
+
+
 ## Version 2.0.0 beta3 - 2016/9/8
 * 增加ext扩展模块
 * 增加本地examples

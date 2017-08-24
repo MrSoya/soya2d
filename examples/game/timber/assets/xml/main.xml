@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <world>
-	<sprite images="background_1" id="bg" on-pointdown="cut">
+	<sprite images="background_1" id="bg" on-pointer-down="cut">
 
 		<sprite id="hero" atlas="hero_logan" frameRate="10" layout-top="80%" layout-offsetTop="-50%" z="9">
 		</sprite>
@@ -77,14 +77,14 @@
 
 		<sprite id="restartBtn" images="tlacidlo" visible="false" scale9grid="15,15,90,10"
 				layout-left="50%" layout-offsetLeft="-50%" w="300" layout-top="60%"
-				on-pointdown="restart">
+				on-pointer-down="restart">
 			<text layout-left="50%" layout-offsetLeft="-50%" y="10" 
 			fillStyle="#fff" font="normal 30px/normal vt323">
 				RESTART
 			</text>
 		</sprite>
 
-		<sprite images="back" id="back" on-pointdown="back2Menu"
+		<sprite images="back" id="back" on-pointer-down="back2Menu"
 			layout-left="100%" layout-offsetLeft="-100%" layout-top="100%" layout-offsetTop="-100%"></sprite>
 	</group>
 </world>

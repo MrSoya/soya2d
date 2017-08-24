@@ -1,3 +1,4 @@
+var g_signal = new soya2d.Signal();
 function addButton(opts,onclick){
 	var btn = game.add.sprite(opts);
 
@@ -8,16 +9,17 @@ function addButton(opts,onclick){
 		t3 = game.tween.add(btn).to({scaleX:'+.2',scaleY:'+.2'},.1);
 	})
 
-	btn.on('mouseover',function(){
+	btn.events.onPointerOver(function(){
 		if(t3)
 		t3.play(true);
 	});
-	btn.on('mouseout',function(){
+	btn.events.onPointerOut(function(){
 		if(t3)
 		t3.reverse();
 	});
-	btn.on('click',function(){
-		game.assets.sound('btn').play();
+	btn.events.onPointerTap(function(){
+		if(game.assets.sound('btn'))
+			game.assets.sound('btn').play();
 
 		onclick.apply(btn,arguments);
 	});
@@ -45,9 +47,9 @@ var Pilot = soya2d.class("",{
 		this.bounds.r = this.w/2;
 
 		this.type = opts.type;
-		this.on('click',function(){
+		this.events.onPointerTap(function(){
 			this.hide();
-			game.events.emit(opts.type,this.nextPlane);
+			g_signal.emit(opts.type,this.nextPlane);
 		});
 
 		var tip = game.add.sprite({
@@ -77,7 +79,7 @@ var Pilot = soya2d.class("",{
 
 		if(this.startAngle >= 360){
 			this.hide();
-			game.events.emit(this.type,this.nextPlane);
+			g_signal.emit(this.type,this.nextPlane);
 		}
 		this.startAngle += .5 ;
 	}
@@ -106,7 +108,7 @@ function getPlane(type,res){
 					tween.target.frameIndex = 3;
 				},1000);
             });
-            tp.on('process',function(src,rate,process,angle){
+            tp.on('process',function(rate,process,angle){
 
 				if(angle > 100 && angle <140 && !this.target.midair){//降落不碰撞
 					this.target.midair = true;
@@ -115,16 +117,17 @@ function getPlane(type,res){
 				}
 			});
             tp.on('stop',function(){
-                game.events.emit('request2Apron',this.target);
+                g_signal.emit('request2Apron',this.target);
             });
-            game.assets.sound('landing').play();
+            if(game.assets.sound('landing'))
+            	game.assets.sound('landing').play();
 		},
 		taxi2Apron:function(t1,t2,no){
 			var tp = game.tween.add(this,soya2d.TWEEN_TYPE_PATH)
 					.to(no<1?t1:t2,4)
 					.play();
 			this.tween = tp;
-			tp.on('process',function(src,rate,process,angle){
+			tp.on('process',function(rate,process,angle){
 				var a = angle >> 0;
 				
 				var t = this.target;
@@ -135,7 +138,7 @@ function getPlane(type,res){
 				}
 			});
 			tp.on('stop',function(){
-                game.events.emit('inposition',this.target);
+                g_signal.emit('inposition',this.target);
             });
 		},
 		pushback:function(t1,t2,no){
@@ -143,7 +146,7 @@ function getPlane(type,res){
 					.to(no<1?t1:t2,6)
 					.play();
 			this.tween = tp;
-			tp.on('process',function(src,rate,process,angle){
+			tp.on('process',function(rate,process,angle){
 				var a = angle >> 0;
 
 				var t = this.target;
@@ -156,12 +159,12 @@ function getPlane(type,res){
 				}
 			});
 			tp.on('stop',function(){
-                game.events.emit('requestTakeoff',this.target);
+                g_signal.emit('requestTakeoff',this.target);
             });
 		},
 		takeoff:function(t1,t2){
-
-			game.assets.sound('launch').play();
+			if(game.assets.sound('launch'))
+				game.assets.sound('launch').play();
 
 			var angles = [];
 			var tp = game.tween.add(this,soya2d.TWEEN_TYPE_PATH)
@@ -169,7 +172,7 @@ function getPlane(type,res){
 					.to(t2,3,{delay:1,easing:soya2d.Tween.Expo.In})
 					.play();
 			this.tween = tp;
-			tp.on('process',function(src,rate,process,angle){
+			tp.on('process',function(rate,process,angle){
 				var a = angle >> 0;
 				if(angles.indexOf(a) < 0)angles.push(a);
 				
@@ -189,7 +192,8 @@ function getPlane(type,res){
 
 			tp.on('change',function(target,times){
 				if(times == 1){
-					game.assets.sound('takeoff').play();
+					if(game.assets.sound('takeoff'))
+						game.assets.sound('takeoff').play();
 				}
 			});
 			tp.on('stop',function(){
@@ -276,40 +280,44 @@ var Tower = {
 			startY = 200;
 		var landingPath = new soya2d.Path("M"+startX+" "+startY+"L750 450 L380 665");
 		var terminalPath = new soya2d.Path("M380 665 L230 575");
-		var t1Path = new soya2d.Path("M230 575 L170 540 L430 395 L245 290 L350 230");
-		var t2Path = new soya2d.Path("M230 575 L170 540 L430 395 L350 350 L475 280");
-		var t1TPath = new soya2d.Path("M350 230 L245 290 L495 435 L665 330 L735 370");
-		var t2TPath = new soya2d.Path("M475 280 L350 350 L495 435 L665 330 L735 370");
+		var t1Path = new soya2d.Path("M230 575 L170 540 L430 395 L225 280 L345 210");
+		var t2Path = new soya2d.Path("M230 575 L170 540 L430 395 L370 360 L485 295");
+		var t1TPath = new soya2d.Path("M345 210 L225 280 L495 435 L665 330 L735 370");
+		var t2TPath = new soya2d.Path("M485 295 L370 360 L495 435 L665 330 L735 370");
     	var takeoffPath1 = new soya2d.Path("M735 370 L810 420 L775 440");
     	var takeoffPath2 = new soya2d.Path("M775 440 L430 635 L-100 680");
 
 
 		//塔台监听
-		game.events.on('landing',function(target,plane){
+		g_signal.on('landing',function(plane){
 			plane.landing(landingPath,terminalPath);
 		});
 		//停机滑行
-		game.events.on('request2Apron',function(target,plane){
+		g_signal.on('request2Apron',function(plane){
 			Tower.taxiWaiting.show(plane.type,plane.res,plane);
 		});
-		game.events.on('terminal',function(target,plane){
+		g_signal.on('terminal',function(plane){
 			var taxiwayNo = Tower.requestTaxiway();
 			plane.taxi2Apron(t1Path,t2Path,taxiwayNo);
 			plane.apron = taxiwayNo;
 			
-			game.assets.sound('passby').play();
+			if(game.assets.sound('passby'))
+				game.assets.sound('passby').play();
 		});
 		//停机等待
-		game.events.on('inposition',function(target,plane){
-			game.assets.sound('ding').play();
-			game.assets.sound('shutdown').play();
+		g_signal.on('inposition',function(plane){
+			if(game.assets.sound('ding'))
+				game.assets.sound('ding').play();
+			if(game.assets.sound('shutdown'))
+				game.assets.sound('shutdown').play();
 			
 			setTimeout(function(){
-				game.events.emit('pushback',plane);
+				g_signal.emit('pushback',plane);
 			},plane.res*1000);
 		});
-		game.events.on('pushback',function(target,plane){
-			game.assets.sound('launch').play();
+		g_signal.on('pushback',function(plane){
+			if(game.assets.sound('launch'))
+				game.assets.sound('launch').play();
 
 			if(plane.apron<1){
 				Tower.exitterminal1.show(plane.type,plane.res,plane);
@@ -318,17 +326,18 @@ var Tower = {
 			}
 		});
 		//滑出机位
-		game.events.on('exitterminal',function(target,plane){
-			game.assets.sound('seatbelt').play();
+		g_signal.on('exitterminal',function(plane){
+			if(game.assets.sound('seatbelt'))
+				game.assets.sound('seatbelt').play();
 
 			Tower.requestPushback(plane.apron);
 			plane.pushback(t1TPath,t2TPath,plane.apron);
 		});
 		//等待起飞
-		game.events.on('requestTakeoff',function(target,plane){
+		g_signal.on('requestTakeoff',function(plane){
 			Tower.takeoff.show(plane.type,plane.res,plane);
 		});
-		game.events.on('takeoff',function(target,plane){
+		g_signal.on('takeoff',function(plane){
 			plane.takeoff(takeoffPath1,takeoffPath2);
 		});
 
@@ -349,7 +358,9 @@ var Tower = {
 			if(schedules[0][1] === tick){
 				var s = schedules.shift();
 				tower.langding.show(s[0],s[2]);
-				game.assets.sound('radio1').play();
+
+				if(game.assets.sound('radio1'))
+					game.assets.sound('radio1').play();
 			}
 		});
 	},

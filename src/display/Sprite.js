@@ -287,7 +287,7 @@ soya2d.class("soya2d.Sprite",{
 		this.frameIndex--;
 		if(this.frameIndex < 0){
 			if(loop){
-				frameIndex = this.images.length-1;
+				this.frameIndex = this.images.length-1;
 			}else{
 				this.frameIndex = 0;
 			}

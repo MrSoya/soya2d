@@ -85,9 +85,8 @@ soya2d.Signal.prototype = {
      * @chainable
      */
     emit:function(){
-        console.log(arguments[0])
         var listeners = this.__sigmap[arguments[0]];
-        if(!listeners)return;        
+        if(!listeners)return;
         
         var params = [];
         for(var i=1;i<arguments.length;i++){
@@ -95,7 +94,12 @@ soya2d.Signal.prototype = {
         }
 
         listeners.filter(function(item){
-            item[0].apply(item[1],params);
+            if(item[1].events){
+                if(!item[1].events.disabled)
+                    item[0].apply(item[1],params);
+            }else{
+                item[0].apply(item[1],params);
+            }
         });
         var last = listeners.filter(function(item){
             if(!item[2])return true;
@@ -104,5 +108,64 @@ soya2d.Signal.prototype = {
         this.__sigmap[arguments[0]] = last;
 
         return this;
+    },
+    emitTo:function(){
+        var listeners = this.__sigmap[arguments[0]];
+        if(!listeners)return;
+
+        var target = arguments[1];
+        
+        var params = [];
+        for(var i=2;i<arguments.length;i++){
+            params.push(arguments[i]);
+        }
+
+        listeners.filter(function(item){
+            if(item[1] !== target)return;
+            
+            if(item[1].events){
+                if(!item[1].events.disabled){
+                    item[0].apply(item[1],params);
+                    item.__called = true;
+                }
+            }else{
+                item[0].apply(item[1],params);
+                item.__called = true;
+            }
+        });
+        var last = listeners.filter(function(item){
+            if(!item.__called)return true;
+            if(!item[2])return true;
+        });
+
+        this.__sigmap[arguments[0]] = last;
+
+        return this;
+    },
+    __emitPointer:function(type,input,e,xy,xys){
+        var listeners = this.__sigmap[arguments[0]];
+        if(!listeners)return;
+
+        listeners.filter(function(item){
+            var t = item[1],fn = item[0];
+            if(t.hitTest(xy) && !t.events.disabled && t.isRendered()){
+                fn.call(t,input,e);
+                item.__called = true;
+            }else{
+                for(var i=xys.length;i--;){
+                    if(t.hitTest(xys[i]) && !t.events.disabled && t.isRendered()){
+                        fn.call(t,input,e);
+                        item.__called = true;
+                        break;
+                    }
+                }
+            }
+        });
+        var last = listeners.filter(function(item){
+            if(!item.__called)return true;
+            if(!item[2])return true;
+        });
+
+        this.__sigmap[arguments[0]] = last;
     }
 }

@@ -3,7 +3,7 @@
 	<text id="over" font="normal 60px/normal vt323" fillStyle="#fff" layout-left="50%" layout-offsetLeft="-50%" layout-top="50%">
 		Game Over
 	</text>
-	<text on-pointdown="home" font="normal 40px/normal vt323" fillStyle="#fff" layout-left="50%" layout-offsetLeft="-50%" layout-top="70%">
+	<text on-pointer-down="home" font="normal 40px/normal vt323" fillStyle="#fff" layout-left="50%" layout-offsetLeft="-50%" layout-top="70%">
 		&lt; HOME
 	</text>
 </world>

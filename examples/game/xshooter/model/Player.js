@@ -52,34 +52,12 @@ soya2d.class('Player',{
 	    this.scope = data.scope;
 	    this.speed = 7;
 
-	    this.on('keydown',function(e){
-			if(e.keyCode == soya2d.KeyCode.SPACE){
+	    this.events.onKeyDown(function(keyboard,e){
+			if(keyboard.keys.indexOf(soya2d.KeyCode.SPACE) > -1){
 				this.boom();
 			}
 		});
 
-	    //move
-		this.on('keypress',function(e){
-			var playerx=0,playery=0;
-			var x=0,y=0;
-			var tileSpd = 2;
-			if(e.contains(soya2d.KeyCode.A)){
-				playerx = -this.speed;
-				x = tileSpd;
-			}else if(e.contains(soya2d.KeyCode.D)){
-				playerx = this.speed;
-				x = -tileSpd;
-			}
-
-			if(e.contains(soya2d.KeyCode.W)){
-				playery = -this.speed;
-				y = tileSpd;
-			}else if(e.contains(soya2d.KeyCode.S)){
-				playery = this.speed;
-				y = -tileSpd;
-			}
-			this.move(playerx,playery);
-		});
 	},
 	setBarrel:function(num){
 		if(num<2){
@@ -141,6 +119,47 @@ soya2d.class('Player',{
 	            s.fire(game);
 	        });
 		}
+
+		//move
+		var kb = game.input.keyboard;
+		if(kb.isPressing){
+			var playerx=0,playery=0;
+			var x=0,y=0;
+			var tileSpd = 2;
+			if(kb.keys.indexOf(soya2d.KeyCode.A) > -1){
+				playerx = -this.speed;
+				x = tileSpd;
+			}else if(kb.keys.indexOf(soya2d.KeyCode.D) > -1){
+				playerx = this.speed;
+				x = -tileSpd;
+			}
+
+			if(kb.keys.indexOf(soya2d.KeyCode.W) > -1){
+				playery = -this.speed;
+				y = tileSpd;
+			}else if(kb.keys.indexOf(soya2d.KeyCode.S) > -1){
+				playery = this.speed;
+				y = -tileSpd;
+			}
+			this.move(playerx,playery);
+		}
+
+		var pt = game.input.pointer;
+		if(pt.isMove){
+			var pos = pt.position;
+			var x = pos.x;
+			var y = pos.y;
+
+			var wp = this.worldPosition;
+            var radian = Math.atan2(wp.y-y-game.camera.y,wp.x-x-game.camera.x);
+            radian = soya2d.Math.toAngle(radian);
+            this.spin(radian+180);
+		}
+		if(pt.isDown){
+			this.fire();
+		}else if(pt.isUp){
+			this.holdfire();
+		}
 	},
 	fire:function(t){
 		this.firing = true;
@@ -164,7 +183,7 @@ soya2d.class('Player',{
     	this.hp -= enemy.atk;
     	if(this.hp <= 0){
     		this.boom();
-    		this.game.events.emit('gameover');
+    		g_signal.emit('gameover');
     	}
     	Observer.warningLayer.opacity = 1;
     },

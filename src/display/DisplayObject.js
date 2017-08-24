@@ -1049,7 +1049,6 @@ soya2d.DisplayObject.prototype = {
      */
     destroy:function(){
         this.game.physics.unbind(this);
-        this.off();//remove all signals
         if(!this.__seq)return;
         if(this.children.length>0){
             this.children.forEach(function(child){
@@ -1064,6 +1063,8 @@ soya2d.DisplayObject.prototype = {
         if(this.parent)
             this.parent.remove(this);
 
+        this.events.clear();
+
         this.onRender = 
         this.onUpdate = 
         this.parent = 
@@ -1071,6 +1072,7 @@ soya2d.DisplayObject.prototype = {
         this.imageCache =
         this.fillStyle = 
         this.game = 
+        this.events = 
         this.body = null;
     }
 };

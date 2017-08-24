@@ -35,6 +35,18 @@ h1{
   height: 2.5rem;
 }
 
+/* Custom default button */
+.btn-blue{
+  background-color: #3998D6;
+  color: #fff;
+}
+.btn-blue:hover{
+  text-decoration: none;
+  color: #fff;
+  background-color: #2280bd;
+}
+
+
 /**
  * custom btns
  * require FontAwesome

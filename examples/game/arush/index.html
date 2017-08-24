@@ -3,7 +3,7 @@
   	<head>
 			<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 			<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-			<script src="../../assets/js/soya2d.all.js" type="text/javascript" language='javascript'></script>
+			<script src="../../../../assets/js/soya2d.all.js" type="text/javascript" language='javascript'></script>
 			<script src="model.js" type="text/javascript" language='javascript'></script>
 			<style>
 				html,body{
@@ -80,7 +80,8 @@
 					game.stage.alignMode = soya2d.ALIGNMODE_CENTER;
 
 					game.sound.stopAll();
-					game.assets.sound('bg').loop(true).volume(.5).play();
+					if(game.assets.sound('bg'))
+						game.assets.sound('bg').loop(true).volume(.5).play();
 
 					game.sound.muteAll();
 
@@ -127,6 +128,28 @@
 
 			var mainScene = {
 				onInit:function(game){
+					game.add.rect({
+						x:game.w - 200,
+						y:game.h - 50,
+						w:100,
+						h:30,
+						fillStyle:'#ddd',
+						z:90,
+						onAdded:function(){
+							var t = game.add.text({
+								text:'debug',
+								w:100,
+								// x:25,
+								y:10
+							});
+							this.add(t);
+
+							this.events.onPointerDown(function(){
+								game.debug = !game.debug;
+								t.setText('debug='+game.debug);
+							});
+						}
+					});
 
 					this.boom = game.add.sprite({
 						images:game.assets.atlas('boom').getAll(),
@@ -136,7 +159,8 @@
 					});
 
 					game.sound.stopAll();
-					game.assets.sound('airport').loop(true).volume(.5).play();
+					if(game.assets.sound('airport'))
+						game.assets.sound('airport').loop(true).volume(.5).play();
 
 					//自动应用UI
 					this.setView(game.assets.xml('ui'));
@@ -184,7 +208,7 @@
 							top:'80%'
 						}
 					},function(){
-						game.scene.start(loaderScene,true);
+						game.scene.start(loaderScene);
 					});
 
 					this.gameoverLayer = this.findView('gameoverLayer');
@@ -247,7 +271,8 @@
 					game.scene.start(loaderScene,true);
 				},
 				gameover:function(){
-					game.assets.sound('crash').play();
+					if(game.assets.sound('crash'))
+						game.assets.sound('crash').play();
 
 					Tower.planes.forEach(function(p){
 						game.tween.clearAll(p);

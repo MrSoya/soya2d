@@ -53,6 +53,7 @@ var src_core = [
     "src/display/Shape.js",
     "src/display/Animation.js",
     "src/display/Sprite.js",
+    "src/display/Button.js",
     "src/display/TileSprite.js",
     //renderer
     "src/renderer/CanvasGraphics.js",

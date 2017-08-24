@@ -160,7 +160,7 @@ var Tilemap = soya2d.class("",{
         });
         this.game.physics.enable(block);
         block.tilemap = this;
-        block.on('collisionStart',onTileCollision);
+        block.events.onCollisionStart(onTileCollision);
         block.body.static(true).friction(0);
 
         this.__blocks.push(block);
@@ -188,7 +188,7 @@ var Tilemap = soya2d.class("",{
         });
         this.game.physics.enable(block);
         block.tilemap = this;
-        block.on('collisionStart',onTileCollision);
+        block.events.onCollisionStart(onTileCollision);
         block.body.static(true).friction(0);
 
         this.__blocks.push(block);
@@ -218,7 +218,7 @@ var Tilemap = soya2d.class("",{
             y:startPos.y + h/2
         });
         block.tilemap = this;
-        block.on('collisionStart',onTileCollision);
+        block.events.onCollisionStart(onTileCollision);
         this.game.physics.enable(block);
         block.body.static(true).friction(0);
 
@@ -237,13 +237,13 @@ var Tilemap = soya2d.class("",{
         return this.tileMatrix[row+"_"+col];
     }
 });
-function onTileCollision(target,another){
-    var tw = target.w,th = target.h;
+function onTileCollision(another){
+    var tw = this.w,th = this.h;
     var aw = another.w,ah = another.h;
     var speed = another.body.rigid.speed;
     var offset = 1;
-    var tx = target.x - target.w/2,
-        ty = target.y - target.h/2;
+    var tx = this.x - this.w/2,
+        ty = this.y - this.h/2;
     var ax = another.x - another.w/2,
         ay = another.y - another.h/2;
 

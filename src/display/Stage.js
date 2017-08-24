@@ -160,10 +160,14 @@ var Stage = soya2d.class("",{
      * @private
      */
     __preUpdate : function(game,d){
+        if(this.onUpdate)
+            this.onUpdate(game,d);
         if(this.children)
             update(this.children,game,d);
     },
     __postUpdate:function(game,d){
+        if(this.onPostUpdate)
+            this.onPostUpdate(game,d);
         if(this.children)
             postUpdate(this.children,game,d);
     },

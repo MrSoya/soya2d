@@ -8,6 +8,7 @@ $(document).ready(function(){
 	$('.sidebar .scrollpane>ul.nav').slimScroll({
         height: '100%'
     });
+    if(!window.module)return;
     var active = $('.sidebar .doc-link[module="'+module+'"][name="'+name+'"]');
     active.addClass('active');
     //scroll to
@@ -16,15 +17,15 @@ $(document).ready(function(){
     });
 });
 
-function openWindow(){
-	window.open('window.html?name='+currentName,currentName,'width=800,height=600');
+function openWindow(path){
+    var code = EDITOR.getValue();
+    localStorage.setItem("code",code);
+	window.open('window.html',module+"-"+name,'width=800,height=600');
 }
 
 function runjs(){
-    var code = editor.getValue();
+    var code = EDITOR.getValue();
     localStorage.setItem("code",code);
-    //for check valid
-    localStorage.setItem("runtime",Date.now());
     //stop all games
     soya2d.games.forEach(function(game){
     	game.destroy();

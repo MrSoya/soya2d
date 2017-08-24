@@ -116,21 +116,6 @@ var Physics = soya2d.class("",{
     }
 });
 
-/**
- * 碰撞开始
- * @property EVENT_COLLISIONSTART
- * @type {String}
- * @for soya2d
- */
-soya2d.EVENT_COLLISIONSTART = 'collisionStart';
-/**
- * 碰撞结束
- * @property EVENT_COLLISIONEND
- * @type {String}
- * @for soya2d
- */
-soya2d.EVENT_COLLISIONEND = 'collisionEnd';
-
 
 /**
  * 物理事件

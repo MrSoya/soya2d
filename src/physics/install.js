@@ -17,8 +17,11 @@
 					var pairs = event.pairs;
 					for (var i = 0; i < pairs.length; i++) {
 		                var pair = pairs[i];
-		                game.physics.emit(event.name,pair.bodyA.__sprite,pair.bodyB.__sprite);
-		                eventSignal.emit(event.name.toLowerCase(),pair.bodyA.__sprite,pair.bodyB.__sprite);
+		                var evName = event.name.toLowerCase();
+		                // game.physics.emit(event.name,pair.bodyA.__sprite,pair.bodyB.__sprite);
+
+		                game.__pointerSignal.emitTo(evName,pair.bodyA.__sprite,pair.bodyB.__sprite);
+		                game.__pointerSignal.emitTo(evName,pair.bodyB.__sprite,pair.bodyA.__sprite);
 		            }
 				});
 			},
@@ -62,7 +65,7 @@
 				Matter.World.add(engine.world, shape);
 
 				Matter.Events.on(shape, 'sleepStart sleepEnd', function(event) {
-	                obj.emit(event.name,this.isSleeping);
+	                game.__pointerSignal.emitTo(event.name.toLowerCase(),obj,this.isSleeping);
 	            });
 
 				return shape;

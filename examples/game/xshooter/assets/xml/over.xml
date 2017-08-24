@@ -13,7 +13,7 @@
 		</text>
 	</text>
 	<text layout-left="50%" layout-offsetLeft="-50%" 
-		fillStyle="#fff" atlas="imgFont" y="400" on-pointdown="home">
+		fillStyle="#fff" atlas="imgFont" y="400" on-pointer-down="home">
 		&lt; HOME
 	</text>
 </world>

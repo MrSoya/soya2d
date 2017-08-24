@@ -16,37 +16,35 @@ soya2d.class("Hero",{
 		this.coins = 0;
 		this.hp = 6;
 
-		this.on('keypress',function(e){
-			if(this.state == STATE_DIE)return;
-
-			if(e.contains(soya2d.KeyCode.A)){
+	},
+	onUpdate:function(game){
+		if(this.state == STATE_DIE)return;
+		var kb = game.input.keyboard;
+		if(kb.isPressing){
+			if(kb.keys.indexOf(soya2d.KeyCode.A) > -1){
 				this.move(-1);
 				this.x -= 8;
 
-			}else if(e.contains(soya2d.KeyCode.D)){
+			}else if(kb.keys.indexOf(soya2d.KeyCode.D) > -1){
 				this.move(1);
 				this.x += 8;
 			}
 
-			if(e.contains(soya2d.KeyCode.J)){
+			if(kb.keys.indexOf(soya2d.KeyCode.J) > -1){
 				this.shoot(1);
 			}
-		});
-		this.on('keydown',function(e){
-			if(this.state == STATE_DIE)return;
-			
-			if(e.contains(soya2d.KeyCode.K)){
+		}
+		if(kb.isDown){
+			if(kb.keys.indexOf(soya2d.KeyCode.K) > -1){
 				this.jump();
 			}
-		})
-		this.on('keyup',function(e){
-			if(e.contains(soya2d.KeyCode.A,soya2d.KeyCode.D)){
-				this.stay();
-			}
-		});
+		}
+		if(kb.isUp){
+			this.stay();
+		}
 	},
 	disappear:function(){
-		this.off();
+		this.events.clear();
 		var game = this.game;
 		var t = this.game.tween.add(this).to({scaleX:0,scaleY:0,angle:720},1).play();
 		t.on('stop',function(){

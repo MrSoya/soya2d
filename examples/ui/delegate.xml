@@ -9,7 +9,7 @@
 		<sprite images="panel2" scale9grid="10,10,80,80" 
 			layout-width="100%" layout-height="80%" layout-top="20%">
 			<sprite images="btn_y1,btn_y2" h="50" scale9grid="10,10,35,35" 
-				on-pointer-down="hi"
+				on-pointer-down="down" on-pointer-up="up"
 				layout-width="80%" layout-left="10%" layout-top="40%">
 				<text layout-left="50%" layout-offsetLeft="-50%" 
 					  layout-top="50%" layout-offsetTop="-40%"
