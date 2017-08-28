@@ -5,7 +5,7 @@
 function Scene(data,game) {
     soya2d.ext(this,data);
 
-    this.map = {};
+    this.views = {};
     this.game = game;
 }
 
@@ -26,7 +26,7 @@ Scene.prototype = {
      * @return {soya2d.DisplayObject}
      */
     findView:function(id){
-        return this.map[id];
+        return this.views[id];
     }
 }
 
@@ -69,7 +69,7 @@ function build(scene,node,parent,game){
 
         bindEvent(data,ins,scene);
         if(id){
-            scene.map[id] = ins;
+            scene.views[id] = ins;
         }
         parent.add(ins);
 

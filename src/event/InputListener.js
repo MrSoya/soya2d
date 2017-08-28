@@ -1,8 +1,6 @@
 /**
- * @classdesc 事件监听器。用来监听输入设备产生的原生事件。
+ * 事件监听器。用来监听输入设备产生的原生事件。
  * 在每帧渲染前，如果有事件发生，监听器会更新对应类型的输入设备参数
- * 
- * @class 
  */
 function InputListener(data) {
 	this.eventMap = {};

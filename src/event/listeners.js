@@ -479,6 +479,7 @@ var deviceListener = new InputListener({
             //start timer
             this.timer = setTimeout(function(){
                 var orientation = that.getOrientation();
+                input.orientation = orientation;
                 globalEventSignal.emit('hov',input,orientation);
             },500);
         }

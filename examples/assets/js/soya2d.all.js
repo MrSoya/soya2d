@@ -6,7 +6,7 @@
  * Released under the MIT license
  *
  * website: http://soya2d.com
- * last build: 2017-08-24
+ * last build: 2017-08-25
  */
 !function (global) {
 	'use strict';
@@ -1852,7 +1852,7 @@ soya2d.MEDIA_ERR_SRC_NOT_FORTHCOMING = 101;
 function Scene(data,game) {
     soya2d.ext(this,data);
 
-    this.map = {};
+    this.views = {};
     this.game = game;
 }
 
@@ -1873,7 +1873,7 @@ Scene.prototype = {
      * @return {soya2d.DisplayObject}
      */
     findView:function(id){
-        return this.map[id];
+        return this.views[id];
     }
 }
 
@@ -1916,7 +1916,7 @@ function build(scene,node,parent,game){
 
         bindEvent(data,ins,scene);
         if(id){
-            scene.map[id] = ins;
+            scene.views[id] = ins;
         }
         parent.add(ins);
 
@@ -8636,37 +8636,38 @@ var deviceListener = new InputListener({
      * @param {Object} target 补间目标
      * @extends Signal
      */
-    soya2d.class("soya2d.Tween",{
-        extends:Signal,
-        constructor:function(target){
-            /**
-             * 补间目标
-             * @property target
-             * @type {Object}
-             */
-            this.target = target;
-            this.__tds = {};
-            this.__startTimes = [];
-            this.__long = 0;
-            /**
-             * 播放头位置
-             * @property position
-             * @type {Number}
-             */
-            this.position = 0;
-            this.__reversed = false;
-            this.__paused = false;
-            this.__infinite = false;
+    soya2d.Tween = function (target){
+        /**
+         * 补间目标
+         * @property target
+         * @type {Object}
+         */
+        this.target = target;
+        this.__tds = {};
+        this.__startTimes = [];
+        this.__long = 0;
+        /**
+         * 播放头位置
+         * @property position
+         * @type {Number}
+         */
+        this.position = 0;
+        this.__reversed = false;
+        this.__paused = false;
+        this.__infinite = false;
 
-            this.__state = {};
+        this.__state = {};
 
-            this.__status = 'paused';
+        this.__status = 'paused';
 
-            this.__runningTD;
+        this.__runningTD;
 
-            this.__changeTimes = 0;
-            this.__lastChangeTD;
-        },
+        this.__changeTimes = 0;
+        this.__lastChangeTD;
+
+        this.__repeat = 1;
+    };
+    soya2d.Tween.prototype = {
         __calc:function(attris,duration,easing){
             var keys = Object.keys(attris);
             var attr = {},
@@ -8724,7 +8725,7 @@ var deviceListener = new InputListener({
         * @param {Boolean} [opts.clear=true] 是否在执行完成后自动销毁释放内存
         * @see {soya2d.Tween.Linear}
         * @chainable
-         */
+        */
         to:function(attris,duration,opts){
             if(this.__infinite)return this;
             duration = duration||1;
@@ -8798,7 +8799,7 @@ var deviceListener = new InputListener({
          */
         pause:function(){
             this.__status = 'paused';
-            this.emit('pause');
+            if(this.onPause)this.onPause();
             return this;
         },
         /**
@@ -8820,19 +8821,16 @@ var deviceListener = new InputListener({
             }
         },
         __onUpdate:function(r,td){
-            this.emit('process',r,this.position / this.__long);
+            if(this.onProcess)this.onProcess(r,this.position / this.__long);
             if(((r >= 1 && !this.__reversed) || (r === 0 && this.__reversed)) && 
                 this.__lastChangeTD != td){
                 
-                this.__onChange(++this.__changeTimes);
+                if(this.onChange)this.onChange(++this.__changeTimes);
                 this.__lastChangeTD = td;
             }
         },
-        __onChange:function(times){
-            this.emit('change',times);
-        },
         __onEnd:function(){
-            this.emit('stop');
+            if(this.onStop)this.onStop(this.__repeat++);
             
             if(!this.keepAlive){
                 this.destroy();
@@ -8881,7 +8879,7 @@ var deviceListener = new InputListener({
             this.target = null;
             this.__currentTD = null;            
         }
-    });
+    };
 
     /**
      * 补间数据，保存了一个补间段的相关信息。一个补间实例包含1-N个补间数据
@@ -9015,25 +9013,25 @@ var deviceListener = new InputListener({
 
 /**
  * 补间执行事件
- * @event process
+ * @method onProcess
  * @for soya2d.Tween
  * @param {Number} ratio 补间段执行率
  * @param {Number} rate 补间完成率
  */
 /**
  * 补间段切换时触发
- * @event change
+ * @method onChange
  * @for soya2d.Tween
  * @param {Number} times 切换次数
  */
 /**
  * 补间停止事件
- * @event stop
+ * @method onStop
  * @for soya2d.Tween
  */
 /**
  * 补间暂停事件
- * @event pause
+ * @method onPause
  * @for soya2d.Tween
  */
 !function(){
@@ -9051,35 +9049,36 @@ var deviceListener = new InputListener({
      * @param {Object} target 补间目标
      * @extends Signal
      */
-    soya2d.class("soya2d.PathTween",{
-        extends:Signal,
-        constructor:function(target){
-            /**
-             * 补间目标
-             * @property target
-             * @type {Object}
-             */
-            this.target = target;
-            this.__tds = {};
-            this.__startTimes = [];
-            this.__long = 0;
-            /**
-             * 播放头位置
-             * @property position
-             * @type {Number}
-             */
-            this.position = 0;
-            this.__reversed = false;
-            this.__paused = false;
-            this.__infinite = false;
+    soya2d.PathTween = function(target){
+        /**
+         * 补间目标
+         * @property target
+         * @type {Object}
+         */
+        this.target = target;
+        this.__tds = {};
+        this.__startTimes = [];
+        this.__long = 0;
+        /**
+         * 播放头位置
+         * @property position
+         * @type {Number}
+         */
+        this.position = 0;
+        this.__reversed = false;
+        this.__paused = false;
+        this.__infinite = false;
 
-            this.__status = 'paused';
+        this.__status = 'paused';
 
-            this.__runningTD;
+        this.__runningTD;
 
-            this.__changeTimes = 0;
-            this.__lastChangeTD;
-        },
+        this.__changeTimes = 0;
+        this.__lastChangeTD;
+
+        this.__repeat = 1;
+    };
+    soya2d.PathTween.prototype = {
         __calc:function(path,duration,easing){
             var sx=0,sy=0;
             var ox=0,oy=0;
@@ -9288,7 +9287,7 @@ var deviceListener = new InputListener({
          */
         pause:function(){
             this.__status = 'paused';
-            this.emit('pause');
+            if(this.onPause)this.onPause();
             return this;
         },
         /**
@@ -9309,19 +9308,16 @@ var deviceListener = new InputListener({
             }
         },
         __onUpdate:function(r,angle,td){
-            this.emit('process',r,this.position / this.__long,angle);
+            if(this.onProcess)this.onProcess(r,this.position / this.__long,angle);
             if(((r === 1 && !this.__reversed ) || (r === 0 && this.__reversed)) && 
                 this.__lastChangeTD != td){
                 
-                this.__onChange(++this.__changeTimes);
+                if(this.onChange)this.onChange(++this.__changeTimes);
                 this.__lastChangeTD = td;
             }
         },
-        __onChange:function(times){
-            this.emit('change',times);
-        },
         __onEnd:function(){
-            this.emit('stop');
+            if(this.onStop)this.onStop(this.__repeat++);
 
             if(!this.keepAlive){
                 this.destroy();
@@ -9371,7 +9367,7 @@ var deviceListener = new InputListener({
             this.target = null;
             this.__currentTD = null;
         }
-    });
+    };
 
     //补间数据
     function TweenData(data,duration,opts){
@@ -9495,7 +9491,7 @@ var deviceListener = new InputListener({
 
 /**
  * 补间执行事件
- * @event process
+ * @method onProcess
  * @for soya2d.PathTween
  * @param {Number} ratio 补间段执行率
  * @param {Number} rate 补间完成率
@@ -9503,18 +9499,18 @@ var deviceListener = new InputListener({
  */
 /**
  * 补间段切换时触发
- * @event change
+ * @method onChange
  * @for soya2d.PathTween
  * @param {Number} times 切换次数
  */
 /**
  * 补间停止事件
- * @event stop
+ * @method onStop
  * @for soya2d.PathTween
  */
 /**
  * 补间暂停事件
- * @event pause
+ * @method onPause
  * @for soya2d.PathTween
  */
 /**

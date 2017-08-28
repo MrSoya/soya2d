@@ -13,35 +13,34 @@
      * @param {Object} target 补间目标
      * @extends Signal
      */
-    soya2d.class("soya2d.PathTween",{
-        extends:Signal,
-        constructor:function(target){
-            /**
-             * 补间目标
-             * @property target
-             * @type {Object}
-             */
-            this.target = target;
-            this.__tds = {};
-            this.__startTimes = [];
-            this.__long = 0;
-            /**
-             * 播放头位置
-             * @property position
-             * @type {Number}
-             */
-            this.position = 0;
-            this.__reversed = false;
-            this.__paused = false;
-            this.__infinite = false;
+    soya2d.PathTween = function(target){
+        /**
+         * 补间目标
+         * @property target
+         * @type {Object}
+         */
+        this.target = target;
+        this.__tds = {};
+        this.__startTimes = [];
+        this.__long = 0;
+        /**
+         * 播放头位置
+         * @property position
+         * @type {Number}
+         */
+        this.position = 0;
+        this.__reversed = false;
+        this.__paused = false;
+        this.__infinite = false;
 
-            this.__status = 'paused';
+        this.__status = 'paused';
 
-            this.__runningTD;
+        this.__runningTD;
 
-            this.__changeTimes = 0;
-            this.__lastChangeTD;
-        },
+        this.__changeTimes = 0;
+        this.__lastChangeTD;
+    };
+    soya2d.PathTween.prototype = {
         __calc:function(path,duration,easing){
             var sx=0,sy=0;
             var ox=0,oy=0;
@@ -250,7 +249,7 @@
          */
         pause:function(){
             this.__status = 'paused';
-            this.emit('pause');
+            if(this.onPause)this.onPause();
             return this;
         },
         /**
@@ -271,19 +270,16 @@
             }
         },
         __onUpdate:function(r,angle,td){
-            this.emit('process',r,this.position / this.__long,angle);
+            if(this.onProcess)this.onProcess(r,this.position / this.__long,angle);
             if(((r === 1 && !this.__reversed ) || (r === 0 && this.__reversed)) && 
                 this.__lastChangeTD != td){
                 
-                this.__onChange(++this.__changeTimes);
+                if(this.onChange)this.onChange(++this.__changeTimes);
                 this.__lastChangeTD = td;
             }
         },
-        __onChange:function(times){
-            this.emit('change',times);
-        },
         __onEnd:function(){
-            this.emit('stop');
+            if(this.onStop)this.onStop();
 
             if(!this.keepAlive){
                 this.destroy();
@@ -333,7 +329,7 @@
             this.target = null;
             this.__currentTD = null;
         }
-    });
+    };
 
     //补间数据
     function TweenData(data,duration,opts){
@@ -457,7 +453,7 @@
 
 /**
  * 补间执行事件
- * @event process
+ * @event onProcess
  * @for soya2d.PathTween
  * @param {Number} ratio 补间段执行率
  * @param {Number} rate 补间完成率
@@ -465,17 +461,17 @@
  */
 /**
  * 补间段切换时触发
- * @event change
+ * @event onChange
  * @for soya2d.PathTween
  * @param {Number} times 切换次数
  */
 /**
  * 补间停止事件
- * @event stop
+ * @event onStop
  * @for soya2d.PathTween
  */
 /**
  * 补间暂停事件
- * @event pause
+ * @event onPause
  * @for soya2d.PathTween
  */
