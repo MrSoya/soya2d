@@ -79,12 +79,12 @@ var src_ext = [
     "src/tween/Easing.js",
     "src/tween/install.js",
     //shapes
+    "src/shapes/VS.js",
     "src/shapes/Arc.js",
     "src/shapes/Ellipse.js",
     "src/shapes/Poly.js",
     "src/shapes/Rect.js",
     "src/shapes/RPoly.js",
-    "src/shapes/RRect.js",
     "src/shapes/EArc.js",
     "src/shapes/install.js",
     //sound

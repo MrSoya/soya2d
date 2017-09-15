@@ -2,7 +2,7 @@
  * 几何结构，多边形。
  * @class soya2d.Polygon
  * @constructor
- * @param {Array} vtx 1维顶点数组
+ * @param {Array} vtx 1维顶点数组,相对左上角0,0点
  */
 soya2d.Polygon  = function(vtx){
 	this.vtx = vtx;

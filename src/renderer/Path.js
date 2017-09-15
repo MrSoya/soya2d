@@ -21,7 +21,16 @@ soya2d.Path = function(d){
 
     this.cmd = ['m','l','c','q','z'];
 
-    this._insQ = [];
+    /**
+     * 保存路径顶点
+     * @type {Array}
+     */
+    this.vtx = [];
+    /**
+     * 保存路径绘制类型
+     * @type {Array}
+     */
+    this.cmds = [];
 
     this.__parse();
 }
@@ -42,7 +51,18 @@ soya2d.ext(soya2d.Path.prototype,{
                 //解析坐标值
                 var xys = seg.substr(1).replace(/^\s/mg,'').split(/\n|,|\s/gm);
 
-                this._insQ.push([cmd,xys]);
+                var step = 2;
+                switch(cmd){
+                    case 'q':step=4;break;
+                    case 'c':step=6;break;
+                }
+                for(var i=0;i<xys.length;i++){
+                    var v = xys[i]>>0;
+                    this.vtx.push(v);
+                    if(i%step==0){
+                        this.cmds.push(cmd);
+                    }
+                }
             }
         },this);
     },

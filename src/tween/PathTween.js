@@ -48,43 +48,42 @@
             if(typeof(path) === 'string'){
                 path = new soya2d.Path(path);
             }
-            path._insQ.forEach(function(ins){
-                var type = ins[0].toLowerCase();
-                switch(type){
-                    case 'm':ox=sx=parseFloat(ins[1][0]),oy=sy=parseFloat(ins[1][1]);break;
+            var vtx = path.vtx;
+            var cmds = path.cmds;
+            for(var i=0;i<vtx.length;){
+                var cmd = cmds.shift();
+                var step = 2;
+                switch(cmd){
+                    case 'm':
+                        ox=sx=parseFloat(vtx[i]),
+                        oy=sy=parseFloat(vtx[i+1]);break;
                     case 'l':
-                        var xys = ins[1];
-                        for(var i=0;i<xys.length;i+=2){
-
-                            var r = Math.atan2(xys[i+1] - sy,xys[i] - sx);
-                            var len = soya2d.Math.len2D(sx,sy,xys[i],xys[i+1]);
-                            
-                            for(var d=0;d<len;d++){
-                                var x = d*Math.cos(r) + sx;
-                                var y = d*Math.sin(r) + sy;
-                                __pps.push(x,y);
-                            }
-
-                            sx=parseFloat(xys[i]),sy=parseFloat(xys[i+1]);
+                        var r = Math.atan2(vtx[i+1] - sy,vtx[i] - sx);
+                        var len = soya2d.Math.len2D(sx,sy,vtx[i],vtx[i+1]);
+                        
+                        for(var d=0;d<len;d++){
+                            var x = d*Math.cos(r) + sx;
+                            var y = d*Math.sin(r) + sy;
+                            __pps.push(x,y);
                         }
+
+                        sx=parseFloat(vtx[i]),sy=parseFloat(vtx[i+1]);
                         break;
                     case 'c':
                         var pps = [];
-                        var xys = ins[1];
-                        for(var i=0;i<xys.length;i+=6){
-                            for(var t=0;t<1;t+=.01){
-                                var ts = t*t;
-                                var tc = ts*t;
+                        for(var t=0;t<1;t+=.01){
+                            var ts = t*t;
+                            var tc = ts*t;
 
-                                var x = sx*(1-3*t+3*ts-tc) + 3*xys[i]*t*(1-2*t+ts) + 3*xys[i+2]*ts*(1-t) + xys[i+4]*tc;
-                                var y = sy*(1-3*t+3*ts-tc) + 3*xys[i+1]*t*(1-2*t+ts) + 3*xys[i+3]*ts*(1-t) + xys[i+5]*tc;
-                                pps.push(x,y);
-                            }
-                            sx=parseFloat(xys[i+4]),sy=parseFloat(xys[i+5]);
+                            var x = sx*(1-3*t+3*ts-tc) + 3*vtx[i]*t*(1-2*t+ts) + 3*vtx[i+2]*ts*(1-t) + vtx[i+4]*tc;
+                            var y = sy*(1-3*t+3*ts-tc) + 3*vtx[i+1]*t*(1-2*t+ts) + 3*vtx[i+3]*ts*(1-t) + vtx[i+5]*tc;
+                            pps.push(x,y);
                         }
-                        if(pps[pps.length-2] != xys[xys.length-2] || 
-                            pps[pps.length-1] != xys[xys.length-1] ){
-                            pps.push(xys[xys.length-2],xys[xys.length-1]);
+                        sx=parseFloat(vtx[i+4]),sy=parseFloat(vtx[i+5]);
+                        
+                        if(pps[4] != vtx[4] || 
+                            pps[5] != vtx[5] ){
+                            pps.push(vtx[4],vtx[5]);
                         }
                         var totalLen = 0;
                         var ks = {};
@@ -119,22 +118,20 @@
                         break;
                     case 'q':
                         var pps = [];
-                        var xys = ins[1];
-                        for(var i=0;i<xys.length;i+=4){
                    
-                            for(var t=0;t<1;t+=.01){
-                                var ts = t*t;
-                                var tc = ts*t;
+                        for(var t=0;t<1;t+=.01){
+                            var ts = t*t;
+                            var tc = ts*t;
 
-                                var x = sx*(1-2*t+ts) + 2*xys[i]*t*(1-t) + xys[i+2]*ts;
-                                var y = sy*(1-2*t+ts) + 2*xys[i+1]*t*(1-t) + xys[i+3]*ts;
-                                pps.push(x,y);
-                            }
-                            sx=parseFloat(xys[i+2]),sy=parseFloat(xys[i+3]);
+                            var x = sx*(1-2*t+ts) + 2*vtx[i]*t*(1-t) + vtx[i+2]*ts;
+                            var y = sy*(1-2*t+ts) + 2*vtx[i+1]*t*(1-t) + vtx[i+3]*ts;
+                            pps.push(x,y);
                         }
-                        if(pps[pps.length-2] != xys[xys.length-2] || 
-                            pps[pps.length-1] != xys[xys.length-1] ){
-                            pps.push(xys[xys.length-2],xys[xys.length-1]);
+                        sx=parseFloat(vtx[i+2]),sy=parseFloat(vtx[i+3]);
+                        
+                        if(pps[2] != vtx[2] || 
+                            pps[3] != vtx[3] ){
+                            pps.push(vtx[2],vtx[3]);
                         }
                         var totalLen = 0;
                         var ks = {};
@@ -179,7 +176,8 @@
 
                         break;
                 }
-            },this);
+                i += step;
+            }//over for
 
             return __pps;
         },

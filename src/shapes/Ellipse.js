@@ -9,21 +9,27 @@
  * @param {String} data.lineWidth 线条宽度
  */
 soya2d.class("soya2d.Ellipse",{
-    extends:soya2d.DisplayObjectContainer,
+    extends:VS,
     constructor:function(data){
         data = data||{};
         this.fillStyle = data.fillStyle || 'transparent';
-    },
-    onRender:function(g){
-        g.beginPath();
-        g.fillStyle(this.fillStyle);
-        g.ellipse(0,0,this.w,this.h);
-        g.closePath();
-        g.fill();
-        if(this.lineWidth>0){
-            g.lineStyle(this.lineWidth);
-            g.strokeStyle(this.strokeStyle);
-            g.stroke();
-        }
+
+        var vtx = [];
+        var kappa = 0.5522848;
+        var ox = (this.w / 2) * kappa, // control point offset horizontal
+            oy = (this.h / 2) * kappa, // control point offset vertical
+            xe = this.w,           // x-end
+            ye = this.h,           // y-end
+            xm = this.w / 2,       // x-middle
+            ym = this.h / 2;       // y-middle
+
+        this.vtx = [
+            0,ym,
+            0,ym-oy,xm - ox,0,xm,0,
+            xm + ox, 0, xe, ym - oy, xe, ym,
+            xe, ym + oy, xm + ox, ye, xm, ye,
+            xm - ox, ye, 0, ym + oy, 0, ym,
+            ]
+        this.cmds = ['m','c','c','c','c'];
     }
 });

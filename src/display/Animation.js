@@ -79,6 +79,14 @@ var AnimationManager = soya2d.class("",{
 		this.map[key] = new Animation(frameQ,frameRate,loop);
 		return this;
 	},
+	remove:function(key){
+		if(this.playingK === key){
+			this.stop();
+		}
+		this.map[key] = null;
+		delete this.map[key];
+		return this;
+	},
 	/**
 	 * 播放指定动画组
 	 * @method play

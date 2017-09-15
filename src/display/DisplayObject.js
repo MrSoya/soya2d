@@ -52,6 +52,8 @@ soya2d.DisplayObject = function(data){
      * top  当值是百分比时，相对父类的高度
      * offsetLeft 当值是百分比时，相对自身的宽度
      * offsetTop 当值是百分比时，相对自身的高度
+     * width 当值是百分比时，相对父类的宽度
+     * height 当值是百分比时，相对父类的高度
      * 都支持数值和百分比
      * @property layout
      * @type {Object}

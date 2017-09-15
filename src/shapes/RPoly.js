@@ -12,21 +12,33 @@
  * @param {Number} [data.r] 内半径。默认和外半径相同
  */
 soya2d.class("soya2d.RPoly",{
-    extends:soya2d.DisplayObjectContainer,
+    extends:VS,
     constructor:function(data){
         data = data||{};
         this.fillStyle = data.fillStyle || 'transparent';
-    },
-    onRender:function(g){
-        g.beginPath();
-        g.fillStyle(this.fillStyle);
-        g.regularPolygon(this.w/2,this.h/2,this.edgeCount,this.r||this.w/2,this.w/2);
-        g.closePath();
-        g.fill();
-        if(this.lineWidth>0){
-            g.lineStyle(this.lineWidth);
-            g.strokeStyle(this.strokeStyle);
-            g.stroke();
+
+        var r1 = this.r||this.w/2
+        var r2 = this.w/2;
+        var cx,cy,ec = this.edgeCount||0;
+        cx = cx||0;
+        cy = cy||0;
+        ec = ec<3?3:ec;
+        var M = soya2d.Math;
+        var vtx = [];
+        var step = 360/ec;
+        for(var i=0,j=0;i<360;i+=step,j++){
+            var tr = r1;
+            if(r2){
+                if(j%2!==0)tr=r1;
+                else{tr=r2};
+            }
+
+            if(!M.COSTABLE[i]){
+                vtx.push(cx+tr*M.COSTABLE[Math.round(i)],cy+tr*M.SINTABLE[Math.round(i)]);
+            }else{
+                vtx.push(cx+tr*M.COSTABLE[i],cy+tr*M.SINTABLE[i]);
+            }
         }
+        this.vtx = vtx;
     }
 });

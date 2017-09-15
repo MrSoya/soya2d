@@ -6,7 +6,7 @@
  * Released under the MIT license
  *
  * website: http://soya2d.com
- * last build: 2017-08-28
+ * last build: 2017-09-14
  */
 !function (global) {
 	'use strict';
@@ -2414,7 +2414,7 @@ soya2d.Circle.prototype = {
  * 几何结构，多边形。
  * @class soya2d.Polygon
  * @constructor
- * @param {Array} vtx 1维顶点数组
+ * @param {Array} vtx 1维顶点数组,相对左上角0,0点
  */
 soya2d.Polygon  = function(vtx){
 	this.vtx = vtx;
@@ -3270,6 +3270,8 @@ soya2d.DisplayObject = function(data){
      * top  当值是百分比时，相对父类的高度
      * offsetLeft 当值是百分比时，相对自身的宽度
      * offsetTop 当值是百分比时，相对自身的高度
+     * width 当值是百分比时，相对父类的宽度
+     * height 当值是百分比时，相对父类的高度
      * 都支持数值和百分比
      * @property layout
      * @type {Object}
@@ -5106,6 +5108,14 @@ var AnimationManager = soya2d.class("",{
 		this.map[key] = new Animation(frameQ,frameRate,loop);
 		return this;
 	},
+	remove:function(key){
+		if(this.playingK === key){
+			this.stop();
+		}
+		this.map[key] = null;
+		delete this.map[key];
+		return this;
+	},
 	/**
 	 * 播放指定动画组
 	 * @method play
@@ -5831,110 +5841,6 @@ soya2d.CanvasGraphics = function(ctx){
         this.ctx.rect(x,y,w,h);
         return this;
     };
-    /**
-     * 向当前path中添加多边形subpath，边的数量由顶点数决定
-     * @method polygon
-     * @param {Array} vtx 一维顶点数组,坐标为相对中心点。<br/>
-     * 比如绘制[0,0]点为重心的正三角形:<br/>
-     * ```
-     * [0,-5,//top point<br/>
-     * -5,x,//left point<br/>
-     * 5,y]
-     * ```
-     * 
-     * @chainable
-     */
-    this.polygon = function(vtx){
-        var c = this.ctx;
-        var l = vtx.length - 1;
-
-        c.moveTo(vtx[0],vtx[1]);
-        for(var i=2;i<l;i+=2){
-            c.lineTo(vtx[i],vtx[i+1]);
-        }
-        return this;
-    };
-    /**
-     * 向当前path中添加椭圆形subpath
-     * @method ellipse
-     * @param {Number} x
-     * @param {Number} y
-     * @param {Number} w
-     * @param {Number} h
-     * @chainable
-     */
-    this.ellipse = function(x,y,w,h){
-        var kappa = 0.5522848;
-        var ox = (w / 2) * kappa, // control point offset horizontal
-            oy = (h / 2) * kappa, // control point offset vertical
-            xe = x + w,           // x-end
-            ye = y + h,           // y-end
-            xm = x + w / 2,       // x-middle
-            ym = y + h / 2;       // y-middle
-        var c = this.ctx;
-        c.moveTo(x, ym);
-        c.bezierCurveTo(x, ym - oy, xm - ox, y, xm, y);
-        c.bezierCurveTo(xm + ox, y, xe, ym - oy, xe, ym);
-        c.bezierCurveTo(xe, ym + oy, xm + ox, ye, xm, ye);
-        c.bezierCurveTo(xm - ox, ye, x, ym + oy, x, ym);
-        return this;
-    };
-    /**
-     * 向当前path中添加圆角矩形subpath
-     * @method roundRect
-     * @param {Number} x
-     * @param {Number} y
-     * @param {Number} w
-     * @param {Number} h
-     * @param {Number} r 圆角半径
-     * @chainable
-     */
-    this.roundRect = function(x,y,w,h,r){
-        var c = this.ctx;
-        c.moveTo(x+r,y);
-        c.lineTo(x+(w-(r<<1)),y);
-        c.arc(x+w-r,y+r,r,Math.PI*3/2,0);
-        c.lineTo(x+w,y+h-r);
-        c.arc(x+w-r,y+h-r,r,0,soya2d.Math.PID2);
-        c.lineTo(x+r,y+h);
-        c.arc(x+r,y+h-r,r,soya2d.Math.PID2,Math.PI);
-        c.lineTo(x,y+r);
-        c.arc(x+r,y+r,r,Math.PI,Math.PI*3/2);
-        return this;
-    };
-    /**
-     * 向当前path中添加正多边形subpath
-     * @method regularPolygon
-     * @param {Number} cx 多边形重心
-     * @param {Number} cy 多边形重心
-     * @param {Number} ec 多边形的边数，不能小于3
-     * @param {Number} r1 半径1
-     * @param {Number} r2 半径2
-     * @chainable
-     */
-    this.regularPolygon = function(cx,cy,ec,r1,r2){
-        cx = cx||0;
-        cy = cy||0;
-        ec = ec<3?3:ec;
-        var M = soya2d.Math;
-        var vtx = [];
-        var step = 360/ec;
-        for(var i=0,j=0;i<360;i+=step,j++){
-            var tr = r1;
-            if(r2){
-                if(j%2!==0)tr=r1;
-                else{tr=r2};
-            }
-
-            if(!M.COSTABLE[i]){
-                vtx.push(cx+tr*M.COSTABLE[Math.round(i)],cy+tr*M.SINTABLE[Math.round(i)]);
-            }else{
-                vtx.push(cx+tr*M.COSTABLE[i],cy+tr*M.SINTABLE[i]);
-            }
-        }
-        this.polygon(vtx);
-        return this;
-    };
 
     /**
      * 设置或者获取当前绘图环境的图元混合模式
@@ -6095,52 +6001,48 @@ soya2d.CanvasGraphics = function(ctx){
     };
 
     /**
-     * 向当前path中添加指定的subpath
+     * 向当前path中添加指定的顶点以及绘制类型
+     * @method path
+     * @param {Array} vtx 一维顶点数组,坐标为相对图形的左上角。<br/>
+     * 比如绘制[0,0]点为重心的正三角形:<br/>
+     * ```
+     * [0,-5,//top point<br/>
+     * -5,x,//left point<br/>
+     * 5,y]
      * 
-     * @param {soya2d.Path} path 路径结构
+     * @param {Array} types SVG标准绘制类型,包括 m/l/c/q/z
      * @method path
      * @chainable
      */
-    this.path = function(path){
-        path._insQ.forEach(function(ins){
-            var type = ins[0].toLowerCase();
+    this.path = function(vtx,types){
+        if(types && (types instanceof Array)){
+            types = types.concat();
+        }else{
+            types = [];
+        }
+        for(var i=0;i<vtx.length;){
+            var type = types.shift();
+            var step = 2;
             switch(type){
-                case 'm':this.ctx.moveTo(ins[1][0],ins[1][1]);break;
-                case 'l':
-                    var xys = ins[1];
-                    if(xys.length>2){
-                        for(var i=0;i<xys.length;i+=2){
-                            this.ctx.lineTo(xys[i],xys[i+1]);
-                        }
-                    }else{
-                        this.ctx.lineTo(xys[0],xys[1]);
-                    }
-                    break;
+                case 'm':this.ctx.moveTo(vtx[i],vtx[i+1]);break;
                 case 'c':
-                    var xys = ins[1];
-                    if(xys.length>6){
-                        for(var i=0;i<xys.length;i+=6){
-                            this.ctx.bezierCurveTo((xys[i]),(xys[i+1]),(xys[i+2]),
-                                                (xys[i+3]),(xys[i+4]),(xys[i+5]));
-                        }
-                    }else{
-                        this.ctx.bezierCurveTo(xys[0],xys[1],xys[2],xys[3],xys[4],xys[5]);
-                    }
+                    this.ctx.bezierCurveTo(vtx[i],vtx[i+1],vtx[i+2],vtx[i+3],vtx[i+4],vtx[i+5]);
+                    step = 6;
                     break;
                 case 'q':
-                    var xys = ins[1];
-                    if(xys.length>4){
-                        for(var i=0;i<xys.length;i+=4){
-                            this.ctx.quadraticCurveTo((xys[i]),(xys[i+1]),(xys[i+2]),
-                                                (xys[i+3]));
-                        }
-                    }else{
-                        this.ctx.quadraticCurveTo(xys[0],xys[1],xys[2],xys[3]);
-                    }
+                    this.ctx.quadraticCurveTo(vtx[i],vtx[i+1],vtx[i+2],vtx[i+3]);
+                    step = 4;
                     break;
                 case 'z':this.ctx.closePath();break;
+                case 'l':
+                default:
+                    this.ctx.lineTo(vtx[i],vtx[i+1]);break;
             }
-        },this);
+
+            i += step;
+        }//over for
+        
+        return this;
     }
 
     /**
@@ -6728,7 +6630,16 @@ soya2d.Path = function(d){
 
     this.cmd = ['m','l','c','q','z'];
 
-    this._insQ = [];
+    /**
+     * 保存路径顶点
+     * @type {Array}
+     */
+    this.vtx = [];
+    /**
+     * 保存路径绘制类型
+     * @type {Array}
+     */
+    this.cmds = [];
 
     this.__parse();
 }
@@ -6749,7 +6660,18 @@ soya2d.ext(soya2d.Path.prototype,{
                 //解析坐标值
                 var xys = seg.substr(1).replace(/^\s/mg,'').split(/\n|,|\s/gm);
 
-                this._insQ.push([cmd,xys]);
+                var step = 2;
+                switch(cmd){
+                    case 'q':step=4;break;
+                    case 'c':step=6;break;
+                }
+                for(var i=0;i<xys.length;i++){
+                    var v = xys[i]>>0;
+                    this.vtx.push(v);
+                    if(i%step==0){
+                        this.cmds.push(cmd);
+                    }
+                }
             }
         },this);
     },
@@ -9376,43 +9298,42 @@ var deviceListener = new InputListener({
             if(typeof(path) === 'string'){
                 path = new soya2d.Path(path);
             }
-            path._insQ.forEach(function(ins){
-                var type = ins[0].toLowerCase();
-                switch(type){
-                    case 'm':ox=sx=parseFloat(ins[1][0]),oy=sy=parseFloat(ins[1][1]);break;
+            var vtx = path.vtx;
+            var cmds = path.cmds;
+            for(var i=0;i<vtx.length;){
+                var cmd = cmds.shift();
+                var step = 2;
+                switch(cmd){
+                    case 'm':
+                        ox=sx=parseFloat(vtx[i]),
+                        oy=sy=parseFloat(vtx[i+1]);break;
                     case 'l':
-                        var xys = ins[1];
-                        for(var i=0;i<xys.length;i+=2){
-
-                            var r = Math.atan2(xys[i+1] - sy,xys[i] - sx);
-                            var len = soya2d.Math.len2D(sx,sy,xys[i],xys[i+1]);
-                            
-                            for(var d=0;d<len;d++){
-                                var x = d*Math.cos(r) + sx;
-                                var y = d*Math.sin(r) + sy;
-                                __pps.push(x,y);
-                            }
-
-                            sx=parseFloat(xys[i]),sy=parseFloat(xys[i+1]);
+                        var r = Math.atan2(vtx[i+1] - sy,vtx[i] - sx);
+                        var len = soya2d.Math.len2D(sx,sy,vtx[i],vtx[i+1]);
+                        
+                        for(var d=0;d<len;d++){
+                            var x = d*Math.cos(r) + sx;
+                            var y = d*Math.sin(r) + sy;
+                            __pps.push(x,y);
                         }
+
+                        sx=parseFloat(vtx[i]),sy=parseFloat(vtx[i+1]);
                         break;
                     case 'c':
                         var pps = [];
-                        var xys = ins[1];
-                        for(var i=0;i<xys.length;i+=6){
-                            for(var t=0;t<1;t+=.01){
-                                var ts = t*t;
-                                var tc = ts*t;
+                        for(var t=0;t<1;t+=.01){
+                            var ts = t*t;
+                            var tc = ts*t;
 
-                                var x = sx*(1-3*t+3*ts-tc) + 3*xys[i]*t*(1-2*t+ts) + 3*xys[i+2]*ts*(1-t) + xys[i+4]*tc;
-                                var y = sy*(1-3*t+3*ts-tc) + 3*xys[i+1]*t*(1-2*t+ts) + 3*xys[i+3]*ts*(1-t) + xys[i+5]*tc;
-                                pps.push(x,y);
-                            }
-                            sx=parseFloat(xys[i+4]),sy=parseFloat(xys[i+5]);
+                            var x = sx*(1-3*t+3*ts-tc) + 3*vtx[i]*t*(1-2*t+ts) + 3*vtx[i+2]*ts*(1-t) + vtx[i+4]*tc;
+                            var y = sy*(1-3*t+3*ts-tc) + 3*vtx[i+1]*t*(1-2*t+ts) + 3*vtx[i+3]*ts*(1-t) + vtx[i+5]*tc;
+                            pps.push(x,y);
                         }
-                        if(pps[pps.length-2] != xys[xys.length-2] || 
-                            pps[pps.length-1] != xys[xys.length-1] ){
-                            pps.push(xys[xys.length-2],xys[xys.length-1]);
+                        sx=parseFloat(vtx[i+4]),sy=parseFloat(vtx[i+5]);
+                        
+                        if(pps[4] != vtx[4] || 
+                            pps[5] != vtx[5] ){
+                            pps.push(vtx[4],vtx[5]);
                         }
                         var totalLen = 0;
                         var ks = {};
@@ -9447,22 +9368,20 @@ var deviceListener = new InputListener({
                         break;
                     case 'q':
                         var pps = [];
-                        var xys = ins[1];
-                        for(var i=0;i<xys.length;i+=4){
                    
-                            for(var t=0;t<1;t+=.01){
-                                var ts = t*t;
-                                var tc = ts*t;
+                        for(var t=0;t<1;t+=.01){
+                            var ts = t*t;
+                            var tc = ts*t;
 
-                                var x = sx*(1-2*t+ts) + 2*xys[i]*t*(1-t) + xys[i+2]*ts;
-                                var y = sy*(1-2*t+ts) + 2*xys[i+1]*t*(1-t) + xys[i+3]*ts;
-                                pps.push(x,y);
-                            }
-                            sx=parseFloat(xys[i+2]),sy=parseFloat(xys[i+3]);
+                            var x = sx*(1-2*t+ts) + 2*vtx[i]*t*(1-t) + vtx[i+2]*ts;
+                            var y = sy*(1-2*t+ts) + 2*vtx[i+1]*t*(1-t) + vtx[i+3]*ts;
+                            pps.push(x,y);
                         }
-                        if(pps[pps.length-2] != xys[xys.length-2] || 
-                            pps[pps.length-1] != xys[xys.length-1] ){
-                            pps.push(xys[xys.length-2],xys[xys.length-1]);
+                        sx=parseFloat(vtx[i+2]),sy=parseFloat(vtx[i+3]);
+                        
+                        if(pps[2] != vtx[2] || 
+                            pps[3] != vtx[3] ){
+                            pps.push(vtx[2],vtx[3]);
                         }
                         var totalLen = 0;
                         var ks = {};
@@ -9507,7 +9426,8 @@ var deviceListener = new InputListener({
 
                         break;
                 }
-            },this);
+                i += step;
+            }//over for
 
             return __pps;
         },
@@ -10389,6 +10309,38 @@ soya2d.module.install('tween',{
     }
 });
 /**
+ * 可以进行规则多边形填充或线框绘制的显示对象。该多边形拥有内外两个半径，
+ * 可以构成有趣的形状。外半径由对象的w属性决定，内半径则需要指定r属性
+ * @class soya2d.RPoly
+ * @constructor
+ * @extends soya2d.DisplayObjectContainer
+ * @param {Object} data 所有父类参数,以及新增参数
+ * @param {String} data.fillStyle 填充样式
+ * @param {String} data.strokeStyle 线框样式
+ * @param {String} data.lineWidth 线条宽度
+ * @param {int} data.edgeCount 多边形的边数，不能小于3
+ * @param {Number} [data.r] 内半径。默认和外半径相同
+ */
+var VS = soya2d.class("",{
+    extends:soya2d.DisplayObjectContainer,
+    constructor:function(data){
+        this.vtx = [];
+        this.cmds = [];
+    },
+    onRender:function(g){
+        g.fillStyle(this.fillStyle);
+        g.beginPath();
+        g.path(this.vtx,this.cmds);
+        g.closePath();
+        g.fill();
+        if(this.lineWidth>0){
+            g.lineStyle(this.lineWidth);
+            g.strokeStyle(this.strokeStyle);
+            g.stroke();
+        }
+    }
+});
+/**
  * shapes模块定义了一些常用图元，方便开发者调用。<b>该模块是扩展模块，可以自行卸载</b>
  * @module shapes
  */
@@ -10446,22 +10398,28 @@ soya2d.class("soya2d.Arc",{
  * @param {String} data.lineWidth 线条宽度
  */
 soya2d.class("soya2d.Ellipse",{
-    extends:soya2d.DisplayObjectContainer,
+    extends:VS,
     constructor:function(data){
         data = data||{};
         this.fillStyle = data.fillStyle || 'transparent';
-    },
-    onRender:function(g){
-        g.beginPath();
-        g.fillStyle(this.fillStyle);
-        g.ellipse(0,0,this.w,this.h);
-        g.closePath();
-        g.fill();
-        if(this.lineWidth>0){
-            g.lineStyle(this.lineWidth);
-            g.strokeStyle(this.strokeStyle);
-            g.stroke();
-        }
+
+        var vtx = [];
+        var kappa = 0.5522848;
+        var ox = (this.w / 2) * kappa, // control point offset horizontal
+            oy = (this.h / 2) * kappa, // control point offset vertical
+            xe = this.w,           // x-end
+            ye = this.h,           // y-end
+            xm = this.w / 2,       // x-middle
+            ym = this.h / 2;       // y-middle
+
+        this.vtx = [
+            0,ym,
+            0,ym-oy,xm - ox,0,xm,0,
+            xm + ox, 0, xe, ym - oy, xe, ym,
+            xe, ym + oy, xm + ox, ye, xm, ye,
+            xm - ox, ye, 0, ym + oy, 0, ym,
+            ]
+        this.cmds = ['m','c','c','c','c'];
     }
 });
 /**
@@ -10476,27 +10434,17 @@ soya2d.class("soya2d.Ellipse",{
  * @param {Array} data.vtx 一维顶点数组 [x1,y1, x2,y2, ...]
  */
 soya2d.class("soya2d.Poly",{
-    extends:soya2d.DisplayObjectContainer,
+    extends:VS,
     constructor:function(data){
         data = data||{};
         this.bounds = new soya2d.Polygon(data.vtx);
         this.fillStyle = data.fillStyle || 'transparent';
-    },
-    onRender:function(g){
-        g.beginPath();
-        g.fillStyle(this.fillStyle);
-        g.polygon(this.vtx);
-        g.fill();
-        g.closePath();
-        if(this.lineWidth>0){
-            g.lineStyle(this.lineWidth);
-            g.strokeStyle(this.strokeStyle);
-            g.stroke();
-        }
+
+        this.vtx = data.vtx;
     }
 });
 /**
- * 可以进行矩形填充或线框绘制的显示对象
+ * 可以进行(圆角)矩形填充或线框绘制的显示对象
  * @class soya2d.Rect
  * @constructor
  * @extends soya2d.DisplayObjectContainer
@@ -10504,25 +10452,24 @@ soya2d.class("soya2d.Poly",{
  * @param {String} data.fillStyle 填充样式
  * @param {String} data.strokeStyle 线框样式
  * @param {String} data.lineWidth 线条宽度
+ * @param {Number|Array} data.r 圆角半径，或者4个角的半径数组 [左上，右上，右下，左下]
  */
 soya2d.class("soya2d.Rect",{
-    extends:soya2d.DisplayObjectContainer,
+    extends:VS,
     constructor:function(data){
         data = data||{};
         this.fillStyle = data.fillStyle || 'transparent';
-    },
-    onRender:function(g){
-        g.beginPath();
-        g.fillStyle(this.fillStyle);
-        g.rect(0,0,this.w,this.h);
-        g.fill();
-        g.closePath();
 
-        if(this.lineWidth>0){
-            g.lineStyle(this.lineWidth);
-            g.strokeStyle(this.strokeStyle);
-            g.stroke();
-        }
+        //计算path
+        this.vtx = [
+            0,this.r,   0,0,0,0,this.r,0,   this.w - this.r,0,
+                                                this.w,0,this.w,0,this.w,this.r,
+                                                this.w,this.h-this.r,
+                                                this.w,this.h,this.w,this.h,this.w-this.r,this.h,
+                        this.r,this.h,
+            0,this.h,0,this.h,0,this.h-this.r
+            ];
+        this.cmds = ['m','c','l','c','l','c','l','c'];
     }
 });
 /**
@@ -10539,54 +10486,34 @@ soya2d.class("soya2d.Rect",{
  * @param {Number} [data.r] 内半径。默认和外半径相同
  */
 soya2d.class("soya2d.RPoly",{
-    extends:soya2d.DisplayObjectContainer,
+    extends:VS,
     constructor:function(data){
         data = data||{};
         this.fillStyle = data.fillStyle || 'transparent';
-    },
-    onRender:function(g){
-        g.beginPath();
-        g.fillStyle(this.fillStyle);
-        g.regularPolygon(this.w/2,this.h/2,this.edgeCount,this.r||this.w/2,this.w/2);
-        g.closePath();
-        g.fill();
-        if(this.lineWidth>0){
-            g.lineStyle(this.lineWidth);
-            g.strokeStyle(this.strokeStyle);
-            g.stroke();
+
+        var r1 = this.r||this.w/2
+        var r2 = this.w/2;
+        var cx,cy,ec = this.edgeCount||0;
+        cx = cx||0;
+        cy = cy||0;
+        ec = ec<3?3:ec;
+        var M = soya2d.Math;
+        var vtx = [];
+        var step = 360/ec;
+        for(var i=0,j=0;i<360;i+=step,j++){
+            var tr = r1;
+            if(r2){
+                if(j%2!==0)tr=r1;
+                else{tr=r2};
+            }
+
+            if(!M.COSTABLE[i]){
+                vtx.push(cx+tr*M.COSTABLE[Math.round(i)],cy+tr*M.SINTABLE[Math.round(i)]);
+            }else{
+                vtx.push(cx+tr*M.COSTABLE[i],cy+tr*M.SINTABLE[i]);
+            }
         }
-    }
-});
-/**
- * 可以进行圆角矩形填充或线框绘制的显示对象
- * @class soya2d.RRect
- * @constructor
- * @extends soya2d.DisplayObjectContainer
- * @param {Object} data 所有父类参数,以及新增参数
- * @param {String} data.fillStyle 填充样式
- * @param {String} data.strokeStyle 线框样式
- * @param {number} data.lineWidth 线条宽度
- * @param {number} data.r 圆角半径
- */
-soya2d.class("soya2d.RRect",{
-    extends:soya2d.DisplayObjectContainer,
-    constructor:function(data){
-        data = data||{};
-        this.fillStyle = data.fillStyle || 'transparent';
-        this.r = data.r || 0;
-    },
-    onRender:function(g){
-        g.beginPath();
-        g.moveTo(0,0);
-        g.fillStyle(this.fillStyle);
-        g.roundRect(0,0,this.w,this.h,this.r<0?0:this.r);
-        g.fill();
-        if(this.lineWidth>0){
-            g.lineStyle(this.lineWidth);
-            g.strokeStyle(this.strokeStyle);
-            g.stroke();
-        }
-        g.closePath();
+        this.vtx = vtx;
     }
 });
 /**
@@ -10632,7 +10559,6 @@ soya2d.class("soya2d.EArc",{
 soya2d.module.install('shapes',{
     onInit:function(game){
         game.objects.register('rect',soya2d.Rect);
-        game.objects.register('rrect',soya2d.RRect);
         game.objects.register('poly',soya2d.Poly);
         game.objects.register('rpoly',soya2d.RPoly);
         game.objects.register('arc',soya2d.Arc);

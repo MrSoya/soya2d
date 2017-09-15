@@ -169,110 +169,6 @@ soya2d.CanvasGraphics = function(ctx){
         this.ctx.rect(x,y,w,h);
         return this;
     };
-    /**
-     * 向当前path中添加多边形subpath，边的数量由顶点数决定
-     * @method polygon
-     * @param {Array} vtx 一维顶点数组,坐标为相对中心点。<br/>
-     * 比如绘制[0,0]点为重心的正三角形:<br/>
-     * ```
-     * [0,-5,//top point<br/>
-     * -5,x,//left point<br/>
-     * 5,y]
-     * ```
-     * 
-     * @chainable
-     */
-    this.polygon = function(vtx){
-        var c = this.ctx;
-        var l = vtx.length - 1;
-
-        c.moveTo(vtx[0],vtx[1]);
-        for(var i=2;i<l;i+=2){
-            c.lineTo(vtx[i],vtx[i+1]);
-        }
-        return this;
-    };
-    /**
-     * 向当前path中添加椭圆形subpath
-     * @method ellipse
-     * @param {Number} x
-     * @param {Number} y
-     * @param {Number} w
-     * @param {Number} h
-     * @chainable
-     */
-    this.ellipse = function(x,y,w,h){
-        var kappa = 0.5522848;
-        var ox = (w / 2) * kappa, // control point offset horizontal
-            oy = (h / 2) * kappa, // control point offset vertical
-            xe = x + w,           // x-end
-            ye = y + h,           // y-end
-            xm = x + w / 2,       // x-middle
-            ym = y + h / 2;       // y-middle
-        var c = this.ctx;
-        c.moveTo(x, ym);
-        c.bezierCurveTo(x, ym - oy, xm - ox, y, xm, y);
-        c.bezierCurveTo(xm + ox, y, xe, ym - oy, xe, ym);
-        c.bezierCurveTo(xe, ym + oy, xm + ox, ye, xm, ye);
-        c.bezierCurveTo(xm - ox, ye, x, ym + oy, x, ym);
-        return this;
-    };
-    /**
-     * 向当前path中添加圆角矩形subpath
-     * @method roundRect
-     * @param {Number} x
-     * @param {Number} y
-     * @param {Number} w
-     * @param {Number} h
-     * @param {Number} r 圆角半径
-     * @chainable
-     */
-    this.roundRect = function(x,y,w,h,r){
-        var c = this.ctx;
-        c.moveTo(x+r,y);
-        c.lineTo(x+(w-(r<<1)),y);
-        c.arc(x+w-r,y+r,r,Math.PI*3/2,0);
-        c.lineTo(x+w,y+h-r);
-        c.arc(x+w-r,y+h-r,r,0,soya2d.Math.PID2);
-        c.lineTo(x+r,y+h);
-        c.arc(x+r,y+h-r,r,soya2d.Math.PID2,Math.PI);
-        c.lineTo(x,y+r);
-        c.arc(x+r,y+r,r,Math.PI,Math.PI*3/2);
-        return this;
-    };
-    /**
-     * 向当前path中添加正多边形subpath
-     * @method regularPolygon
-     * @param {Number} cx 多边形重心
-     * @param {Number} cy 多边形重心
-     * @param {Number} ec 多边形的边数，不能小于3
-     * @param {Number} r1 半径1
-     * @param {Number} r2 半径2
-     * @chainable
-     */
-    this.regularPolygon = function(cx,cy,ec,r1,r2){
-        cx = cx||0;
-        cy = cy||0;
-        ec = ec<3?3:ec;
-        var M = soya2d.Math;
-        var vtx = [];
-        var step = 360/ec;
-        for(var i=0,j=0;i<360;i+=step,j++){
-            var tr = r1;
-            if(r2){
-                if(j%2!==0)tr=r1;
-                else{tr=r2};
-            }
-
-            if(!M.COSTABLE[i]){
-                vtx.push(cx+tr*M.COSTABLE[Math.round(i)],cy+tr*M.SINTABLE[Math.round(i)]);
-            }else{
-                vtx.push(cx+tr*M.COSTABLE[i],cy+tr*M.SINTABLE[i]);
-            }
-        }
-        this.polygon(vtx);
-        return this;
-    };
 
     /**
      * 设置或者获取当前绘图环境的图元混合模式
@@ -433,52 +329,48 @@ soya2d.CanvasGraphics = function(ctx){
     };
 
     /**
-     * 向当前path中添加指定的subpath
+     * 向当前path中添加指定的顶点以及绘制类型
+     * @method path
+     * @param {Array} vtx 一维顶点数组,坐标为相对图形的左上角。<br/>
+     * 比如绘制[0,0]点为重心的正三角形:<br/>
+     * ```
+     * [0,-5,//top point<br/>
+     * -5,x,//left point<br/>
+     * 5,y]
      * 
-     * @param {soya2d.Path} path 路径结构
+     * @param {Array} types SVG标准绘制类型,包括 m/l/c/q/z
      * @method path
      * @chainable
      */
-    this.path = function(path){
-        path._insQ.forEach(function(ins){
-            var type = ins[0].toLowerCase();
+    this.path = function(vtx,types){
+        if(types && (types instanceof Array)){
+            types = types.concat();
+        }else{
+            types = [];
+        }
+        for(var i=0;i<vtx.length;){
+            var type = types.shift();
+            var step = 2;
             switch(type){
-                case 'm':this.ctx.moveTo(ins[1][0],ins[1][1]);break;
-                case 'l':
-                    var xys = ins[1];
-                    if(xys.length>2){
-                        for(var i=0;i<xys.length;i+=2){
-                            this.ctx.lineTo(xys[i],xys[i+1]);
-                        }
-                    }else{
-                        this.ctx.lineTo(xys[0],xys[1]);
-                    }
-                    break;
+                case 'm':this.ctx.moveTo(vtx[i],vtx[i+1]);break;
                 case 'c':
-                    var xys = ins[1];
-                    if(xys.length>6){
-                        for(var i=0;i<xys.length;i+=6){
-                            this.ctx.bezierCurveTo((xys[i]),(xys[i+1]),(xys[i+2]),
-                                                (xys[i+3]),(xys[i+4]),(xys[i+5]));
-                        }
-                    }else{
-                        this.ctx.bezierCurveTo(xys[0],xys[1],xys[2],xys[3],xys[4],xys[5]);
-                    }
+                    this.ctx.bezierCurveTo(vtx[i],vtx[i+1],vtx[i+2],vtx[i+3],vtx[i+4],vtx[i+5]);
+                    step = 6;
                     break;
                 case 'q':
-                    var xys = ins[1];
-                    if(xys.length>4){
-                        for(var i=0;i<xys.length;i+=4){
-                            this.ctx.quadraticCurveTo((xys[i]),(xys[i+1]),(xys[i+2]),
-                                                (xys[i+3]));
-                        }
-                    }else{
-                        this.ctx.quadraticCurveTo(xys[0],xys[1],xys[2],xys[3]);
-                    }
+                    this.ctx.quadraticCurveTo(vtx[i],vtx[i+1],vtx[i+2],vtx[i+3]);
+                    step = 4;
                     break;
                 case 'z':this.ctx.closePath();break;
+                case 'l':
+                default:
+                    this.ctx.lineTo(vtx[i],vtx[i+1]);break;
             }
-        },this);
+
+            i += step;
+        }//over for
+        
+        return this;
     }
 
     /**
