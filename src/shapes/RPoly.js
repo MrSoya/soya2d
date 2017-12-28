@@ -17,11 +17,14 @@ soya2d.class("soya2d.RPoly",{
         data = data||{};
         this.fillStyle = data.fillStyle || 'transparent';
 
-        var r1 = this.r||this.w/2
+        this._reCalc();
+    },
+    _reCalc:function(){
+        var r1 = this.r||this.w/2;
         var r2 = this.w/2;
-        var cx,cy,ec = this.edgeCount||0;
-        cx = cx||0;
-        cy = cy||0;
+        var cx = this.w/2,
+            cy = this.h/2,
+            ec = this.edgeCount||0;
         ec = ec<3?3:ec;
         var M = soya2d.Math;
         var vtx = [];

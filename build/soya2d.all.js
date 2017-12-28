@@ -6,7 +6,7 @@
  * Released under the MIT license
  *
  * website: http://soya2d.com
- * last build: 2017-09-14
+ * last build: 2017-09-18
  */
 !function (global) {
 	'use strict';
@@ -10338,6 +10338,9 @@ var VS = soya2d.class("",{
             g.strokeStyle(this.strokeStyle);
             g.stroke();
         }
+    },
+    rebuild:function(){
+        this._reCalc();
     }
 });
 /**
@@ -10403,6 +10406,10 @@ soya2d.class("soya2d.Ellipse",{
         data = data||{};
         this.fillStyle = data.fillStyle || 'transparent';
 
+        this._reCalc();
+        this.cmds = ['m','c','c','c','c'];
+    },
+    _reCalc:function(){
         var vtx = [];
         var kappa = 0.5522848;
         var ox = (this.w / 2) * kappa, // control point offset horizontal
@@ -10419,7 +10426,6 @@ soya2d.class("soya2d.Ellipse",{
             xe, ym + oy, xm + ox, ye, xm, ye,
             xm - ox, ye, 0, ym + oy, 0, ym,
             ]
-        this.cmds = ['m','c','c','c','c'];
     }
 });
 /**
@@ -10459,7 +10465,12 @@ soya2d.class("soya2d.Rect",{
     constructor:function(data){
         data = data||{};
         this.fillStyle = data.fillStyle || 'transparent';
+        this.r = data.r || 0;
 
+        this._reCalc();
+        this.cmds = ['m','c','l','c','l','c','l','c'];
+    },
+    _reCalc:function(){
         //计算path
         this.vtx = [
             0,this.r,   0,0,0,0,this.r,0,   this.w - this.r,0,
@@ -10468,8 +10479,7 @@ soya2d.class("soya2d.Rect",{
                                                 this.w,this.h,this.w,this.h,this.w-this.r,this.h,
                         this.r,this.h,
             0,this.h,0,this.h,0,this.h-this.r
-            ];
-        this.cmds = ['m','c','l','c','l','c','l','c'];
+        ];
     }
 });
 /**
@@ -10491,6 +10501,9 @@ soya2d.class("soya2d.RPoly",{
         data = data||{};
         this.fillStyle = data.fillStyle || 'transparent';
 
+        this._reCalc();
+    },
+    _reCalc:function(){
         var r1 = this.r||this.w/2
         var r2 = this.w/2;
         var cx,cy,ec = this.edgeCount||0;

@@ -14,6 +14,10 @@ soya2d.class("soya2d.Ellipse",{
         data = data||{};
         this.fillStyle = data.fillStyle || 'transparent';
 
+        this._reCalc();
+        this.cmds = ['m','c','c','c','c'];
+    },
+    _reCalc:function(){
         var vtx = [];
         var kappa = 0.5522848;
         var ox = (this.w / 2) * kappa, // control point offset horizontal
@@ -30,6 +34,5 @@ soya2d.class("soya2d.Ellipse",{
             xe, ym + oy, xm + ox, ye, xm, ye,
             xm - ox, ye, 0, ym + oy, 0, ym,
             ]
-        this.cmds = ['m','c','c','c','c'];
     }
 });

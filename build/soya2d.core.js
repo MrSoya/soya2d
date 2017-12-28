@@ -6,7 +6,7 @@
  * Released under the MIT license
  *
  * website: http://soya2d.com
- * last build: 2017-09-14
+ * last build: 2017-09-18
  */
 !function (global) {
 	'use strict';

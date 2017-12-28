@@ -14,7 +14,12 @@ soya2d.class("soya2d.Rect",{
     constructor:function(data){
         data = data||{};
         this.fillStyle = data.fillStyle || 'transparent';
+        this.r = data.r || 0;
 
+        this._reCalc();
+        this.cmds = ['m','c','l','c','l','c','l','c'];
+    },
+    _reCalc:function(){
         //计算path
         this.vtx = [
             0,this.r,   0,0,0,0,this.r,0,   this.w - this.r,0,
@@ -23,7 +28,6 @@ soya2d.class("soya2d.Rect",{
                                                 this.w,this.h,this.w,this.h,this.w-this.r,this.h,
                         this.r,this.h,
             0,this.h,0,this.h,0,this.h-this.r
-            ];
-        this.cmds = ['m','c','l','c','l','c','l','c'];
+        ];
     }
 });
