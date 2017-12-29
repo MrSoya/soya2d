@@ -8,10 +8,10 @@
  *   ui:'ui.xml'
  * });
  * ```
- *  @class Loader
+ *  @class soya2d.Loader
  *  @extends Signal
  */
-var Loader = soya2d.class("",{
+soya2d.class("soya2d.Loader",{
     extends:Signal,
     timeout:5000,
     constructor:function(game){
@@ -21,100 +21,6 @@ var Loader = soya2d.class("",{
         this.__assets = game.assets.__assets;
 
         this.baseUrl = '';
-
-        var show = true;
-        Object.defineProperties(this,{
-            /**
-             * 是否显示默认的进度条
-             * @property show
-             * @type {Boolean}
-             */
-            show : {
-                set:function(v){
-                    show = v;
-                },
-                get:function(){
-                    return show;
-                }
-            },
-            /**
-             * 进度条文字样式
-             * @property fillStyle
-             * @type {String}
-             */
-            fillStyle:{
-                set:function(v){
-                    this.__tip.fillStyle = v;
-                },
-                get:function(){
-                    return this.__tip.fillStyle;
-                }
-            }
-        });
-
-        this.__logo = new soya2d.Shape({
-            game:game,
-            opacity:0,
-            x: game.w/2 - 11,
-            y: game.h/2 - 30 - 20,
-            z:9999
-        });
-        var p1 = new soya2d.Shape({
-            w:23,h:20,
-            skewY:-30,
-            game:game,
-            fillStyle:'#69CA14',
-            onRender:function(g){
-                g.beginPath();
-                g.fillStyle(this.fillStyle);
-                g.rect(0,0,this.w,this.h);
-                g.fill();
-                g.closePath();
-            }
-        });
-        var p2 = new soya2d.Shape({
-            game:game,
-            w:23,h:20,
-            skewY:30,
-            y:13,
-            opacity:.9,
-            fillStyle:'#2A5909',
-            onRender:function(g){
-                g.beginPath();
-                g.fillStyle(this.fillStyle);
-                g.rect(0,0,this.w,this.h);
-                g.fill();
-                g.closePath();
-            }
-        });
-        var p3 = new soya2d.Shape({
-            game:game,
-            w:23,h:20,
-            skewY:-30,
-            y:28,
-            blendMode:soya2d.BLEND_LIGHTER,
-            fillStyle:'#69CA14',
-            onRender:function(g){
-                g.beginPath();
-                g.fillStyle(this.fillStyle);
-                g.rect(0,0,this.w,this.h);
-                g.fill();
-                g.closePath();
-            }
-        });
-        
-        var font = new soya2d.Font('normal 400 23px/normal Arial,Helvetica,sans-serif');
-        this.__tip = new soya2d.Text({
-            game:game,
-            x: -70,
-            y: 60 + 10,
-            font:font,
-            text:'Loading... 0/0',
-            w:200,
-            fillStyle: '#000'
-        });
-        this.__logo.add(p1,p2,p3,this.__tip);
-        game.world.add(this.__logo);
     },
     __addToAssets:function(type,data){
         for(var k in data){
@@ -139,6 +45,7 @@ var Loader = soya2d.class("",{
             });
         }
         this.__addToAssets('image',map);
+        return this;
     },
     /**
      * 加载声音
@@ -148,6 +55,7 @@ var Loader = soya2d.class("",{
      */
     sound:function(data){
         this.__addToAssets('sound',data);
+        return this;
     },
     /**
      * 加载字体
@@ -156,6 +64,7 @@ var Loader = soya2d.class("",{
      */
     font:function(data){
         this.__addToAssets('font',data);
+        return this;
     },
     /**
      * 加载图像文字
@@ -165,6 +74,7 @@ var Loader = soya2d.class("",{
      */
     imageFont:function(data){
         this.__addToAssets('imageFont',data);
+        return this;
     },
     /**
      * 加载图像集
@@ -188,6 +98,7 @@ var Loader = soya2d.class("",{
             map[k] = [url,w,h];
         }
         this.__addToAssets('atlas',map);
+        return this;
     },
     /**
      * 加载文本
@@ -196,6 +107,7 @@ var Loader = soya2d.class("",{
      */
     text:function(data){
         this.__addToAssets('text',data);
+        return this;
     },
     /**
      * 加载XML
@@ -204,6 +116,7 @@ var Loader = soya2d.class("",{
      */
     xml:function(data){
         this.__addToAssets('xml',data);
+        return this;
     },
     /**
      * 加载json
@@ -212,6 +125,7 @@ var Loader = soya2d.class("",{
      */
     json:function(data){
         this.__addToAssets('json',data);
+        return this;
     },
     __loadImage:function(baseUrl,url,onload){
         var img = new Image();
@@ -448,7 +362,7 @@ var Loader = soya2d.class("",{
         });
     },
     __onLoad:function(type,rs){
-        this.__tip.setText('Loading... '+ (++this.__index) +'/'+this.__assetsQueue.length);
+        ++this.__index;
         if(type === 'load'){
             this.emit(type,rs,this.__index,this.__assetsQueue.length);
         }else{
@@ -457,8 +371,6 @@ var Loader = soya2d.class("",{
         if(this.__index == this.__assetsQueue.length){
             this.__assetsQueue = [];
             this.emit('end');
-            this.__logo.parent.remove(this.__logo);
-            this.__logo.opacity = 0;
         }
     },
     /**
@@ -467,16 +379,127 @@ var Loader = soya2d.class("",{
      */
     start:function(){
         this.__index = 0;
+        this.__loadAssets();
+        return this;
+    }
+});
+var Loader = soya2d.class("",{
+    extends:soya2d.Loader,
+    constructor:function(game){
+        var show = true;
+        Object.defineProperties(this,{
+            /**
+             * 是否显示默认的进度条
+             * @property show
+             * @type {Boolean}
+             */
+            show : {
+                set:function(v){
+                    show = v;
+                },
+                get:function(){
+                    return show;
+                }
+            },
+            /**
+             * 进度条文字样式
+             * @property fillStyle
+             * @type {String}
+             */
+            fillStyle:{
+                set:function(v){
+                    this.__tip.fillStyle = v;
+                },
+                get:function(){
+                    return this.__tip.fillStyle;
+                }
+            }
+        });
+
+        this.__logo = new soya2d.Shape({
+            game:game,
+            opacity:0,
+            x: game.w/2 - 11,
+            y: game.h/2 - 30 - 20,
+            z:9999
+        });
+        var p1 = new soya2d.Shape({
+            w:23,h:20,
+            skewY:-30,
+            game:game,
+            fillStyle:'#69CA14',
+            onRender:function(g){
+                g.beginPath();
+                g.fillStyle(this.fillStyle);
+                g.rect(0,0,this.w,this.h);
+                g.fill();
+                g.closePath();
+            }
+        });
+        var p2 = new soya2d.Shape({
+            game:game,
+            w:23,h:20,
+            skewY:30,
+            y:13,
+            opacity:.9,
+            fillStyle:'#2A5909',
+            onRender:function(g){
+                g.beginPath();
+                g.fillStyle(this.fillStyle);
+                g.rect(0,0,this.w,this.h);
+                g.fill();
+                g.closePath();
+            }
+        });
+        var p3 = new soya2d.Shape({
+            game:game,
+            w:23,h:20,
+            skewY:-30,
+            y:28,
+            blendMode:soya2d.BLEND_LIGHTER,
+            fillStyle:'#69CA14',
+            onRender:function(g){
+                g.beginPath();
+                g.fillStyle(this.fillStyle);
+                g.rect(0,0,this.w,this.h);
+                g.fill();
+                g.closePath();
+            }
+        });
+        
+        var font = new soya2d.Font('normal 400 23px/normal Arial,Helvetica,sans-serif');
+        this.__tip = new soya2d.Text({
+            game:game,
+            x: -70,
+            y: 60 + 10,
+            font:font,
+            text:'Loading... 0/0',
+            w:200,
+            fillStyle: '#000'
+        });
+        this.__logo.add(p1,p2,p3,this.__tip);
+        game.world.add(this.__logo);
+    },
+    __onLoad:function(type,rs){
+        this._super.__onLoad.call(this,type,rs);
+        this.__tip.setText('Loading... '+ this.__index +'/'+this.__assetsQueue.length);
+        
+        if(this.__index>0 && this.__assetsQueue.length<1){
+            this.__logo.parent.remove(this.__logo);
+            this.__logo.opacity = 0;
+        }
+    },
+    start:function(){
         if(this.show){
             if(!this.__logo.parent){
                 this.game.world.add(this.__logo);
             }
             this.__logo.opacity = 1;
         }
-
-        this.__loadAssets();
+        this._super.start.call(this);
     }
 });
+
 function xhrLoad(url,timeout,ontimeout,onerror,onload){
     var xhr = new XMLHttpRequest();
     xhr.open('get',url,true);
