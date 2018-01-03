@@ -254,6 +254,14 @@ soya2d.CanvasRenderer = function(data){
         if(ro.mask instanceof soya2d.DisplayObject){
             ctx.restore();
         }
+        //apply alpha
+        if(rs && rs.opacity!==ctx.globalAlpha){
+            ctx.globalAlpha = rs.opacity;
+        }
+        //apply blendMode
+        if(rs && rs.blendMode !== ctx.globalCompositeOperation){
+            ctx.globalCompositeOperation = rs.blendMode;
+        }
     }
 
     /**
